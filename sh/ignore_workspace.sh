@@ -42,6 +42,9 @@ main() {
             echo "状态: 已成功从 Git 索引中移除（本地文件已保留）。"
             
             # 2. 将目标添加到 .gitignore（如果尚未添加）
+            # 确保 .gitignore 存在，避免读取报错
+            touch .gitignore
+
             # 使用 tr -d '\r' 处理可能的 Windows 换行符，确保匹配准确
             if ! grep -qxF "$TARGET" <(tr -d '\r' < .gitignore) 2>/dev/null; then
                 echo "状态: 正在将 '$TARGET' 添加到 .gitignore..."

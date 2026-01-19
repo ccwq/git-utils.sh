@@ -1,2 +1,4 @@
 - 使用中文
-- 当前环境是windows, 调用git bash方式类似下面的 git bash -c "./inspect/adb-wifi.sh"
+- 当前环境是windows, 调用git bash方式类似下面的 git bash -c "./foo/bar.sh"
+    - 如果找不到git bash命令, 需要根据where.exe git来获取到git-bash地址来执行
+- 脚本需要遵守/prompts/spce.md规范
