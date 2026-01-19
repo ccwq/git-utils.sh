@@ -1,0 +1,13 @@
+{
+  "name": "git-utils.sh",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "git bash -c \"./__test__/ignore_workspace.test.sh\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.21.0"
+}

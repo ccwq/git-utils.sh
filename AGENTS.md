@@ -1,0 +1,2 @@
+- 使用中文
+- 当前环境是windows, 调用git bash方式类似下面的 git bash -c "./inspect/adb-wifi.sh"
