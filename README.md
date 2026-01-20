@@ -77,6 +77,36 @@ git bash -c "./sh/replace_cn_punc_.sh README.md"
 git bash -c "./sh/replace_cn_punc_.sh \"docs/*.md\""
 ```
 
+### 3. 基于提交提取变更文件 (`sh/patch-file-by-comnos.sh`)
+
+根据 Git 提交记录（commit hash）提取变更的文件，并将**当前工作区中的最新版本**复制到指定目录。支持保持原有目录结构。
+
+适用于需要将某次提交涉及的文件（包括新增和修改）打包导出的场景。
+
+#### 用法
+
+```bash
+# 基本用法
+./sh/patch-file-by-comnos.sh [选项] [commit1] [commit2]
+```
+
+参数说明：
+- `commit1` (可选): 
+    - 若仅指定 `commit1`: 对比该提交与当前工作区。
+    - 若指定 `commit1` 和 `commit2`: 对比这两个提交。
+- `commit2` (可选): 第二个提交哈希。
+- `-o, --output <dir>`: 指定输出目录 (默认: `./path-files/YYYY-MM-DD_HH-MM-SS/`)。
+
+#### Windows (Git Bash) 调用示例
+
+```bash
+# 对比最近一次提交与当前工作区，导出变更文件
+git bash -c "./sh/patch-file-by-comnos.sh HEAD~1"
+
+# 对比两个提交，导出变更文件到指定目录
+git bash -c "./sh/patch-file-by-comnos.sh <commit_hash_A> <commit_hash_B> -o ./my-patch"
+```
+
 ---
 
 ## 开发与测试
