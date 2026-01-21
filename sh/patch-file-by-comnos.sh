@@ -14,7 +14,7 @@ show_help() {
     echo ""
     echo "选项:"
     echo "  -h, --help       显示此帮助信息"
-    echo "  -o, --output     指定输出目录 (默认: ./path-files/YYYY-MM-DD_HH-MM-SS/)"
+    echo "  -o, --output     指定输出目录 (默认: ./patch-files/YYYY-MM-DD_HH-MM-SS/)"
     echo ""
     echo "示例:"
     echo "  $0 HEAD~1"
@@ -24,7 +24,7 @@ show_help() {
 main() {
     local output_dir=""
     local commits=()
-    local default_output_base="./path-files"
+    local default_output_base="./patch-files"
 
     # 解析参数
     while [[ $# -gt 0 ]]; do
@@ -74,9 +74,9 @@ main() {
     if [[ -z "$output_dir" ]]; then
         local timestamp=$(date +%Y-%m-%d_%H-%M-%S)
         # 默认路径我们假设是相对于当前执行位置，还是 repo root？
-        # 根据 prompt "放到 ./path-files/date-str/ 下面"，通常指当前目录。
+        # 根据 prompt "放到 ./patch-files/date-str/ 下面"，通常指当前目录。
         # 我们可以直接使用绝对路径来避免混淆。
-        output_dir="$(pwd)/path-files/${timestamp}"
+        output_dir="$(pwd)/patch-files/${timestamp}"
     else
         # 转换为绝对路径
         if [[ "$output_dir" != /* && "$output_dir" != ?:* ]]; then
