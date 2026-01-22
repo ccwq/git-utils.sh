@@ -33,7 +33,7 @@ test_help() {
     
     # 运行脚本帮助
     # 注意：需要引用正确路径
-    output=$("$BASE_DIR/../sh/patch-file-by-comnos.sh" -h)
+    output=$("$BASE_DIR/../sh/wsh-fpatch.sh" -h)
     
     if echo "$output" | grep -q "使用方法"; then
         result="PASS"
@@ -64,7 +64,7 @@ test_one_commit() {
     
     # 验证
     local out_dir="output_one"
-    "$BASE_DIR/../sh/patch-file-by-comnos.sh" "$commit1" -o "$out_dir" > /dev/null
+    "$BASE_DIR/../sh/wsh-fpatch.sh" "$commit1" -o "$out_dir" > /dev/null
     
     if [[ -f "$out_dir/file1.txt" ]] && [[ -f "$out_dir/file2.txt" ]]; then
         # 移除 Windows 回车符进行比较
@@ -109,7 +109,7 @@ test_two_commits() {
     
     # 运行脚本: c1 vs c2 (fileA changed, fileB added)
     local out_dir="output_two"
-    "$BASE_DIR/../sh/patch-file-by-comnos.sh" "$c1" "$c2" -o "$out_dir" > /dev/null
+    "$BASE_DIR/../sh/wsh-fpatch.sh" "$c1" "$c2" -o "$out_dir" > /dev/null
     
     if [[ -f "$out_dir/fileA.txt" ]] && [[ -f "$out_dir/fileB.txt" ]]; then
         contentA=$(tr -d '\r' < "$out_dir/fileA.txt")
@@ -146,7 +146,7 @@ test_missing_file() {
     
     # 运行脚本: c1 vs workspace (fileDel changed/deleted)
     local out_dir="output_del"
-    "$BASE_DIR/../sh/patch-file-by-comnos.sh" "$c1" -o "$out_dir" > /dev/null
+    "$BASE_DIR/../sh/wsh-fpatch.sh" "$c1" -o "$out_dir" > /dev/null
     
     if [[ ! -e "$out_dir/fileDel.txt" ]]; then
         result="PASS"

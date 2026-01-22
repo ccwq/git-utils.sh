@@ -6,7 +6,7 @@ source "$(dirname "$0")/test_utils.sh"
 # 路径配置
 BASE_DIR=$(cd "$(dirname "$0")" && pwd)
 PROJECT_ROOT=$(cd "$BASE_DIR/.." && pwd)
-SCRIPT_TO_TEST="$PROJECT_ROOT/sh/ignore_workspace.sh"
+SCRIPT_TO_TEST="$PROJECT_ROOT/sh/wsh-real-ignore.sh"
 TEST_DIR="$PROJECT_ROOT/test_playground"
 
 # 设置测试环境

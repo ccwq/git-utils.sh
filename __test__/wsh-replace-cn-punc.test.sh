@@ -45,17 +45,17 @@ test_replace_punctuation() {
     local target_file="test_playground/punc_test/test1.txt"
     
     # 运行脚本
-    # 注意：根据当前目录结构，脚本在 ../sh/replace_cn_punc_.sh
+    # 注意：根据当前目录结构，脚本在 ../sh/wsh-replace-cn-punc.sh
     # 但我们通常在根目录或 __test__ 目录运行。
     # 假设我们在项目根目录运行此测试脚本，或者通过 absolute path 引用。
     # 这里我们尝试找到脚本路径。
     local script_path
-    if [ -f "./sh/replace_cn_punc_.sh" ]; then
-        script_path="./sh/replace_cn_punc_.sh"
-    elif [ -f "../sh/replace_cn_punc_.sh" ]; then
-        script_path="../sh/replace_cn_punc_.sh"
+    if [ -f "./sh/wsh-replace-cn-punc.sh" ]; then
+        script_path="./sh/wsh-replace-cn-punc.sh"
+    elif [ -f "../sh/wsh-replace-cn-punc.sh" ]; then
+        script_path="../sh/wsh-replace-cn-punc.sh"
     else
-        log_fail "找不到目标脚本 replace_cn_punc_.sh"
+        log_fail "找不到目标脚本 wsh-replace-cn-punc.sh"
         local end_time=$(current_time)
         record_test_result "验证中文标点替换" "FAIL" "$(calc_duration $start_time $end_time)" "找不到目标脚本"
         return
@@ -112,10 +112,10 @@ test_ignore_english() {
     fi
 
     local script_path
-    if [ -f "./sh/replace_cn_punc_.sh" ]; then
-        script_path="./sh/replace_cn_punc_.sh"
-    elif [ -f "../sh/replace_cn_punc_.sh" ]; then
-        script_path="../sh/replace_cn_punc_.sh"
+    if [ -f "./sh/wsh-replace-cn-punc.sh" ]; then
+        script_path="./sh/wsh-replace-cn-punc.sh"
+    elif [ -f "../sh/wsh-replace-cn-punc.sh" ]; then
+        script_path="../sh/wsh-replace-cn-punc.sh"
     fi
     
     bash "$script_path" "$target_file" > /dev/null

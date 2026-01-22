@@ -31,7 +31,7 @@ git submodule add https://github.com/shellspec/shellspec .vendor/shellspec
 
 ## 3. 目录结构说明
 
-- `sh/`: 存放源代码脚本（如 `ignore_workspace.sh`）。
+- `sh/`: 存放源代码脚本（如 `wsh-real-ignore.sh`）。
 - `__test__/`: 存放测试用例（`*_spec.sh`）。
 - `.vendor/`: 存放第三方依赖（ShellSpec）。
 - `.shellspec`: ShellSpec 配置文件，指定了默认测试目录为 `__test__`。
@@ -55,7 +55,7 @@ bash ./.vendor/shellspec/shellspec
 ```text
 Running: /bin/sh [bash 4.4.23(1)-release]
 ...
-sh/ignore_workspace.sh
+sh/wsh-real-ignore.sh
   show_help
     outputs help message
   main
