@@ -7,9 +7,9 @@ show_help() {
     echo "该脚本用于基于 Git 提交记录提取变更文件，并将工作区中的最新版本复制到指定目录。"
     echo ""
     echo "参数:"
-    echo "  commit1          Git 提交哈希值（可选）。"
-    echo "                   - 如果仅提供 commit1：对比该提交与当前工作区。"
-    echo "                   - 如果提供 commit1 和 commit2：对比这两个提交。"
+    echo "  commit1          Git 提交哈希值(ex: head~1 或 1234567, breach1name)。"
+    echo "                   - 如果仅提供 commit1:对比该提交与当前工作区。"
+    echo "                   - 如果提供 commit1 和 commit2:对比这两个提交。"
     echo "  commit2          Git 提交哈希值（可选）。"
     echo ""
     echo "选项:"
@@ -17,8 +17,11 @@ show_help() {
     echo "  -o, --output     指定输出目录 (默认: ./patch-files/YYYY-MM-DD_HH-MM-SS/)"
     echo ""
     echo "示例:"
-    echo "  $0 HEAD~1"
-    echo "  $0 HEAD~5 HEAD~2 -o ./my-patch"
+    echo "  $0 head #抽取当前未提交的内容" 
+    echo "  $0 head~3 #第3(时间逆序)个提交和当前工作区的差异"
+    echo "  $0 c0ccf16d39d229954023921efecf18fb5adc025c #指定提交和当前工作区的差异"
+    echo "  $0 c0ccf1 #使用提交id的缩写"
+    echo "  $0 HEAD~5 HEAD~2 -o ./my-patch #第5个提交和第2个提交的差异，放到 ./my-patch/ 下面" 
 }
 
 main() {
