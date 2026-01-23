@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "git bash -c \"./__test__/ignore_workspace.test.sh\""
+    "test": "git bash -c \"./test-all.sh\""
   },
   "keywords": [],
   "author": "",
