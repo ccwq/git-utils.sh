@@ -160,6 +160,101 @@ test_missing_file() {
     record_test_result "test_missing_file" "$result" "$(calc_duration "$start_time" "$end_time")" "$note"
 }
 
+test_input_exclude() {
+    local start_time=$(current_time)
+    local result="FAIL"
+    local note=""
+
+    # 准备数据
+    mkdir -p notes/tmp src other
+    echo "base" > notes/n1.txt
+    echo "base" > notes/tmp/t1.txt
+    echo "base" > src/s1.txt
+    echo "base" > other/o1.txt
+    git add .
+    git commit -m "input_exclude_base" > /dev/null
+    local commit_base=$(git rev-parse HEAD)
+
+    echo "v2" > notes/n1.txt
+    echo "v2" > notes/tmp/t1.txt
+    echo "v2" > src/s1.txt
+    echo "v2" > other/o1.txt
+    echo "new" > notes/new.txt
+    echo "new" > src/new.txt
+    echo "new" > notes/tmp/newtmp.txt
+
+    # 运行脚本: 仅包含 notes 与 src/*.txt，排除 notes/tmp
+    local out_dir="output_input_exclude"
+    "$BASE_DIR/../sh/wsh-fpatch.sh" "$commit_base" -i "./notes,src/*.txt" -e "./notes/tmp" -o "$out_dir" > /dev/null
+
+    if [[ -f "$out_dir/notes/n1.txt" ]] && [[ -f "$out_dir/notes/new.txt" ]] && [[ -f "$out_dir/src/s1.txt" ]] && [[ -f "$out_dir/src/new.txt" ]]; then
+        if [[ ! -e "$out_dir/notes/tmp/t1.txt" ]] && [[ ! -e "$out_dir/notes/tmp/newtmp.txt" ]] && [[ ! -e "$out_dir/other/o1.txt" ]]; then
+            result="PASS"
+            log_success "Input/exclude test passed"
+        else
+            note="Excluded files were copied"
+            log_fail "$note"
+        fi
+    else
+        note="Expected files missing in output dir"
+        log_fail "$note"
+    fi
+
+    local end_time=$(current_time)
+    record_test_result "test_input_exclude" "$result" "$(calc_duration "$start_time" "$end_time")" "$note"
+}
+
+test_complex_patterns() {
+    local start_time=$(current_time)
+    local result="FAIL"
+    local note=""
+
+    # 准备数据
+    mkdir -p "space dir/sub" src/alpha src/beta
+    echo "base" > "space dir/keep.txt"
+    echo "base" > "space dir/sub/skip.txt"
+    echo "base" > "src/alpha/test-1.txt"
+    echo "base" > "src/beta/test-2.txt"
+    echo "base" > "src/beta/other.md"
+    git add .
+    git commit -m "complex_base" > /dev/null
+    local commit_base=$(git rev-parse HEAD)
+
+    echo "v2" > "space dir/keep.txt"
+    echo "v2" > "space dir/sub/skip.txt"
+    echo "v2" > "src/alpha/test-1.txt"
+    echo "v2" > "src/beta/test-2.txt"
+    echo "v2" > "src/beta/other.md"
+    echo "new" > "src/alpha/test-new.txt"
+    echo "new" > "space dir/new.txt"
+
+    # 运行脚本: 包含空格目录与 glob，排除子目录与指定文件
+    local out_dir="output_complex"
+    "$BASE_DIR/../sh/wsh-fpatch.sh" "$commit_base" \
+        -i "./space dir/*,src/*/test*.txt" \
+        -e "./space dir/sub,src/beta/test-2.txt" \
+        -o "$out_dir" > /dev/null
+
+    if [[ -f "$out_dir/space dir/keep.txt" ]] && [[ -f "$out_dir/space dir/new.txt" ]] \
+        && [[ -f "$out_dir/src/alpha/test-1.txt" ]] && [[ -f "$out_dir/src/alpha/test-new.txt" ]]; then
+        if [[ ! -e "$out_dir/space dir/sub/skip.txt" ]] \
+            && [[ ! -e "$out_dir/src/beta/test-2.txt" ]] \
+            && [[ ! -e "$out_dir/src/beta/other.md" ]]; then
+            result="PASS"
+            log_success "Complex patterns test passed"
+        else
+            note="Excluded files were copied"
+            log_fail "$note"
+        fi
+    else
+        note="Expected files missing in output dir"
+        log_fail "$note"
+    fi
+
+    local end_time=$(current_time)
+    record_test_result "test_complex_patterns" "$result" "$(calc_duration "$start_time" "$end_time")" "$note"
+}
+
 main() {
     setup
     
@@ -167,6 +262,8 @@ main() {
     test_one_commit
     test_two_commits
     test_missing_file
+    test_input_exclude
+    test_complex_patterns
     
     cleanup
     generate_report

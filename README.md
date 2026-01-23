@@ -96,12 +96,17 @@ git bash -c "./sh/wsh-replace-cn-punc.sh \"docs/*.md\""
     - 若指定 `commit1` 和 `commit2`: 对比这两个提交.
 - `commit2` (可选): 第二个提交哈希。
 - `-o, --output <dir>`: 指定输出目录 (默认: `./path-files/YYYY-MM-DD_HH-MM-SS/`)。
+- `-i, --input <dir>`: 仅包含指定目录下的文件，支持多个目录逗号分割与 glob（基于 repo 根目录，大小写敏感）。
+- `-e, --exclude <dir>`: 排除指定目录下的文件，支持多个目录逗号分割与 glob（基于 repo 根目录，大小写敏感）。
 
 #### Windows (Git Bash) 调用示例
 
 ```bash
 # 对比最近一次提交与当前工作区，导出变更文件
 git bash -c "./sh/wsh-fpatch.sh HEAD~1"
+
+# 仅导出 notes 与 src 目录，排除 notes/tmp
+git bash -c "./sh/wsh-fpatch.sh HEAD~1 -i ./notes,src -e ./notes/tmp"
 
 # 对比两个提交，导出变更文件到指定目录
 git bash -c "./sh/wsh-fpatch.sh <commit_hash_A> <commit_hash_B> -o ./my-patch"
