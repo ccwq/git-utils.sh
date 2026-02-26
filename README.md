@@ -28,7 +28,27 @@ cd git-utils.sh
 
 所有脚本均位于 `sh/` 目录下。
 
-### 1. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
+### 1. Windows Git Bash 运行器 (`sh/wsh.bat`)
+
+用于在 Windows 上快速调用 Git Bash 执行命令，或进入交互式 Bash。
+
+#### 用法
+
+```bash
+# 显示帮助
+wsh --help
+
+# 进入当前目录的 Git Bash
+wsh .
+
+# 执行命令（无管道时自动追加 --color）
+wsh ls -l
+
+# 带管道的命令原样执行
+wsh "ls -l | grep foo"
+```
+
+### 2. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
 
 用于停止 Git 对指定文件或文件夹的追踪（从 Git 索引中移除），并自动将其添加到 `.gitignore` 中，**同时保留本地文件内容不被删除**。
 
@@ -54,7 +74,7 @@ git bash -c "./sh/wsh-real-ignore.sh .vscode"
 git bash -c "./sh/wsh-real-ignore.sh \"*.log\""
 ```
 
-### 2. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
+### 3. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
 
 用于批量将文件中的中文标点符号（如 `，` `。` `：`）替换为对应的英文标点符号（`，` `.` `:`）。这对于修复代码注释或 Markdown 文档中的标点误用非常有帮助。
 
@@ -77,7 +97,7 @@ git bash -c "./sh/wsh-replace-cn-punc.sh README.md"
 git bash -c "./sh/wsh-replace-cn-punc.sh \"docs/*.md\""
 ```
 
-### 3. 基于提交提取变更文件 (`sh/wsh-fpatch.sh`)
+### 4. 基于提交提取变更文件 (`sh/wsh-fpatch.sh`)
 
 根据 Git 提交记录（commit hash）提取变更的文件，并将**当前工作区中的最新版本**复制到指定目录。支持保持原有目录结构。
 
