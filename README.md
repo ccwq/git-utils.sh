@@ -48,7 +48,59 @@ wsh ls -l
 wsh "ls -l | grep foo"
 ```
 
-### 2. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
+### 2. TCP 连通性检测包装器 (`sh/wsh-ping.bat`)
+
+用于在 Windows 下调用 `bin/tcping.exe`，支持两种模式：
+
+- 无参数：读取 `config/wsh-ping.txt` 并显示候选菜单（回车默认选第 1 项）。
+- 有参数：将参数原样透传给 `tcping.exe`。
+
+#### 预设配置文件
+
+预设地址从 `config/wsh-ping.txt` 读取，格式为每行一条：
+
+```txt
+<name> <host> <port>
+```
+
+示例：
+
+```txt
+qq.com 123.150.76.218 443
+t.cn 123.56.139.83 443
+```
+
+说明：
+
+- 支持空行。
+- 支持注释行（以 `#` 开头）。
+- 菜单按配置文件顺序自动编号。
+
+#### 用法
+
+```bash
+# 进入候选菜单（回车默认选 1）
+wsh-ping
+
+# 查看帮助（包含过滤后的 tcping --help）
+wsh-ping --help
+# 或
+wsh-ping -h
+
+# 原样透传给 tcping
+wsh-ping 1.1.1.1 443 -c 4 -D
+wsh-ping qq.com 443 -t 2
+```
+
+#### Windows (CMD / PowerShell) 调用示例
+
+```bat
+sh\wsh-ping.bat
+sh\wsh-ping.bat --help
+sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
+```
+
+### 3. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
 
 用于停止 Git 对指定文件或文件夹的追踪（从 Git 索引中移除），并自动将其添加到 `.gitignore` 中，**同时保留本地文件内容不被删除**。
 
@@ -74,7 +126,7 @@ git bash -c "./sh/wsh-real-ignore.sh .vscode"
 git bash -c "./sh/wsh-real-ignore.sh \"*.log\""
 ```
 
-### 3. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
+### 4. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
 
 用于批量将文件中的中文标点符号（如 `，` `。` `：`）替换为对应的英文标点符号（`，` `.` `:`）。这对于修复代码注释或 Markdown 文档中的标点误用非常有帮助。
 
@@ -97,7 +149,7 @@ git bash -c "./sh/wsh-replace-cn-punc.sh README.md"
 git bash -c "./sh/wsh-replace-cn-punc.sh \"docs/*.md\""
 ```
 
-### 4. 基于提交提取变更文件 (`sh/wsh-fpatch.sh`)
+### 5. 基于提交提取变更文件 (`sh/wsh-fpatch.sh`)
 
 根据 Git 提交记录（commit hash）提取变更的文件，并将**当前工作区中的最新版本**复制到指定目录。支持保持原有目录结构。
 
