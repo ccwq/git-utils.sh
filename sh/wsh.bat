@@ -1,6 +1,8 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 
+set "COLOR_CMD_WHITELIST=ls ll"
+
 set "WANT_HELP=0"
 if /i "%~1"=="--help" set "WANT_HELP=1"
 if /i "%~1"=="-h" set "WANT_HELP=1"
@@ -69,9 +71,16 @@ if "%~2"=="" (
 )
 
 setlocal EnableDelayedExpansion
-if "!CMD:|=!"=="!CMD!" (
-    "%GIT_BASH%" -lc "!CMD! --color"
-) else (
+call :isColorCmd "!CMD!"
+if errorlevel 1 (
     "%GIT_BASH%" -lc "!CMD!"
+) else (
+    "%GIT_BASH%" -lc "!CMD! --color"
 )
 exit /b %errorlevel%
+
+:isColorCmd
+set "fullcmd=%~1"
+for /f "tokens=1 delims= " %%C in ("!fullcmd!") do set "basecmd=%%~C"
+for %%A in (!COLOR_CMD_WHITELIST!) do if /i "!basecmd!"=="%%~A" exit /b 0
+exit /b 1
