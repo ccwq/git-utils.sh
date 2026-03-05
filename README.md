@@ -100,7 +100,53 @@ sh\wsh-ping.bat --help
 sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 ```
 
-### 3. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
+### 3. 复杂命令别名展开 (`sh/wsha.bat`)
+
+用于在 Windows 下通过配置文件将简短别名展开为完整命令，支持默认参数与运行时参数合并。
+
+#### 配置文件
+
+默认读取 `config/wsh-alias.txt`，格式为每行一条：
+
+```txt
+<alias> <target...>
+```
+
+示例：
+
+```txt
+ab agent-browser
+foo foobar open
+
+# 注释行，加载时忽略
+bar barbar -- --name ccwq
+```
+
+规则说明：
+
+- 支持空行和 `#` 注释行。
+- 如果模板命令包含 `--`，运行时参数会插入到 `--` 位置。
+- 如果模板命令不包含 `--`，运行时参数会追加到末尾。
+
+#### 用法
+
+```bash
+wsa <alias> [args...]
+```
+
+#### Windows (CMD / PowerShell) 调用示例
+
+```bat
+sh\wsha.bat ab open
+sh\wsha.bat foo --ping
+sh\wsha.bat bar --age 40
+```
+
+可选环境变量：
+
+- `WSHA_CONFIG_FILE`：自定义别名配置文件路径（默认 `config\wsh-alias.txt`）。
+
+### 4. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
 
 用于停止 Git 对指定文件或文件夹的追踪（从 Git 索引中移除），并自动将其添加到 `.gitignore` 中，**同时保留本地文件内容不被删除**。
 
@@ -126,7 +172,7 @@ git bash -c "./sh/wsh-real-ignore.sh .vscode"
 git bash -c "./sh/wsh-real-ignore.sh \"*.log\""
 ```
 
-### 4. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
+### 5. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
 
 用于批量将文件中的中文标点符号（如 `，` `。` `：`）替换为对应的英文标点符号（`，` `.` `:`）。这对于修复代码注释或 Markdown 文档中的标点误用非常有帮助。
 
@@ -149,7 +195,7 @@ git bash -c "./sh/wsh-replace-cn-punc.sh README.md"
 git bash -c "./sh/wsh-replace-cn-punc.sh \"docs/*.md\""
 ```
 
-### 5. 基于提交提取变更文件 (`sh/wsh-fpatch.sh`)
+### 6. 基于提交提取变更文件 (`sh/wsh-fpatch.sh`)
 
 根据 Git 提交记录（commit hash）提取变更的文件，并将**当前工作区中的最新版本**复制到指定目录。支持保持原有目录结构。
 
@@ -211,6 +257,9 @@ git bash -c "./__test__/wsh-real-ignore.test.sh"
 
 # 运行 replace_cn_punc_ 的测试
 git bash -c "./__test__/wsh-replace-cn-punc.test.sh"
+
+# 运行 wsha 的测试
+git bash -c "./__test__/wsha.test.sh"
 ```
 
 ### 测试报告
