@@ -15,11 +15,15 @@ if "%~1"=="" (
   goto show_help_error
 )
 
-set "INPUT_ALIAS=%~1"
+set "INPUT_ALIAS="
 set "RAW_FIRST_ARG=%~1"
-shift
-
 set "RUNTIME_ARGS="
+
+rem Support single quoted argument: wsha "ab open t.cn"
+if "%~2"=="" goto parse_single_arg
+
+set "INPUT_ALIAS=%~1"
+shift
 :collect_runtime_args
 if "%~1"=="" goto runtime_args_done
 if defined RUNTIME_ARGS (
@@ -29,6 +33,13 @@ if defined RUNTIME_ARGS (
 )
 shift
 goto collect_runtime_args
+
+:parse_single_arg
+for /f "tokens=1,* delims= " %%A in ("%~1") do (
+  set "INPUT_ALIAS=%%~A"
+  set "RUNTIME_ARGS=%%~B"
+)
+
 :runtime_args_done
 
 if not exist "%CONFIG_FILE%" (

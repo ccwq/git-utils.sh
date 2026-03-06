@@ -170,6 +170,28 @@ test_unknown_alias_ping_passthrough() {
     record_test_result "test_unknown_alias_ping_passthrough" "$result" "$duration" "$note"
 }
 
+test_quoted_alias_expand() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-normal.txt"
+    write_config "$config_file" "normal"
+
+    run_wsha "$config_file" "ab open t.cn"
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"agent-browser open t.cn"* ]]; then
+        result="PASS"
+        log_success "引号包裹 alias 展开测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_quoted_alias_expand" "$result" "$duration" "$note"
+}
+
 test_quoted_complex_command_passthrough() {
     local start_time end_time duration result note config_file
     start_time=$(current_time)
@@ -288,6 +310,7 @@ main() {
     test_expand_bar_placeholder
     test_unknown_alias_passthrough_with_args
     test_unknown_alias_ping_passthrough
+    test_quoted_alias_expand
     test_quoted_complex_command_passthrough
     test_quoted_and_chain_passthrough
     test_unknown_command_passthrough_error_code
