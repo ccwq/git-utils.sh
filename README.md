@@ -129,11 +129,14 @@ bar barbar -- --name ccwq
 - 如果模板命令不包含 `--`，运行时参数会追加到末尾。
 - 如果别名未命中，将直接按原始命令执行（兼容普通命令调用）。
 - 支持使用引号包裹复杂命令（如包含管道的命令）并直接执行。
+- 使用 `--list` 或 `-l` 可查看当前可用 alias（按配置文件顺序输出，忽略空行与注释行）。
 
 #### 用法
 
 ```bash
 wsa <alias> [args...]
+wsa --list
+wsa -l
 ```
 
 #### Windows (CMD / PowerShell) 调用示例
@@ -144,6 +147,8 @@ sh\wsha.bat foo --ping
 sh\wsha.bat bar --age 40
 sh\wsha.bat echo hello
 sh\wsha.bat "echo foo | findstr foo"
+sh\wsha.bat --list
+sh\wsha.bat -l
 ```
 
 可选环境变量：

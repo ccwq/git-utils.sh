@@ -10,6 +10,8 @@ if defined WSHA_CONFIG_FILE set "CONFIG_FILE=%WSHA_CONFIG_FILE%"
 
 if /i "%~1"=="-h" goto show_help
 if /i "%~1"=="--help" goto show_help
+if /i "%~1"=="-l" goto list_aliases
+if /i "%~1"=="--list" goto list_aliases
 if "%~1"=="" (
   >&2 echo [wsha] missing alias.
   goto show_help_error
@@ -156,6 +158,7 @@ echo wsha - alias command launcher
 echo.
 echo Usage:
 echo   wsa ^<alias^> [args...]
+echo   wsa --list ^| -l
 echo.
 echo Config:
 echo   default: config\wsh-alias.txt
@@ -175,6 +178,24 @@ echo.
 echo   wsa ab open           ^> agent-browser open
 echo   wsa foo --ping        ^> foobar open --ping
 echo   wsa bar --age 40      ^> barbar --age 40 --name ccwq
+exit /b 0
+
+:list_aliases
+if not exist "%CONFIG_FILE%" (
+  >&2 echo [wsha] config file not found: "%CONFIG_FILE%"
+  exit /b 1
+)
+
+for /f "usebackq delims=" %%L in ("%CONFIG_FILE%") do (
+  set "RAW_LINE=%%L"
+  set "LINE="
+  for /f "tokens=* delims= " %%T in ("!RAW_LINE!") do set "LINE=%%T"
+  if defined LINE (
+    if not "!LINE:~0,1!"=="#" (
+      echo !LINE!
+    )
+  )
+)
 exit /b 0
 
 :show_help_error

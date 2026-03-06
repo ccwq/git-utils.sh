@@ -258,6 +258,50 @@ test_unknown_command_passthrough_error_code() {
     record_test_result "test_unknown_command_passthrough_error_code" "$result" "$duration" "$note"
 }
 
+test_list_long_flag() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-normal.txt"
+    write_config "$config_file" "normal"
+
+    run_wsha "$config_file" --list
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"ab echo agent-browser"* ]] && [[ "$output" == *"foo echo foobar open"* ]] && [[ "$output" == *"bar echo barbar -- --name ccwq"* ]]; then
+        result="PASS"
+        log_success "--list 输出测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_list_long_flag" "$result" "$duration" "$note"
+}
+
+test_list_short_flag() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-normal.txt"
+    write_config "$config_file" "normal"
+
+    run_wsha "$config_file" -l
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"ab echo agent-browser"* ]] && [[ "$output" == *"foo echo foobar open"* ]] && [[ "$output" == *"bar echo barbar -- --name ccwq"* ]]; then
+        result="PASS"
+        log_success "-l 输出测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_list_short_flag" "$result" "$duration" "$note"
+}
+
 test_duplicate_alias() {
     local start_time end_time duration result note config_file
     start_time=$(current_time)
@@ -314,6 +358,8 @@ main() {
     test_quoted_complex_command_passthrough
     test_quoted_and_chain_passthrough
     test_unknown_command_passthrough_error_code
+    test_list_long_flag
+    test_list_short_flag
     test_duplicate_alias
     test_invalid_mapping
 
