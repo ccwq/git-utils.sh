@@ -16,6 +16,7 @@ if "%~1"=="" (
 )
 
 set "INPUT_ALIAS=%~1"
+set "RAW_FIRST_ARG=%~1"
 shift
 
 set "RUNTIME_ARGS="
@@ -83,8 +84,21 @@ if defined PARSE_ERROR (
 )
 
 if not defined MATCH_TEMPLATE (
-  >&2 echo [wsha] unknown alias: "%INPUT_ALIAS%"
-  exit /b 1
+  set "FALLBACK_CMD="
+  if defined RUNTIME_ARGS (
+    set "FALLBACK_CMD=%INPUT_ALIAS%"
+    set "FALLBACK_CMD=!FALLBACK_CMD! !RUNTIME_ARGS!"
+  ) else (
+    set "FALLBACK_CMD=%RAW_FIRST_ARG%"
+  )
+
+  if not defined FALLBACK_CMD (
+    >&2 echo [wsha] fallback command is empty.
+    exit /b 1
+  )
+
+  "%ComSpec%" /d /s /c "!FALLBACK_CMD!"
+  exit /b !errorlevel!
 )
 
 set "HAS_PLACEHOLDER=0"
@@ -140,6 +154,7 @@ echo Rules:
 echo   - Ignore empty lines and lines starting with '#'
 echo   - If template contains '--', runtime args are inserted there
 echo   - Otherwise runtime args are appended at the end
+echo   - If alias not found, run original command directly
 echo.
 echo Example:
 echo   ab agent-browser

@@ -126,7 +126,7 @@ test_expand_bar_placeholder() {
     record_test_result "test_expand_bar_placeholder" "$result" "$duration" "$note"
 }
 
-test_unknown_alias() {
+test_unknown_alias_passthrough_with_args() {
     local start_time end_time duration result note config_file
     start_time=$(current_time)
     result="FAIL"
@@ -134,10 +134,10 @@ test_unknown_alias() {
     config_file="$TEST_DIR/alias-normal.txt"
     write_config "$config_file" "normal"
 
-    run_wsha "$config_file" not-exist hello
-    if [[ $run_code -ne 0 ]] && [[ "$output" == *"unknown alias"* ]]; then
+    run_wsha "$config_file" echo hello
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"hello"* ]]; then
         result="PASS"
-        log_success "未知 alias 错误处理测试通过"
+        log_success "未知 alias 透传参数执行测试通过"
     else
         note="output=[$output], code=$run_code"
         log_fail "$note"
@@ -145,7 +145,95 @@ test_unknown_alias() {
 
     end_time=$(current_time)
     duration=$(calc_duration "$start_time" "$end_time")
-    record_test_result "test_unknown_alias" "$result" "$duration" "$note"
+    record_test_result "test_unknown_alias_passthrough_with_args" "$result" "$duration" "$note"
+}
+
+test_unknown_alias_ping_passthrough() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-normal.txt"
+    write_config "$config_file" "normal"
+
+    run_wsha "$config_file" ping t.cn -n 1
+    if [[ "$output" != *"'t.cn' is not recognized"* ]] && [[ "$output" != *"'ping' is not recognized"* ]] && [[ "$output" == *"t.cn"* ]]; then
+        result="PASS"
+        log_success "未知 alias 的 ping 透传测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_unknown_alias_ping_passthrough" "$result" "$duration" "$note"
+}
+
+test_quoted_complex_command_passthrough() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-normal.txt"
+    write_config "$config_file" "normal"
+
+    run_wsha "$config_file" "echo foo | findstr foo"
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"foo"* ]]; then
+        result="PASS"
+        log_success "引号复杂命令透传测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_quoted_complex_command_passthrough" "$result" "$duration" "$note"
+}
+
+test_quoted_and_chain_passthrough() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-normal.txt"
+    write_config "$config_file" "normal"
+
+    run_wsha "$config_file" "echo a && echo b"
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"a"* ]] && [[ "$output" == *"b"* ]]; then
+        result="PASS"
+        log_success "引号与链式命令透传测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_quoted_and_chain_passthrough" "$result" "$duration" "$note"
+}
+
+test_unknown_command_passthrough_error_code() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-normal.txt"
+    write_config "$config_file" "normal"
+
+    run_wsha "$config_file" not_exist_cmd_12345
+    if [[ $run_code -ne 0 ]] && [[ "$output" == *"not recognized"* ]]; then
+        result="PASS"
+        log_success "未知命令透传错误码测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_unknown_command_passthrough_error_code" "$result" "$duration" "$note"
 }
 
 test_duplicate_alias() {
@@ -198,7 +286,11 @@ main() {
     test_expand_ab
     test_expand_foo_append
     test_expand_bar_placeholder
-    test_unknown_alias
+    test_unknown_alias_passthrough_with_args
+    test_unknown_alias_ping_passthrough
+    test_quoted_complex_command_passthrough
+    test_quoted_and_chain_passthrough
+    test_unknown_command_passthrough_error_code
     test_duplicate_alias
     test_invalid_mapping
 

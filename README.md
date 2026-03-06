@@ -127,6 +127,8 @@ bar barbar -- --name ccwq
 - 支持空行和 `#` 注释行。
 - 如果模板命令包含 `--`，运行时参数会插入到 `--` 位置。
 - 如果模板命令不包含 `--`，运行时参数会追加到末尾。
+- 如果别名未命中，将直接按原始命令执行（兼容普通命令调用）。
+- 支持使用引号包裹复杂命令（如包含管道的命令）并直接执行。
 
 #### 用法
 
@@ -140,6 +142,8 @@ wsa <alias> [args...]
 sh\wsha.bat ab open
 sh\wsha.bat foo --ping
 sh\wsha.bat bar --age 40
+sh\wsha.bat echo hello
+sh\wsha.bat "echo foo | findstr foo"
 ```
 
 可选环境变量：
