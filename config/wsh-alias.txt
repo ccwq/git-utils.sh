@@ -19,3 +19,7 @@ ppp ping t.cn
 # alias的content也支持引号包裹, 下面两种写法等价
 "px *" "pnpx $1"
 "px *" pnpx $1
+
+# 为wsh增加缩写
+"s**" wsh $$
+"ws" wsh

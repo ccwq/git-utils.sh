@@ -54,6 +54,7 @@ pcodex echo codex-default
 "q1 *" "echo pnpx $1"
 "q2 *" echo pnpx $1
 "tool * *" echo $1::$2
+"s**" echo wsh $$
 EOF
     fi
 }
@@ -582,7 +583,11 @@ test_quoted_content_equivalence() {
 
     run_wsha "$config_file" q2 http-server
     out_q2="$output"
-    if [[ $run_code -eq 0 ]] && [[ "$out_q1" == "$out_q2" ]] && [[ "$out_q1" == *"pnpx http-server"* ]]; then
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$out_q1" == *"[wsha] alias hit:"* ]] \
+        && [[ "$out_q2" == *"[wsha] alias hit:"* ]] \
+        && [[ "$out_q1" == *"pnpx http-server"* ]] \
+        && [[ "$out_q2" == *"pnpx http-server"* ]]; then
         result="PASS"
         log_success "模板引号等价测试通过"
     else
@@ -593,6 +598,28 @@ test_quoted_content_equivalence() {
     end_time=$(current_time)
     duration=$(calc_duration "$start_time" "$end_time")
     record_test_result "test_quoted_content_equivalence" "$result" "$duration" "$note"
+}
+
+test_double_star_capture() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-quoted-wildcard.txt"
+    write_config "$config_file" "quoted_wildcard"
+
+    run_wsha "$config_file" sls -l
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"wsh ls -l"* ]]; then
+        result="PASS"
+        log_success "双星号剩余参数捕获测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_double_star_capture" "$result" "$duration" "$note"
 }
 
 test_wildcard_multi_capture() {
@@ -641,6 +668,7 @@ main() {
     test_wildcard_multi_token_alias
     test_quoted_content_equivalence
     test_wildcard_multi_capture
+    test_double_star_capture
 
     cleanup
     generate_report

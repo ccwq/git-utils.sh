@@ -100,7 +100,7 @@ sh\wsh-ping.bat --help
 sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 ```
 
-### 3. 复杂命令别名展开 (`sh/wsha.bat`)
+### 3. 复杂命令别名展开 (`sh/w.bat` / `sh/wsha.bat`)
 
 用于在 Windows 下通过配置文件将简短别名展开为完整命令，支持默认参数与运行时参数合并。
 
@@ -122,6 +122,7 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 
 - `<alias>` 支持英文双引号包裹，用于包含空格（如 `"pcodex l"`）。
 - `<alias>` 支持 `*` 通配符，且按**单段匹配**（不跨空格）。
+- `<alias>` 支持 `**` 通配符，按“匹配剩余全部内容（可含空格）”处理；可在模板中通过 `$$` 取值。
 - 通配符捕获结果可在模板中用 `$1`、`$2`、`$3`... 引用。
 - `<target...>` 也支持整体双引号包裹，`"pnpx $1"` 与 `pnpx $1` 等价。
 
@@ -140,6 +141,9 @@ pcodex pnpx @openai/codex
 "px*" pnpx $1
 "px *" "pnpx $1"
 "tool * *" echo $1::$2
+
+# 为 wsh 增加缩写: sls -l -> wsh ls -l
+"s**" wsh $$
 ```
 
 规则说明：
@@ -148,6 +152,7 @@ pcodex pnpx @openai/codex
 - 如果模板命令包含 `--`，运行时参数会插入到 `--` 位置。
 - 如果模板命令不包含 `--`，运行时参数会追加到末尾。
 - alias 匹配采用“更长 alias 优先；同长度下更具体（通配符更少）优先”。
+- `**` 规则要求必须捕获到非空内容（例如 `s` 不命中，`sls -l` 命中）。
 - 如果别名未命中，将直接按原始命令执行（兼容普通命令调用）。
 - 支持使用引号包裹复杂命令（如包含管道的命令）并直接执行。
 - 使用 `--list` 或 `-l` 可查看融合后的 alias 列表（忽略空行与注释行）。
@@ -155,26 +160,27 @@ pcodex pnpx @openai/codex
 #### 用法
 
 ```bash
-wsa <alias> [args...]
-wsa --list
-wsa -l
+w <alias> [args...]
+w --list
+w -l
 ```
 
 #### Windows (CMD / PowerShell) 调用示例
 
 ```bat
-sh\wsha.bat ab open
-sh\wsha.bat foo --ping
-sh\wsha.bat bar --age 40
-sh\wsha.bat pcodex
-sh\wsha.bat pcodex l
-sh\wsha.bat pxhttp-server
-sh\wsha.bat px http-server
-sh\wsha.bat tool alpha beta
-sh\wsha.bat echo hello
-sh\wsha.bat "echo foo | findstr foo"
-sh\wsha.bat --list
-sh\wsha.bat -l
+sh\w.bat ab open
+sh\w.bat foo --ping
+sh\w.bat bar --age 40
+sh\w.bat pcodex
+sh\w.bat pcodex l
+sh\w.bat pxhttp-server
+sh\w.bat px http-server
+sh\w.bat tool alpha beta
+sh\w.bat sls -l
+sh\w.bat echo hello
+sh\w.bat "echo foo | findstr foo"
+sh\w.bat --list
+sh\w.bat -l
 ```
 
 可选环境变量：

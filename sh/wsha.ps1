@@ -11,8 +11,8 @@ function Show-Help {
 wsha - alias command launcher
 
 Usage:
-  wsa <alias> [args...]
-  wsa --list | -l
+  w <alias> [args...]
+  w --list | -l
 
 Config priority:
   1. config\wsh-alias.txt
@@ -24,6 +24,7 @@ Rules:
   - Same alias: higher priority overrides lower priority
   - Alias can be quoted to include spaces, like "pcodex l"
   - Alias supports '*' wildcard (single token capture), map to `$1..`$N
+  - Alias supports '**' wildcard (match all remaining input), map to `$$
   - If template contains '--', runtime args are inserted there
   - Otherwise runtime args are appended at the end
   - If alias not found, run original command directly
@@ -33,11 +34,13 @@ Example:
   "pcodex l" pnpx @openai/codex@latest
   "px*" pnpx `$1
   "px *" "pnpx `$1"
+  "s**" wsh `$$
 
-  wsa pcodex             > pnpx @openai/codex
-  wsa pcodex l           > pnpx @openai/codex@latest
-  wsa pxhttp-server      > pnpx http-server
-  wsa px http-server     > pnpx http-server
+  w pcodex               > pnpx @openai/codex
+  w pcodex l             > pnpx @openai/codex@latest
+  w pxhttp-server        > pnpx http-server
+  w px http-server       > pnpx http-server
+  w sls -l               > wsh ls -l
 "@
 }
 
@@ -170,6 +173,40 @@ function Match-TokenPattern {
     return [pscustomobject]@{ Ok = $true; Captures = $caps; Wildcards = $parts.Length - 1 }
 }
 
+function Match-DoubleStarRemainder {
+    param(
+        [string]$Pattern,
+        [string]$InputText
+    )
+
+    $index = $Pattern.IndexOf('**', [System.StringComparison]::Ordinal)
+    if ($index -lt 0) {
+        return [pscustomobject]@{ Ok = $false; Captures = @(); Rest = '' }
+    }
+
+    $head = $Pattern.Substring(0, $index)
+    $tail = $Pattern.Substring($index + 2)
+
+    $headRegex = [regex]::Escape($head) -replace '\\\*', '(.*?)'
+    $tailRegex = [regex]::Escape($tail) -replace '\\\*', '(.*?)'
+    $regexText = '^' + $headRegex + '([\s\S]*?)' + $tailRegex + '$'
+
+    $m = [regex]::Match($InputText, $regexText, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if (-not $m.Success) {
+        return [pscustomobject]@{ Ok = $false; Captures = @(); Rest = '' }
+    }
+
+    $caps = @()
+    if ($m.Groups.Count -gt 2) {
+        for ($g = 1; $g -lt $m.Groups.Count - 1; $g++) {
+            $caps += $m.Groups[$g].Value
+        }
+    }
+
+    $rest = $m.Groups[$m.Groups.Count - 1].Value
+    return [pscustomobject]@{ Ok = $true; Captures = $caps; Rest = $rest }
+}
+
 function Find-BestMatch {
     param(
         [string[]]$InputTokens,
@@ -182,12 +219,50 @@ function Find-BestMatch {
     foreach ($alias in $Order) {
         $aliasTokens = @(Get-Tokens -Text $alias)
         if ($aliasTokens.Count -eq 0) { continue }
-        if ($InputTokens.Count -lt $aliasTokens.Count) { continue }
+        $doubleTokenIndex = -1
+        for ($di = 0; $di -lt $aliasTokens.Count; $di++) {
+            if ($aliasTokens[$di].Contains('**')) {
+                if ($doubleTokenIndex -ne -1) {
+                    $doubleTokenIndex = -2
+                    break
+                }
+                $doubleTokenIndex = $di
+            }
+        }
+
+        if ($doubleTokenIndex -eq -2) { continue }
+        if ($doubleTokenIndex -ge 0 -and $doubleTokenIndex -ne $aliasTokens.Count - 1) { continue }
+
+        if ($doubleTokenIndex -lt 0 -and $InputTokens.Count -lt $aliasTokens.Count) { continue }
+        if ($doubleTokenIndex -ge 0 -and $InputTokens.Count -lt ($doubleTokenIndex + 1)) { continue }
 
         $ok = $true
         $wildcardCount = 0
         $captures = @()
+        $restCapture = ''
+        $inputConsumed = 0
+
         for ($i = 0; $i -lt $aliasTokens.Count; $i++) {
+            if ($i -eq $doubleTokenIndex) {
+                $remainText = $InputTokens[$i..($InputTokens.Count - 1)] -join ' '
+                $double = Match-DoubleStarRemainder -Pattern $aliasTokens[$i] -InputText $remainText
+                if (-not $double.Ok) {
+                    $ok = $false
+                    break
+                }
+                if ([string]::IsNullOrWhiteSpace($double.Rest)) {
+                    $ok = $false
+                    break
+                }
+                if ($double.Captures.Count -gt 0) {
+                    $captures += $double.Captures
+                }
+                $restCapture = $double.Rest
+                $wildcardCount += 1000
+                $inputConsumed = $InputTokens.Count
+                continue
+            }
+
             $match = Match-TokenPattern -Pattern $aliasTokens[$i] -Token $InputTokens[$i]
             if (-not $match.Ok) {
                 $ok = $false
@@ -197,6 +272,7 @@ function Find-BestMatch {
             if ($match.Captures.Count -gt 0) {
                 $captures += $match.Captures
             }
+            $inputConsumed = $i + 1
         }
 
         if (-not $ok) { continue }
@@ -205,10 +281,11 @@ function Find-BestMatch {
             Alias         = $alias
             Template      = $AliasMap[$alias]
             Captures      = $captures
+            RestCapture   = $restCapture
             AliasTokenLen = $aliasTokens.Count
             Wildcards     = $wildcardCount
-            ArgsStart     = $aliasTokens.Count
-            LiteralChars  = (($alias -replace '\*', '').Replace(' ', '')).Length
+            ArgsStart     = $inputConsumed
+            LiteralChars  = (($alias -replace '\*\*', '' -replace '\*', '').Replace(' ', '')).Length
         }
 
         $score = ($candidate.AliasTokenLen * 10000) + ($candidate.LiteralChars * 100) - $candidate.Wildcards
@@ -287,6 +364,7 @@ try {
         $value = $match.Captures[$i - 1]
         $finalTemplate = $finalTemplate.Replace('$' + $i, $value)
     }
+    $finalTemplate = $finalTemplate.Replace('$$', $match.RestCapture)
 
     $runtimeArgs = @()
     if ($inputTokens.Count -gt $match.ArgsStart) {
@@ -315,6 +393,13 @@ try {
         [Console]::Error.WriteLine("[wsha] expanded command is empty for alias `"$($match.Alias)`"")
         exit 1
     }
+
+    $entry = $env:WSHA_ENTRY
+    if ([string]::IsNullOrWhiteSpace($entry)) {
+        $entry = 'wsha'
+    }
+    $rawInput = $inputTokens -join ' '
+    [Console]::Error.WriteLine("[wsha] alias hit: $entry $rawInput -> $finalCmd")
 
     Invoke-CmdLine -CommandText $finalCmd
 }
