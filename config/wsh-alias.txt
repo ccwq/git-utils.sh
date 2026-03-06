@@ -23,3 +23,9 @@ ppp ping t.cn
 # 为wsh增加缩写
 "s**" wsh $$
 "ws" wsh
+
+# 缩写
+tping wsh-ping
+
+# 显示http header
+"show http header" wsh curl -I
