@@ -118,6 +118,13 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 <alias> <target...>
 ```
 
+其中：
+
+- `<alias>` 支持英文双引号包裹，用于包含空格（如 `"pcodex l"`）。
+- `<alias>` 支持 `*` 通配符，且按**单段匹配**（不跨空格）。
+- 通配符捕获结果可在模板中用 `$1`、`$2`、`$3`... 引用。
+- `<target...>` 也支持整体双引号包裹，`"pnpx $1"` 与 `pnpx $1` 等价。
+
 示例：
 
 ```txt
@@ -126,6 +133,13 @@ foo foobar open
 
 # 注释行，加载时忽略
 bar barbar -- --name ccwq
+
+pcodex pnpx @openai/codex
+"pcodex l" pnpx @openai/codex@latest
+
+"px*" pnpx $1
+"px *" "pnpx $1"
+"tool * *" echo $1::$2
 ```
 
 规则说明：
@@ -133,6 +147,7 @@ bar barbar -- --name ccwq
 - 支持空行和 `#` 注释行。
 - 如果模板命令包含 `--`，运行时参数会插入到 `--` 位置。
 - 如果模板命令不包含 `--`，运行时参数会追加到末尾。
+- alias 匹配采用“更长 alias 优先；同长度下更具体（通配符更少）优先”。
 - 如果别名未命中，将直接按原始命令执行（兼容普通命令调用）。
 - 支持使用引号包裹复杂命令（如包含管道的命令）并直接执行。
 - 使用 `--list` 或 `-l` 可查看融合后的 alias 列表（忽略空行与注释行）。
@@ -151,6 +166,11 @@ wsa -l
 sh\wsha.bat ab open
 sh\wsha.bat foo --ping
 sh\wsha.bat bar --age 40
+sh\wsha.bat pcodex
+sh\wsha.bat pcodex l
+sh\wsha.bat pxhttp-server
+sh\wsha.bat px http-server
+sh\wsha.bat tool alpha beta
 sh\wsha.bat echo hello
 sh\wsha.bat "echo foo | findstr foo"
 sh\wsha.bat --list

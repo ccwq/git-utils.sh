@@ -4,3 +4,18 @@ foo foobar open
 
 # comment line, ignored by loader
 bar barbar -- --name ccwq
+
+ppp ping t.cn
+"pph" ping --help
+
+# 举例
+# pxhttp-server,实际执行 pnpx http-server
+"px*" pnpx $1
+
+# 举例
+# px http-server,实际执行 pnpx http-server
+"px *" pnpx $1
+
+# alias的content也支持引号包裹, 下面两种写法等价
+"px *" "pnpx $1"
+"px *" pnpx $1

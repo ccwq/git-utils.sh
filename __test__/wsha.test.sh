@@ -45,6 +45,16 @@ EOF
         cat > "$file_path" <<'EOF'
 ab
 EOF
+    elif [[ "$mode" == "quoted_wildcard" ]]; then
+        cat > "$file_path" <<'EOF'
+pcodex echo codex-default
+"pcodex l" echo codex-last
+"px*" echo pnpx $1
+"px *" echo pnpx $1
+"q1 *" "echo pnpx $1"
+"q2 *" echo pnpx $1
+"tool * *" echo $1::$2
+EOF
     fi
 }
 
@@ -475,6 +485,138 @@ test_default_list_merged_aliases() {
     record_test_result "test_default_list_merged_aliases" "$result" "$duration" "$note"
 }
 
+test_quoted_alias_with_space() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-quoted-wildcard.txt"
+    write_config "$config_file" "quoted_wildcard"
+
+    run_wsha "$config_file" pcodex
+    if [[ $run_code -ne 0 ]] || [[ "$output" != *"codex-default"* ]]; then
+        note="pcodex 未命中默认别名 output=[$output], code=$run_code"
+        log_fail "$note"
+        end_time=$(current_time)
+        duration=$(calc_duration "$start_time" "$end_time")
+        record_test_result "test_quoted_alias_with_space" "$result" "$duration" "$note"
+        return
+    fi
+
+    run_wsha "$config_file" pcodex l
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"codex-last"* ]]; then
+        result="PASS"
+        log_success "引号包裹空格 alias 测试通过"
+    else
+        note="pcodex l 未命中空格别名 output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_quoted_alias_with_space" "$result" "$duration" "$note"
+}
+
+test_wildcard_single_token_alias() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-quoted-wildcard.txt"
+    write_config "$config_file" "quoted_wildcard"
+
+    run_wsha "$config_file" pxhttp-server
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"pnpx http-server"* ]]; then
+        result="PASS"
+        log_success "单段通配符 alias 测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_wildcard_single_token_alias" "$result" "$duration" "$note"
+}
+
+test_wildcard_multi_token_alias() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-quoted-wildcard.txt"
+    write_config "$config_file" "quoted_wildcard"
+
+    run_wsha "$config_file" px http-server
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"pnpx http-server"* ]]; then
+        result="PASS"
+        log_success "多段 alias 通配符测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_wildcard_multi_token_alias" "$result" "$duration" "$note"
+}
+
+test_quoted_content_equivalence() {
+    local start_time end_time duration result note config_file out_q1 out_q2
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-quoted-wildcard.txt"
+    write_config "$config_file" "quoted_wildcard"
+
+    run_wsha "$config_file" q1 http-server
+    out_q1="$output"
+    if [[ $run_code -ne 0 ]]; then
+        note="q1 执行失败 output=[$output], code=$run_code"
+        log_fail "$note"
+        end_time=$(current_time)
+        duration=$(calc_duration "$start_time" "$end_time")
+        record_test_result "test_quoted_content_equivalence" "$result" "$duration" "$note"
+        return
+    fi
+
+    run_wsha "$config_file" q2 http-server
+    out_q2="$output"
+    if [[ $run_code -eq 0 ]] && [[ "$out_q1" == "$out_q2" ]] && [[ "$out_q1" == *"pnpx http-server"* ]]; then
+        result="PASS"
+        log_success "模板引号等价测试通过"
+    else
+        note="q1=[$out_q1], q2=[$out_q2], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_quoted_content_equivalence" "$result" "$duration" "$note"
+}
+
+test_wildcard_multi_capture() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-quoted-wildcard.txt"
+    write_config "$config_file" "quoted_wildcard"
+
+    run_wsha "$config_file" tool alpha beta
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"alpha::beta"* ]]; then
+        result="PASS"
+        log_success "多捕获组替换测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_wildcard_multi_capture" "$result" "$duration" "$note"
+}
+
 main() {
     setup
 
@@ -494,6 +636,11 @@ main() {
     test_default_merge_priority
     test_default_missing_optional_configs_ignored
     test_default_list_merged_aliases
+    test_quoted_alias_with_space
+    test_wildcard_single_token_alias
+    test_wildcard_multi_token_alias
+    test_quoted_content_equivalence
+    test_wildcard_multi_capture
 
     cleanup
     generate_report
