@@ -60,6 +60,38 @@ run_wsha() {
     output=$(printf "%s" "$output" | tr -d '\r')
 }
 
+# 调用 wsha 默认多配置合并模式（不传 WSHA_CONFIG_FILE）
+run_wsha_default() {
+    local work_dir="$1"
+    local user_home_dir="$2"
+    shift 2
+
+    local user_home_win
+    user_home_win=$(cygpath -am "$user_home_dir")
+
+    output=$(cd "$work_dir" && USERPROFILE="$user_home_win" cmd.exe //c "$SCRIPT_WIN" "$@" 2>&1)
+    run_code=$?
+    output=$(printf "%s" "$output" | tr -d '\r')
+}
+
+# 生成默认模式下的用户级与工作目录级配置
+write_default_merge_configs() {
+    local user_home_dir="$1"
+    local work_dir="$2"
+
+    mkdir -p "$user_home_dir/.config"
+    mkdir -p "$work_dir/.config"
+
+    cat > "$user_home_dir/.config/wsh-alias.txt" <<'EOF'
+ab echo user-ab
+foo echo user-foo
+EOF
+
+    cat > "$work_dir/.config/wsh-alias.txt" <<'EOF'
+ab echo local-ab
+EOF
+}
+
 test_expand_ab() {
     local start_time end_time duration result note config_file
     start_time=$(current_time)
@@ -346,6 +378,103 @@ test_invalid_mapping() {
     record_test_result "test_invalid_mapping" "$result" "$duration" "$note"
 }
 
+test_default_merge_priority() {
+    local start_time end_time duration result note user_home_dir work_dir
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+
+    user_home_dir="$TEST_DIR/default-home"
+    work_dir="$TEST_DIR/default-work"
+    mkdir -p "$user_home_dir" "$work_dir"
+    write_default_merge_configs "$user_home_dir" "$work_dir"
+
+    run_wsha_default "$work_dir" "$user_home_dir" ab run
+    if [[ $run_code -ne 0 ]] || [[ "$output" != *"local-ab run"* ]]; then
+        note="ab 覆盖失败 output=[$output], code=$run_code"
+        log_fail "$note"
+        end_time=$(current_time)
+        duration=$(calc_duration "$start_time" "$end_time")
+        record_test_result "test_default_merge_priority" "$result" "$duration" "$note"
+        return
+    fi
+
+    run_wsha_default "$work_dir" "$user_home_dir" foo ping
+    if [[ $run_code -ne 0 ]] || [[ "$output" != *"user-foo ping"* ]]; then
+        note="foo 覆盖失败 output=[$output], code=$run_code"
+        log_fail "$note"
+        end_time=$(current_time)
+        duration=$(calc_duration "$start_time" "$end_time")
+        record_test_result "test_default_merge_priority" "$result" "$duration" "$note"
+        return
+    fi
+
+    run_wsha_default "$work_dir" "$user_home_dir" --list
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"bar barbar -- --name ccwq"* ]]; then
+        result="PASS"
+        log_success "默认多配置优先级合并测试通过"
+    else
+        note="bar 内置映射缺失 output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_default_merge_priority" "$result" "$duration" "$note"
+}
+
+test_default_missing_optional_configs_ignored() {
+    local start_time end_time duration result note user_home_dir work_dir
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+
+    user_home_dir="$TEST_DIR/no-config-home"
+    work_dir="$TEST_DIR/no-config-work"
+    mkdir -p "$user_home_dir" "$work_dir"
+
+    run_wsha_default "$work_dir" "$user_home_dir" echo hello-default
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"hello-default"* ]] && [[ "$output" != *"config file not found"* ]]; then
+        result="PASS"
+        log_success "缺失可选配置忽略测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_default_missing_optional_configs_ignored" "$result" "$duration" "$note"
+}
+
+test_default_list_merged_aliases() {
+    local start_time end_time duration result note user_home_dir work_dir
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+
+    user_home_dir="$TEST_DIR/list-home"
+    work_dir="$TEST_DIR/list-work"
+    mkdir -p "$user_home_dir" "$work_dir"
+    write_default_merge_configs "$user_home_dir" "$work_dir"
+
+    run_wsha_default "$work_dir" "$user_home_dir" --list
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$output" == *"ab echo local-ab"* ]] \
+        && [[ "$output" == *"foo echo user-foo"* ]] \
+        && [[ "$output" == *"bar barbar -- --name ccwq"* ]]; then
+        result="PASS"
+        log_success "默认 --list 融合输出测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_default_list_merged_aliases" "$result" "$duration" "$note"
+}
+
 main() {
     setup
 
@@ -362,6 +491,9 @@ main() {
     test_list_short_flag
     test_duplicate_alias
     test_invalid_mapping
+    test_default_merge_priority
+    test_default_missing_optional_configs_ignored
+    test_default_list_merged_aliases
 
     cleanup
     generate_report

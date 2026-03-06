@@ -5,8 +5,9 @@ rem wsha: alias expansion runner for complex commands.
 rem usage: wsa <alias> [args...]
 
 set "SCRIPT_DIR=%~dp0"
-set "CONFIG_FILE=%SCRIPT_DIR%..\config\wsh-alias.txt"
-if defined WSHA_CONFIG_FILE set "CONFIG_FILE=%WSHA_CONFIG_FILE%"
+set "BUILTIN_CONFIG=%SCRIPT_DIR%..\config\wsh-alias.txt"
+set "USER_CONFIG=%USERPROFILE%\.config\wsh-alias.txt"
+set "LOCAL_CONFIG=%CD%\.config\wsh-alias.txt"
 
 if /i "%~1"=="-h" goto show_help
 if /i "%~1"=="--help" goto show_help
@@ -44,57 +45,25 @@ for /f "tokens=1,* delims= " %%A in ("%~1") do (
 
 :runtime_args_done
 
-if not exist "%CONFIG_FILE%" (
-  >&2 echo [wsha] config file not found: "%CONFIG_FILE%"
-  exit /b 1
-)
-
-set "LINE_NO=0"
-set "MATCH_TEMPLATE="
 set "PARSE_ERROR="
+set "ALIAS_ORDER="
+set "LOADED_CONFIG_COUNT=0"
 
-rem parse config: <alias> <target...>
-for /f "usebackq delims=" %%L in ("%CONFIG_FILE%") do (
-  set /a LINE_NO+=1
-  set "RAW_LINE=%%L"
-  for /f "tokens=* delims= " %%T in ("!RAW_LINE!") do set "LINE=%%T"
-
-  if not "!LINE!"=="" (
-    if not "!LINE:~0,1!"=="#" (
-      set "CUR_ALIAS="
-      set "CUR_TEMPLATE="
-      for /f "tokens=1,* delims= " %%A in ("!LINE!") do (
-        set "CUR_ALIAS=%%~A"
-        set "CUR_TEMPLATE=%%~B"
-      )
-
-      if "!CUR_ALIAS!"=="" (
-        if not defined PARSE_ERROR set "PARSE_ERROR=[wsha] invalid config at line !LINE_NO!: missing alias"
-      )
-
-      if "!CUR_TEMPLATE!"=="" (
-        if not defined PARSE_ERROR set "PARSE_ERROR=[wsha] invalid config at line !LINE_NO!: alias \"!CUR_ALIAS!\" has no target command"
-      )
-
-      if not "!CUR_ALIAS!"=="" if defined ALIAS_!CUR_ALIAS! (
-        if not defined PARSE_ERROR set "PARSE_ERROR=[wsha] duplicate alias \"!CUR_ALIAS!\" at line !LINE_NO!"
-      )
-
-      if not "!CUR_ALIAS!"=="" if not defined ALIAS_!CUR_ALIAS! (
-        set "ALIAS_!CUR_ALIAS!=1"
-      )
-
-      if /i "!CUR_ALIAS!"=="%INPUT_ALIAS%" (
-        set "MATCH_TEMPLATE=!CUR_TEMPLATE!"
-      )
-    )
-  )
+if defined WSHA_CONFIG_FILE (
+  call :load_config "%WSHA_CONFIG_FILE%"
+) else (
+  call :load_config "%BUILTIN_CONFIG%"
+  call :load_config "%USER_CONFIG%"
+  call :load_config "%LOCAL_CONFIG%"
 )
 
 if defined PARSE_ERROR (
   >&2 echo !PARSE_ERROR!
   exit /b 1
 )
+
+set "MATCH_TEMPLATE="
+if defined ALIAS_VALUE_%INPUT_ALIAS% set "MATCH_TEMPLATE=!ALIAS_VALUE_%INPUT_ALIAS%!"
 
 if not defined MATCH_TEMPLATE (
   set "FALLBACK_CMD="
@@ -153,6 +122,59 @@ if not defined FINAL_CMD (
 call !FINAL_CMD!
 exit /b %errorlevel%
 
+:load_config
+set "CONFIG_PATH=%~1"
+if not defined CONFIG_PATH exit /b 0
+if not exist "%CONFIG_PATH%" exit /b 0
+
+set /a LOADED_CONFIG_COUNT+=1
+set "LINE_NO=0"
+
+for /f "usebackq delims=" %%L in ("%CONFIG_PATH%") do (
+  set /a LINE_NO+=1
+  set "RAW_LINE=%%L"
+  for /f "tokens=* delims= " %%T in ("!RAW_LINE!") do set "LINE=%%T"
+
+  if not "!LINE!"=="" (
+    if not "!LINE:~0,1!"=="#" (
+      set "CUR_ALIAS="
+      set "CUR_TEMPLATE="
+      for /f "tokens=1,* delims= " %%A in ("!LINE!") do (
+        set "CUR_ALIAS=%%~A"
+        set "CUR_TEMPLATE=%%~B"
+      )
+
+      if "!CUR_ALIAS!"=="" (
+        if not defined PARSE_ERROR set "PARSE_ERROR=[wsha] invalid config at line !LINE_NO! in \"%CONFIG_PATH%\": missing alias"
+      )
+
+      if "!CUR_TEMPLATE!"=="" (
+        if not defined PARSE_ERROR set "PARSE_ERROR=[wsha] invalid config at line !LINE_NO! in \"%CONFIG_PATH%\": alias \"!CUR_ALIAS!\" has no target command"
+      )
+
+      if defined FILE_ALIAS_!CUR_ALIAS! (
+        if not defined PARSE_ERROR set "PARSE_ERROR=[wsha] duplicate alias \"!CUR_ALIAS!\" at line !LINE_NO! in \"%CONFIG_PATH%\""
+      )
+
+      if not defined FILE_ALIAS_!CUR_ALIAS! set "FILE_ALIAS_!CUR_ALIAS!=1"
+
+      if not defined ALIAS_EXISTS_!CUR_ALIAS! (
+        set "ALIAS_EXISTS_!CUR_ALIAS!=1"
+        if defined ALIAS_ORDER (
+          set "ALIAS_ORDER=!ALIAS_ORDER! !CUR_ALIAS!"
+        ) else (
+          set "ALIAS_ORDER=!CUR_ALIAS!"
+        )
+      )
+
+      set "ALIAS_VALUE_!CUR_ALIAS!=!CUR_TEMPLATE!"
+    )
+  )
+)
+
+for %%A in (!ALIAS_ORDER!) do set "FILE_ALIAS_%%A="
+exit /b 0
+
 :show_help
 echo wsha - alias command launcher
 echo.
@@ -160,12 +182,14 @@ echo Usage:
 echo   wsa ^<alias^> [args...]
 echo   wsa --list ^| -l
 echo.
-echo Config:
-echo   default: config\wsh-alias.txt
-echo   format : ^<alias^> ^<target...^>
+echo Config priority:
+echo   1. config\wsh-alias.txt
+echo   2. %%USERPROFILE%%\.config\wsh-alias.txt
+echo   3. %%CD%%\.config\wsh-alias.txt
 echo.
 echo Rules:
 echo   - Ignore empty lines and lines starting with '#'
+echo   - Same alias: higher priority overrides lower priority
 echo   - If template contains '--', runtime args are inserted there
 echo   - Otherwise runtime args are appended at the end
 echo   - If alias not found, run original command directly
@@ -181,20 +205,24 @@ echo   wsa bar --age 40      ^> barbar --age 40 --name ccwq
 exit /b 0
 
 :list_aliases
-if not exist "%CONFIG_FILE%" (
-  >&2 echo [wsha] config file not found: "%CONFIG_FILE%"
+set "PARSE_ERROR="
+set "ALIAS_ORDER="
+
+if defined WSHA_CONFIG_FILE (
+  call :load_config "%WSHA_CONFIG_FILE%"
+) else (
+  call :load_config "%BUILTIN_CONFIG%"
+  call :load_config "%USER_CONFIG%"
+  call :load_config "%LOCAL_CONFIG%"
+)
+
+if defined PARSE_ERROR (
+  >&2 echo !PARSE_ERROR!
   exit /b 1
 )
 
-for /f "usebackq delims=" %%L in ("%CONFIG_FILE%") do (
-  set "RAW_LINE=%%L"
-  set "LINE="
-  for /f "tokens=* delims= " %%T in ("!RAW_LINE!") do set "LINE=%%T"
-  if defined LINE (
-    if not "!LINE:~0,1!"=="#" (
-      echo !LINE!
-    )
-  )
+for %%A in (!ALIAS_ORDER!) do (
+  if defined ALIAS_VALUE_%%A echo %%A !ALIAS_VALUE_%%A!
 )
 exit /b 0
 

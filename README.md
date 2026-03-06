@@ -106,7 +106,13 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 
 #### 配置文件
 
-默认读取 `config/wsh-alias.txt`，格式为每行一条：
+支持按优先级读取并融合多个配置文件（同名 alias 高优先级覆盖低优先级）：
+
+1. 内置配置：`config/wsh-alias.txt`
+2. 用户配置：`%USERPROFILE%\.config\wsh-alias.txt`
+3. 工作目录配置：`%CD%\.config\wsh-alias.txt`
+
+若某个配置文件不存在则自动忽略。配置内容格式为每行一条：
 
 ```txt
 <alias> <target...>
@@ -129,7 +135,7 @@ bar barbar -- --name ccwq
 - 如果模板命令不包含 `--`，运行时参数会追加到末尾。
 - 如果别名未命中，将直接按原始命令执行（兼容普通命令调用）。
 - 支持使用引号包裹复杂命令（如包含管道的命令）并直接执行。
-- 使用 `--list` 或 `-l` 可查看当前可用 alias（按配置文件顺序输出，忽略空行与注释行）。
+- 使用 `--list` 或 `-l` 可查看融合后的 alias 列表（忽略空行与注释行）。
 
 #### 用法
 
@@ -153,7 +159,7 @@ sh\wsha.bat -l
 
 可选环境变量：
 
-- `WSHA_CONFIG_FILE`：自定义别名配置文件路径（默认 `config\wsh-alias.txt`）。
+- `WSHA_CONFIG_FILE`：自定义别名配置文件路径（设置后仅加载该文件）。
 
 ### 4. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
 
