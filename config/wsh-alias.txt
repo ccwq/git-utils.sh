@@ -1,6 +1,10 @@
+# agent-browser
 ab agent-browser
 pab pnpx agent-browser@0.16.3
-foo foobar open
+
+# codex
+codex pnpx @openai/codex
+codexl pnpx @openai/codex@latest
 
 # comment line, ignored by loader
 bar barbar -- --name ccwq
