@@ -6,6 +6,10 @@ pab pnpx agent-browser@0.16.3
 codex pnpx @openai/codex
 codexl pnpx @openai/codex@latest
 
+# gemini
+ge pnpx @google/gemini-cli@0.34.0-preview.0
+
+
 # comment line, ignored by loader
 bar barbar -- --name ccwq
 
