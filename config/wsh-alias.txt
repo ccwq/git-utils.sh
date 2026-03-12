@@ -9,11 +9,11 @@ pcodexl pnpx @openai/codex@latest
 pcodex-yo pnpx @openai/codex --yolo
 
 # gemini
+gem wsha pgemini
 gemini-yo gemini --yolo
 pgemini pnpx @google/gemini-cli
 pgeminil pnpx @google/gemini-cli@latest
 pgemini-yo pnpx @google/gemini-cli --yolo
-
 
 # claude
 claude-yo claude --dangerously-skip-permissions
@@ -21,6 +21,12 @@ pclaude pnpx @anthropic-ai/claude-code
 pclaudel pnpx @anthropic-ai/claude-code@latest
 pclaude-yo pnpx @anthropic-ai/claude-code --dangerously-skip-permissions
 
+# opnencode
+popencode pnpx opencode-ai@1.2.24
+ocode wsha popencode
+
+# git相关
+"git.sync" git pull && git push
 
 
 # comment line, ignored by loader
