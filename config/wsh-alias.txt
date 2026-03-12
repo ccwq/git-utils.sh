@@ -3,11 +3,24 @@ ab agent-browser
 pab pnpx agent-browser@0.16.3
 
 # codex
-codex pnpx @openai/codex
-codexl pnpx @openai/codex@latest
+codex pnpx @openai/codex@0.114.0
+pcodex pnpx @openai/codex 
+pcodexl pnpx @openai/codex@latest
+pcodex-yo pnpx @openai/codex --yolo
 
 # gemini
-ge pnpx @google/gemini-cli@0.34.0-preview.0
+gemini-yo gemini --yolo
+pgemini pnpx @google/gemini-cli
+pgeminil pnpx @google/gemini-cli@latest
+pgemini-yo pnpx @google/gemini-cli --yolo
+
+
+# claude
+claude-yo claude --dangerously-skip-permissions
+pclaude pnpx @anthropic-ai/claude-code
+pclaudel pnpx @anthropic-ai/claude-code@latest
+pclaude-yo pnpx @anthropic-ai/claude-code --dangerously-skip-permissions
+
 
 
 # comment line, ignored by loader
