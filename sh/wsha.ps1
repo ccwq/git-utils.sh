@@ -13,6 +13,7 @@ wsha - alias command launcher
 Usage:
   w <alias> [args...]
   w --list | -l
+  w --list-view | -lv
 
 Config priority:
   1. config\wsh-alias.txt
@@ -28,6 +29,8 @@ Rules:
   - Alias supports '**' wildcard (match all remaining input), map to `$$
   - If template contains '--', runtime args are inserted there
   - Otherwise runtime args are appended at the end
+  - `-l` uses table view in console
+  - `-lv` opens table view in Out-GridView
   - If alias not found, run original command directly
 
 Example:
@@ -55,6 +58,13 @@ function Set-AppEnvironmentVariables {
     $env:APP_HOME = $appHome
     $env:APP_SH = $appSh
     $env:APP_CONFIG = $appConfig
+}
+
+function Normalize-PathString {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $Path }
+    return [System.IO.Path]::GetFullPath($Path)
 }
 
 function Invoke-CmdLine {
@@ -119,29 +129,188 @@ function Load-Config {
         [string]$ConfigPath,
         [hashtable]$AliasMap,
         [System.Collections.Generic.List[string]]$Order,
-        [bool]$FailOnDuplicate
+        [bool]$FailOnDuplicate,
+        [string]$SourceName
     )
 
     if ([string]::IsNullOrWhiteSpace($ConfigPath)) { return }
-    if (-not (Test-Path -LiteralPath $ConfigPath)) { return }
+    $normalizedConfigPath = Normalize-PathString -Path $ConfigPath
+    if (-not (Test-Path -LiteralPath $normalizedConfigPath)) { return }
 
     $lineNo = 0
-    Get-Content -LiteralPath $ConfigPath | ForEach-Object {
+    Get-Content -LiteralPath $normalizedConfigPath | ForEach-Object {
         $lineNo += 1
-        $parsed = Parse-ConfigLine -Line $_ -ConfigPath $ConfigPath -LineNo $lineNo
+        $parsed = Parse-ConfigLine -Line $_ -ConfigPath $normalizedConfigPath -LineNo $lineNo
         if ($null -eq $parsed) { return }
 
         if ($FailOnDuplicate -and $AliasMap.ContainsKey($parsed.Alias)) {
             throw "[wsha] duplicate alias `"$($parsed.Alias)`" at line $($parsed.LineNo) in `"$ConfigPath`""
         }
 
+        $entry = [pscustomobject]@{
+            Alias      = $parsed.Alias
+            Template   = $parsed.Template
+            LineNo     = $parsed.LineNo
+            ConfigPath = $normalizedConfigPath
+            SourceName = $SourceName
+        }
+
         if ($AliasMap.ContainsKey($parsed.Alias)) {
-            $AliasMap[$parsed.Alias] = $parsed.Template
+            $AliasMap[$parsed.Alias] = $entry
         } else {
-            $AliasMap[$parsed.Alias] = $parsed.Template
+            $AliasMap[$parsed.Alias] = $entry
             [void]$Order.Add($parsed.Alias)
         }
     }
+}
+
+function New-SourceDescriptor {
+    param(
+        [string]$Name,
+        [string]$Path
+    )
+
+    return [pscustomobject]@{
+        Name = $Name
+        Path = (Normalize-PathString -Path $Path)
+    }
+}
+
+function Get-ListGroups {
+    param(
+        [string[]]$Order,
+        [hashtable]$AliasMap,
+        [object[]]$Sources
+    )
+
+    $groups = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($source in $Sources) {
+        $rows = New-Object 'System.Collections.Generic.List[object]'
+        foreach ($alias in $Order) {
+            $entry = $AliasMap[$alias]
+            if ($null -eq $entry) { continue }
+            if ($entry.ConfigPath -ne $source.Path) { continue }
+            [void]$rows.Add([pscustomobject]@{
+                别名 = $entry.Alias
+                命令 = $entry.Template
+            })
+        }
+
+        if ($rows.Count -eq 0) { continue }
+
+        [void]$groups.Add([pscustomobject]@{
+            来源     = $source.Name
+            配置文件 = $source.Path
+            数据     = $rows.ToArray()
+        })
+    }
+
+    return $groups.ToArray()
+}
+
+function Show-ListTable {
+    param([object[]]$Groups)
+
+    if ($Groups.Count -eq 0) {
+        Write-Output '[wsha] no alias found.'
+        return
+    }
+
+    $blocks = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($group in $Groups) {
+        $table = $group.数据 |
+            Format-Table 别名, 命令 -AutoSize |
+            Out-String -Width 4096
+
+        [void]$blocks.Add(('[{0}] {1}' -f $group.来源, $group.配置文件))
+        [void]$blocks.Add($table.TrimEnd())
+    }
+
+    Write-Output (($blocks.ToArray() -join [Environment]::NewLine + [Environment]::NewLine + [Environment]::NewLine).TrimEnd())
+}
+
+function Show-ListGridView {
+    param([object[]]$Groups)
+
+    if ($Groups.Count -eq 0) {
+        Write-Output '[wsha] no alias found.'
+        return
+    }
+
+    if ($env:WSHA_TEST_GRID_CAPTURE -eq '1') {
+        Show-ListTable -Groups $Groups
+        return
+    }
+
+    $payloadPath = Join-Path ([System.IO.Path]::GetTempPath()) ("wsha-list-{0}.json" -f ([guid]::NewGuid().ToString('N')))
+    $launcherPath = Join-Path ([System.IO.Path]::GetTempPath()) ("wsha-list-{0}.ps1" -f ([guid]::NewGuid().ToString('N')))
+    $Groups | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $payloadPath -Encoding UTF8
+
+    @"
+param(
+    [string]`$PayloadPath
+)
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+`$raw = Get-Content -LiteralPath `$PayloadPath -Raw -Encoding UTF8
+`$groups = @((ConvertFrom-Json -InputObject `$raw))
+
+`$form = New-Object System.Windows.Forms.Form
+`$form.Text = 'wsha alias list'
+`$form.StartPosition = 'CenterScreen'
+`$form.Width = 1100
+`$form.Height = 720
+
+`$tabs = New-Object System.Windows.Forms.TabControl
+`$tabs.Dock = 'Fill'
+
+foreach (`$group in `$groups) {
+    `$tab = New-Object System.Windows.Forms.TabPage
+    `$tab.Text = [string]`$group.来源
+
+    `$pathBox = New-Object System.Windows.Forms.TextBox
+    `$pathBox.ReadOnly = `$true
+    `$pathBox.Multiline = `$true
+    `$pathBox.Dock = 'Top'
+    `$pathBox.Height = 56
+    `$pathBox.Text = [string]`$group.配置文件
+
+    `$grid = New-Object System.Windows.Forms.DataGridView
+    `$grid.Dock = 'Fill'
+    `$grid.ReadOnly = `$true
+    `$grid.AllowUserToAddRows = `$false
+    `$grid.AllowUserToDeleteRows = `$false
+    `$grid.AutoSizeColumnsMode = 'Fill'
+    `$grid.AutoGenerateColumns = `$true
+    `$grid.DataSource = [System.Collections.ArrayList]@(`$group.数据)
+
+    `$tab.Controls.Add(`$grid)
+    `$tab.Controls.Add(`$pathBox)
+    [void]`$tabs.TabPages.Add(`$tab)
+}
+
+`$form.Controls.Add(`$tabs)
+
+try {
+    [void]`$form.ShowDialog()
+}
+finally {
+    Remove-Item -LiteralPath `$PayloadPath -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath `$PSCommandPath -ErrorAction SilentlyContinue
+}
+"@ | Set-Content -LiteralPath $launcherPath -Encoding UTF8
+
+    $hostProcessPath = (Get-Process -Id $PID).Path
+    Start-Process -FilePath $hostProcessPath -ArgumentList @(
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', $launcherPath,
+        '-PayloadPath', $payloadPath
+    ) | Out-Null
+
+    Write-Output '[wsha] list view opened.'
 }
 
 function Get-Tokens {
@@ -292,7 +461,7 @@ function Find-BestMatch {
 
         $candidate = [pscustomobject]@{
             Alias         = $alias
-            Template      = $AliasMap[$alias]
+            Template      = $AliasMap[$alias].Template
             Captures      = $captures
             RestCapture   = $restCapture
             AliasTokenLen = $aliasTokens.Count
@@ -340,19 +509,30 @@ try {
 
     $aliasMap = @{}
     $order = New-Object 'System.Collections.Generic.List[string]'
+    $sources = New-Object 'System.Collections.Generic.List[object]'
     $singleConfig = $env:WSHA_CONFIG_FILE
     if ([string]::IsNullOrWhiteSpace($singleConfig)) {
-        Load-Config -ConfigPath $builtinConfig -AliasMap $aliasMap -Order $order -FailOnDuplicate:$false
-        Load-Config -ConfigPath $userConfig -AliasMap $aliasMap -Order $order -FailOnDuplicate:$false
-        Load-Config -ConfigPath $localConfig -AliasMap $aliasMap -Order $order -FailOnDuplicate:$false
+        [void]$sources.Add((New-SourceDescriptor -Name '内置' -Path $builtinConfig))
+        [void]$sources.Add((New-SourceDescriptor -Name '用户级' -Path $userConfig))
+        [void]$sources.Add((New-SourceDescriptor -Name '项目级' -Path $localConfig))
+
+        Load-Config -ConfigPath $builtinConfig -AliasMap $aliasMap -Order $order -FailOnDuplicate:$false -SourceName '内置'
+        Load-Config -ConfigPath $userConfig -AliasMap $aliasMap -Order $order -FailOnDuplicate:$false -SourceName '用户级'
+        Load-Config -ConfigPath $localConfig -AliasMap $aliasMap -Order $order -FailOnDuplicate:$false -SourceName '项目级'
     } else {
-        Load-Config -ConfigPath $singleConfig -AliasMap $aliasMap -Order $order -FailOnDuplicate:$true
+        [void]$sources.Add((New-SourceDescriptor -Name '自定义' -Path $singleConfig))
+        Load-Config -ConfigPath $singleConfig -AliasMap $aliasMap -Order $order -FailOnDuplicate:$true -SourceName '自定义'
     }
 
     if ($first -ieq '-l' -or $first -ieq '--list') {
-        foreach ($a in $order) {
-            Write-Output "$a $($aliasMap[$a])"
-        }
+        $groups = Get-ListGroups -Order $order.ToArray() -AliasMap $aliasMap -Sources $sources.ToArray()
+        Show-ListTable -Groups $groups
+        exit 0
+    }
+
+    if ($first -ieq '-lv' -or $first -ieq '--list-view') {
+        $groups = Get-ListGroups -Order $order.ToArray() -AliasMap $aliasMap -Sources $sources.ToArray()
+        Show-ListGridView -Groups $groups
         exit 0
     }
 

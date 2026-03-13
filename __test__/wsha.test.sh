@@ -77,6 +77,18 @@ run_wsha() {
     output=$(printf "%s" "$output" | tr -d '\r')
 }
 
+# 调用 wsha 的 -lv/--list-view，并在测试模式下将弹窗输出转为文本
+run_wsha_list_view() {
+    local config_file="$1"
+    shift
+    local config_win
+    config_win=$(cygpath -am "$config_file")
+
+    output=$(WSHA_CONFIG_FILE="$config_win" WSHA_TEST_GRID_CAPTURE="1" cmd.exe //c "$SCRIPT_WIN" "$@" 2>&1)
+    run_code=$?
+    output=$(printf "%s" "$output" | tr -d '\r')
+}
+
 # 调用 wsha 默认多配置合并模式（不传 WSHA_CONFIG_FILE）
 run_wsha_default() {
     local work_dir="$1"
@@ -308,17 +320,27 @@ test_unknown_command_passthrough_error_code() {
 }
 
 test_list_long_flag() {
-    local start_time end_time duration result note config_file
+    local start_time end_time duration result note config_file config_win
     start_time=$(current_time)
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
     write_config "$config_file" "normal"
+    config_win=$(cygpath -aw "$config_file")
 
     run_wsha "$config_file" --list
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"ab echo agent-browser"* ]] && [[ "$output" == *"foo echo foobar open"* ]] && [[ "$output" == *"bar echo barbar -- --name ccwq"* ]]; then
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$output" == *"别名"* ]] \
+        && [[ "$output" == *"命令"* ]] \
+        && [[ "$output" == *"[自定义] $config_win"* ]] \
+        && [[ "$output" == *"ab"* ]] \
+        && [[ "$output" == *"echo agent-browser"* ]] \
+        && [[ "$output" == *"foo"* ]] \
+        && [[ "$output" == *"echo foobar open"* ]] \
+        && [[ "$output" == *"bar"* ]] \
+        && [[ "$output" == *"echo barbar -- --name ccwq"* ]]; then
         result="PASS"
-        log_success "--list 输出测试通过"
+        log_success "--list 表格输出测试通过"
     else
         note="output=[$output], code=$run_code"
         log_fail "$note"
@@ -330,17 +352,22 @@ test_list_long_flag() {
 }
 
 test_list_short_flag() {
-    local start_time end_time duration result note config_file
+    local start_time end_time duration result note config_file config_win
     start_time=$(current_time)
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
     write_config "$config_file" "normal"
+    config_win=$(cygpath -aw "$config_file")
 
     run_wsha "$config_file" -l
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"ab echo agent-browser"* ]] && [[ "$output" == *"foo echo foobar open"* ]] && [[ "$output" == *"bar echo barbar -- --name ccwq"* ]]; then
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$output" == *"[自定义] $config_win"* ]] \
+        && [[ "$output" == *"ab"* ]] \
+        && [[ "$output" == *"echo agent-browser"* ]] \
+        && [[ "$output" == *"bar"* ]]; then
         result="PASS"
-        log_success "-l 输出测试通过"
+        log_success "-l 表格输出测试通过"
     else
         note="output=[$output], code=$run_code"
         log_fail "$note"
@@ -349,6 +376,32 @@ test_list_short_flag() {
     end_time=$(current_time)
     duration=$(calc_duration "$start_time" "$end_time")
     record_test_result "test_list_short_flag" "$result" "$duration" "$note"
+}
+
+test_list_view_flag() {
+    local start_time end_time duration result note config_file config_win
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-normal.txt"
+    write_config "$config_file" "normal"
+    config_win=$(cygpath -aw "$config_file")
+
+    run_wsha_list_view "$config_file" -lv
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$output" == *"[自定义] $config_win"* ]] \
+        && [[ "$output" == *"ab"* ]] \
+        && [[ "$output" == *"echo agent-browser"* ]]; then
+        result="PASS"
+        log_success "-lv 视图输出测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_list_view_flag" "$result" "$duration" "$note"
 }
 
 test_duplicate_alias() {
@@ -427,7 +480,7 @@ test_default_merge_priority() {
     fi
 
     run_wsha_default "$work_dir" "$user_home_dir" --list
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"bar barbar -- --name ccwq"* ]]; then
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"bar"* ]] && [[ "$output" == *"barbar -- --name ccwq"* ]]; then
         result="PASS"
         log_success "默认多配置优先级合并测试通过"
     else
@@ -465,7 +518,7 @@ test_default_missing_optional_configs_ignored() {
 }
 
 test_default_list_merged_aliases() {
-    local start_time end_time duration result note user_home_dir work_dir
+    local start_time end_time duration result note user_home_dir work_dir builtin_win user_win local_win
     start_time=$(current_time)
     result="FAIL"
     note=""
@@ -474,14 +527,23 @@ test_default_list_merged_aliases() {
     work_dir="$TEST_DIR/list-work"
     mkdir -p "$user_home_dir" "$work_dir"
     write_default_merge_configs "$user_home_dir" "$work_dir"
+    builtin_win=$(cygpath -aw "$PROJECT_ROOT/config/wsh-alias.txt")
+    user_win=$(cygpath -aw "$user_home_dir/.config/wsh-alias.txt")
+    local_win=$(cygpath -aw "$work_dir/.config/wsh-alias.txt")
 
     run_wsha_default "$work_dir" "$user_home_dir" --list
     if [[ $run_code -eq 0 ]] \
-        && [[ "$output" == *"ab echo local-ab"* ]] \
-        && [[ "$output" == *"foo echo user-foo"* ]] \
-        && [[ "$output" == *"bar barbar -- --name ccwq"* ]]; then
+        && [[ "$output" == *"[内置] $builtin_win"* ]] \
+        && [[ "$output" == *"[用户级] $user_win"* ]] \
+        && [[ "$output" == *"[项目级] $local_win"* ]] \
+        && [[ "$output" == *"ab"* ]] \
+        && [[ "$output" == *"echo local-ab"* ]] \
+        && [[ "$output" == *"foo"* ]] \
+        && [[ "$output" == *"echo user-foo"* ]] \
+        && [[ "$output" == *"bar"* ]] \
+        && [[ "$output" == *"barbar -- --name ccwq"* ]]; then
         result="PASS"
-        log_success "默认 --list 融合输出测试通过"
+        log_success "默认 --list 来源表格输出测试通过"
     else
         note="output=[$output], code=$run_code"
         log_fail "$note"
@@ -709,6 +771,7 @@ main() {
     test_unknown_command_passthrough_error_code
     test_list_long_flag
     test_list_short_flag
+    test_list_view_flag
     test_duplicate_alias
     test_invalid_mapping
     test_default_merge_priority

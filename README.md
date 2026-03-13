@@ -159,7 +159,10 @@ open-config code %APP_CONFIG%
 - `**` 规则要求必须捕获到非空内容（例如 `s` 不命中，`sls -l` 命中）。
 - 如果别名未命中，将直接按原始命令执行（兼容普通命令调用）。
 - 支持使用引号包裹复杂命令（如包含管道的命令）并直接执行。
-- 使用 `--list` 或 `-l` 可查看融合后的 alias 列表（忽略空行与注释行）。
+- 使用 `--list` 或 `-l` 可在控制台查看融合后的 alias 列表。
+- 使用 `--list-view` 或 `-lv` 可在独立弹窗中查看 alias 列表。
+- 列表会按来源分组展示，来源信息单独显示在表格外部。
+- 配置文件路径会先做 normalize，再用于展示与比较。
 
 #### 用法
 
@@ -167,6 +170,8 @@ open-config code %APP_CONFIG%
 w <alias> [args...]
 w --list
 w -l
+w --list-view
+w -lv
 ```
 
 #### Windows (CMD / PowerShell) 调用示例
@@ -185,6 +190,8 @@ sh\w.bat echo hello
 sh\w.bat "echo foo | findstr foo"
 sh\w.bat --list
 sh\w.bat -l
+sh\w.bat --list-view
+sh\w.bat -lv
 ```
 
 可选环境变量：
