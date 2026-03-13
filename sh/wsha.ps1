@@ -22,6 +22,7 @@ Config priority:
 Rules:
   - Ignore empty lines and lines starting with '#'
   - Same alias: higher priority overrides lower priority
+  - Inject env vars: %APP_HOME%, %APP_SH%, %APP_CONFIG%
   - Alias can be quoted to include spaces, like "pcodex l"
   - Alias supports '*' wildcard (single token capture), map to `$1..`$N
   - Alias supports '**' wildcard (match all remaining input), map to `$$
@@ -42,6 +43,18 @@ Example:
   w px http-server       > pnpx http-server
   w sls -l               > wsh ls -l
 "@
+}
+
+function Set-AppEnvironmentVariables {
+    param([string]$ScriptDir)
+
+    $appHome = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir '..'))
+    $appSh = [System.IO.Path]::GetFullPath($ScriptDir)
+    $appConfig = [System.IO.Path]::GetFullPath((Join-Path $appHome 'config'))
+
+    $env:APP_HOME = $appHome
+    $env:APP_SH = $appSh
+    $env:APP_CONFIG = $appConfig
 }
 
 function Invoke-CmdLine {
@@ -320,6 +333,7 @@ try {
     }
 
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    Set-AppEnvironmentVariables -ScriptDir $scriptDir
     $builtinConfig = Join-Path $scriptDir '..\config\wsh-alias.txt'
     $userConfig = Join-Path $env:USERPROFILE '.config\wsh-alias.txt'
     $localConfig = Join-Path (Get-Location).Path '.config\wsh-alias.txt'

@@ -1,3 +1,15 @@
+# 可用环境变量:
+# %APP_HOME%   -> 项目根目录绝对路径
+# %APP_SH%     -> sh 目录绝对路径
+# %APP_CONFIG% -> config 目录绝对路径
+
+# 系统
+--update cd /d %APP_HOME% && git pull
+-u wsha --update
+--open code %APP_HOME%
+
+
+
 # agent-browser
 ab agent-browser
 pab pnpx agent-browser@0.16.3

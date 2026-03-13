@@ -125,6 +125,7 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 - `<alias>` 支持 `**` 通配符，按“匹配剩余全部内容（可含空格）”处理；可在模板中通过 `$$` 取值。
 - 通配符捕获结果可在模板中用 `$1`、`$2`、`$3`... 引用。
 - `<target...>` 也支持整体双引号包裹，`"pnpx $1"` 与 `pnpx $1` 等价。
+- `<target...>` 执行时可直接使用 `%APP_HOME%`、`%APP_SH%`、`%APP_CONFIG%` 三个内置环境变量。
 
 示例：
 
@@ -144,7 +145,10 @@ pcodex pnpx @openai/codex
 
 # 为 wsh 增加缩写: sls -l -> wsh ls -l
 "s**" wsh $$
-```
+
+# 使用内置路径变量
+open-config code %APP_CONFIG%
+``` 
 
 规则说明：
 

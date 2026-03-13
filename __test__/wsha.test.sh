@@ -56,6 +56,12 @@ pcodex echo codex-default
 "tool * *" echo $1::$2
 "s**" echo wsh $$
 EOF
+    elif [[ "$mode" == "env_vars" ]]; then
+        cat > "$file_path" <<'EOF'
+show-home echo %APP_HOME%
+show-sh echo %APP_SH%
+show-config echo %APP_CONFIG%
+EOF
     fi
 }
 
@@ -644,6 +650,51 @@ test_wildcard_multi_capture() {
     record_test_result "test_wildcard_multi_capture" "$result" "$duration" "$note"
 }
 
+test_builtin_env_vars() {
+    local start_time end_time duration result note config_file expected_home expected_sh expected_config
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-env-vars.txt"
+    write_config "$config_file" "env_vars"
+    expected_home=$(cygpath -aw "$PROJECT_ROOT")
+    expected_sh=$(cygpath -aw "$PROJECT_ROOT/sh")
+    expected_config=$(cygpath -aw "$PROJECT_ROOT/config")
+
+    run_wsha "$config_file" show-home
+    if [[ $run_code -ne 0 ]] || [[ "$output" != *"$expected_home"* ]]; then
+        note="APP_HOME 注入失败 output=[$output], expected=[$expected_home], code=$run_code"
+        log_fail "$note"
+        end_time=$(current_time)
+        duration=$(calc_duration "$start_time" "$end_time")
+        record_test_result "test_builtin_env_vars" "$result" "$duration" "$note"
+        return
+    fi
+
+    run_wsha "$config_file" show-sh
+    if [[ $run_code -ne 0 ]] || [[ "$output" != *"$expected_sh"* ]]; then
+        note="APP_SH 注入失败 output=[$output], expected=[$expected_sh], code=$run_code"
+        log_fail "$note"
+        end_time=$(current_time)
+        duration=$(calc_duration "$start_time" "$end_time")
+        record_test_result "test_builtin_env_vars" "$result" "$duration" "$note"
+        return
+    fi
+
+    run_wsha "$config_file" show-config
+    if [[ $run_code -eq 0 ]] && [[ "$output" == *"$expected_config"* ]]; then
+        result="PASS"
+        log_success "内置环境变量注入测试通过"
+    else
+        note="APP_CONFIG 注入失败 output=[$output], expected=[$expected_config], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_builtin_env_vars" "$result" "$duration" "$note"
+}
+
 main() {
     setup
 
@@ -669,6 +720,7 @@ main() {
     test_quoted_content_equivalence
     test_wildcard_multi_capture
     test_double_star_capture
+    test_builtin_env_vars
 
     cleanup
     generate_report
