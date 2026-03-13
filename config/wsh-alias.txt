@@ -21,7 +21,6 @@
 --edit-config-user code %USERPROFILE%/.config/wsh-alias.txt
 -ecu wsha --edit-config-user
 
-
 # docker
 dc docker compose 
 
@@ -56,12 +55,20 @@ ocode wsha popencode
 "git.sync" git pull && git push
 
 
-# comment line, ignored by loader
-bar barbar -- --name ccwq
+# 内部功能缩写
+tping wsh-ping
+# 为wsh增加缩写
+"s**" wsh $$
+"ws" wsh
 
-ppp ping t.cn
-"pph" ping --help
 
+# curl
+# 显示http header
+"show http header" wsh curl -I
+
+
+# 特性演示部分
+# ----------------------------------
 # 举例
 # pxhttp-server,实际执行 pnpx http-server
 "px*" pnpx $1
@@ -74,12 +81,7 @@ ppp ping t.cn
 "px *" "pnpx $1"
 "px *" pnpx $1
 
-# 为wsh增加缩写
-"s**" wsh $$
-"ws" wsh
 
-# 缩写
-tping wsh-ping
 
-# 显示http header
-"show http header" wsh curl -I
+
+
