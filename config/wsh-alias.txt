@@ -3,7 +3,7 @@
 # %APP_SH%     -> sh 目录绝对路径
 # %APP_CONFIG% -> config 目录绝对路径
 
-# 也可以使用windows系统内置的环境变量
+# 可以使用windows系统内置的环境变量
 # %USERPROFILE% -> 用户目录绝对路径
 
 # 系统
@@ -11,6 +11,7 @@
 -u wsha --update
 --open code %APP_HOME%
 --lazygit cd /d %APP_HOME% && lazygit
+-lgit wsha --lazygit
 
 # 编辑配置文件
 --edit-config code %APP_CONFIG%/wsh-alias.txt
