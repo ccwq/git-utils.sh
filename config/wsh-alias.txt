@@ -7,6 +7,7 @@
 --update cd /d %APP_HOME% && git pull
 -u wsha --update
 --open code %APP_HOME%
+--lazygit cd /d %APP_HOME% && lazygit
 
 
 # docker
