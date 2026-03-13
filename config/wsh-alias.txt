@@ -9,10 +9,8 @@
 --open code %APP_HOME%
 
 
-
 # docker
-
-dc docker compose
+dc docker compose 
 
 # agent-browser
 ab agent-browser
