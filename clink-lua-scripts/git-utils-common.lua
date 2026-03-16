@@ -167,9 +167,15 @@ local function token_matches(pattern, value)
         return pattern == value
     end
 
-    local lua_pattern = "^" .. escape_lua_pattern(pattern)
-        :gsub("%*%*", ".+")
-        :gsub("%*", "[^%s]+") .. "$"
+    local escaped = escape_lua_pattern(pattern)
+    escaped = escaped:gsub("%*%*", function()
+        return ".+"
+    end)
+    escaped = escaped:gsub("%*", function()
+        return "[^%%s]+"
+    end)
+
+    local lua_pattern = "^" .. escaped .. "$"
     return value:match(lua_pattern) ~= nil
 end
 
