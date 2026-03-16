@@ -6,6 +6,10 @@
 # 可以使用windows系统内置的环境变量
 # %USERPROFILE% -> 用户目录绝对路径
 
+# 测试
+fox firefox
+box killbox
+
 # 系统
 --update cd /d %APP_HOME% && git pull
 -u wsha --update

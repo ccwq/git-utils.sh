@@ -198,6 +198,36 @@ sh\w.bat -lv
 
 - `WSHA_CONFIG_FILE`：自定义别名配置文件路径（设置后仅加载该文件）。
 
+#### Clink 自动补全
+
+仓库根目录下的 `clink-lua-scripts/` 提供了配套的 Clink Lua 补全脚本，当前覆盖：
+
+- `w` / `wsha`
+- `wsh`
+- `wsh-ping`
+- `wsh-fpatch`
+- `wsh-real-ignore`
+- `wsh-replace-cn-punc`
+
+其中：
+
+- `w` / `wsha` 会从 `config/wsh-alias.txt`、`%USERPROFILE%\.config\wsh-alias.txt`、`%CD%\.config\wsh-alias.txt` 读取 alias 候选。
+- `wsh-ping` 会从 `config/wsh-ping.txt` 读取预设主机与端口候选。
+- `wsh-fpatch` 会补全常见选项以及本仓库当前可见的 Git branch/tag。
+
+Clink 使用方式示例：
+
+```lua
+-- 推荐直接引入聚合入口
+dofile("E:/project/self.project/git-utils.sh/clink-lua-scripts/git-utils.lua")
+```
+
+可以直接增加以下环境变量来增加补全
+```bash
+set CLINK_PATH path\to\dir\git-utils.sh\clink-lua-scripts
+# 直接在系统环境变量中增加
+```
+
 ### 4. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
 
 用于停止 Git 对指定文件或文件夹的追踪（从 Git 索引中移除），并自动将其添加到 `.gitignore` 中，**同时保留本地文件内容不被删除**。
