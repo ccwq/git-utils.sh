@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "init": "scripts\\init.bat",
     "test": "git bash -c \"./test-all.sh\""
   },
   "keywords": [],

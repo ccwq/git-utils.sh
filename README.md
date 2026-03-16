@@ -22,7 +22,15 @@
 ```bash
 git clone https://github.com/ccwq/git-utils.sh.git
 cd git-utils.sh
+npm run init
 ```
+
+`npm run init` 会在 Windows 下执行 `scripts/init.bat`，自动完成两件事：
+
+- 检查当前仓库 `sh\` 是否已经在 `PATH` 中；若不存在，则写入当前用户的 `Path`
+- 检查 `CLINK_PATH` 是否指向当前仓库 `clink-lua-scripts\`；若未设置则直接写入，若已指向其他目录则会询问是否覆盖
+
+执行完成后，建议重新打开终端，让新的用户环境变量生效。
 
 ## 可用脚本
 
