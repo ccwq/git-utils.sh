@@ -63,7 +63,7 @@ opencode pnpx opencode-ai@1.2.24
 opencode-l pnpx opencode-ai@latest
 
 # git相关
-"git.sync" git pull && git push
+git.sync git pull && git push
 git.auto-pull git stash && git pull && git stash pop
 git.auto-commit wsha codex "使用skill:git-commit提交代码按照下面的要求,母语中文,根据情况分1批或者多2,依据功能而定"
 
