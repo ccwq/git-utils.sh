@@ -25,6 +25,15 @@ box killbox
 --edit-config-user code %USERPROFILE%/.config/wsh-alias.txt
 -ecu wsha --edit-config-user
 
+
+# cdp
+## 测试cdp的是否可用
+cdp-test wsh curl http://localhost:9222/json/version
+
+# browser-use
+"bu **" uvx browser-use  $$
+"buc **" uvx browser-use --cdp-url http://localhost:9222 $$
+
 # docker
 dc docker compose 
 
