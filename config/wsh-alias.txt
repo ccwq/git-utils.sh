@@ -9,6 +9,7 @@
 # 测试
 fox firefox
 box killbox
+ev:edit echo %EDITOR%
 
 # 系统
 --update cd /d %APP_HOME% && git pull
@@ -26,11 +27,19 @@ box killbox
 -ecu wsha --edit-config-user
 
 # docker
-dc docker compose 
+
+# 在docker环境下使用docker, podman环境下解开使用podman
+# docker docker
+docker podman
+dc wsha docker compose
+pc podman compose
+
+
 
 # agent-browser
-ab agent-browser
+ab pnpx agent-browser
 abc wsha ab --cdp 9222
+abcc wsha ab --cdp %CDPORT%
 ab-p pnpx agent-browser@0.16.3
 ab-p-l pnpx agent-browser@latest
 
@@ -41,22 +50,21 @@ codex-l pnpx @openai/codex@latest
 codex-yo wsha -- --yolo
 
 
-
 # gemini
 gem gemini
 gemini pnpx @google/gemini-cli
 gemini-p pnpx @google/gemini-cli@0.33.1
 gemini-l pnpx @google/gemini-cli@latest
 
-gemini-yo wsha -- --yolo
+gemini-yo wsha gemini --approval-mode yolo
 
 
 # claude
 
 claude wsha claude-p
-claude-p pnpx @anthropic-ai/claude-code@2.1.74
-pclaude-l pnpx @anthropic-ai/claude-code@latest
-claude-yo wsha -- --dangerously-skip-permissions
+claude-p pnpx @anthropic-ai/claude-code
+claude-l pnpx @anthropic-ai/claude-code@latest
+claude-yo wsha claude-l --dangerously-skip-permissions
 
 # opnencode
 opencode pnpx opencode-ai@1.2.24
@@ -67,9 +75,14 @@ git.sync git pull && git push
 git.auto-pull git stash && git pull && git stash pop
 git.auto-commit wsha codex "使用skill:git-commit提交代码按照下面的要求,母语中文,根据情况分1批或者多2,依据功能而定"
 
+## lazygit
+lz lazygit
+lgit lazygit
+lzgit lazygit
 
 # 内部功能缩写
 tping wsh-ping
+tcping wsha tping
 # 为wsh增加缩写
 "s**" wsh $$
 "ws" wsh
