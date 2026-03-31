@@ -3,5 +3,5 @@ setlocal EnableExtensions
 
 set "SCRIPT_DIR=%~dp0"
 if not defined WSHA_ENTRY set "WSHA_ENTRY=wsha"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%wsha.ps1" %*
+git bash -c "'%SCRIPT_DIR%wsha.sh' %*"
 exit /b %errorlevel%

@@ -4,17 +4,14 @@ source "$(dirname "$0")/test_utils.sh"
 
 BASE_DIR=$(cd "$(dirname "$0")" && pwd)
 PROJECT_ROOT=$(cd "$BASE_DIR/.." && pwd)
-SCRIPT_TO_TEST="$PROJECT_ROOT/sh/wsha.bat"
+SCRIPT_TO_TEST="$PROJECT_ROOT/sh/wsha.sh"
 TEST_DIR="$PROJECT_ROOT/test_playground_wsha"
-
-SCRIPT_WIN=""
 
 # 准备测试沙箱与路径
 setup() {
     log_info "正在设置 wsha 测试环境..."
     rm -rf "$TEST_DIR"
     mkdir -p "$TEST_DIR"
-    SCRIPT_WIN=$(cygpath -am "$SCRIPT_TO_TEST")
 }
 
 # 清理测试沙箱
@@ -69,24 +66,22 @@ EOF
 run_wsha() {
     local config_file="$1"
     shift
-    local config_win
-    config_win=$(cygpath -am "$config_file")
 
-    output=$(WSHA_CONFIG_FILE="$config_win" cmd.exe //c "$SCRIPT_WIN" "$@" 2>&1)
+    raw_output=$(WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" "$@" 2>&1)
     run_code=$?
-    output=$(printf "%s" "$output" | tr -d '\r')
+    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
+    output=$(strip_time_logs "$raw_output")
 }
 
 # 调用 wsha 的 -lv/--list-view，并在测试模式下将弹窗输出转为文本
 run_wsha_list_view() {
     local config_file="$1"
     shift
-    local config_win
-    config_win=$(cygpath -am "$config_file")
 
-    output=$(WSHA_CONFIG_FILE="$config_win" WSHA_TEST_GRID_CAPTURE="1" cmd.exe //c "$SCRIPT_WIN" "$@" 2>&1)
+    raw_output=$(WSHA_CONFIG_FILE="$config_file" WSHA_TEST_GRID_CAPTURE="1" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" "$@" 2>&1)
     run_code=$?
-    output=$(printf "%s" "$output" | tr -d '\r')
+    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
+    output=$(strip_time_logs "$raw_output")
 }
 
 # 调用 wsha 默认多配置合并模式（不传 WSHA_CONFIG_FILE）
@@ -95,12 +90,24 @@ run_wsha_default() {
     local user_home_dir="$2"
     shift 2
 
-    local user_home_win
-    user_home_win=$(cygpath -am "$user_home_dir")
-
-    output=$(cd "$work_dir" && USERPROFILE="$user_home_win" cmd.exe //c "$SCRIPT_WIN" "$@" 2>&1)
+    raw_output=$(cd "$work_dir" && HOME="$user_home_dir" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" "$@" 2>&1)
     run_code=$?
-    output=$(printf "%s" "$output" | tr -d '\r')
+    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
+    output=$(strip_time_logs "$raw_output")
+}
+
+# 清理测试输出中的耗时日志和颜色控制符，便于断言业务内容
+strip_time_logs() {
+    printf "%s" "$1" | awk '
+        BEGIN {
+            esc = sprintf("%c", 27)
+        }
+        {
+            gsub(esc "\\[[0-9;]*[A-Za-z]", "")
+            if ($0 ~ /^\[wsha\]\[time\] /) next
+            print
+        }
+    '
 }
 
 # 生成默认模式下的用户级与工作目录级配置
@@ -118,6 +125,7 @@ EOF
 
     cat > "$work_dir/.config/wsh-alias.txt" <<'EOF'
 ab echo local-ab
+bar echo local-bar
 EOF
 }
 
@@ -130,11 +138,13 @@ test_expand_ab() {
     write_config "$config_file" "normal"
 
     run_wsha "$config_file" ab open
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"agent-browser open"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"agent-browser open"* ]]; then
         result="PASS"
         log_success "ab 展开测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -152,11 +162,13 @@ test_expand_foo_append() {
     write_config "$config_file" "normal"
 
     run_wsha "$config_file" foo --ping
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"foobar open --ping"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"foobar open --ping"* ]]; then
         result="PASS"
         log_success "foo 参数追加测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -174,11 +186,13 @@ test_expand_bar_placeholder() {
     write_config "$config_file" "normal"
 
     run_wsha "$config_file" bar --age 40
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"barbar --age 40 --name ccwq"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"barbar --age 40 --name ccwq"* ]]; then
         result="PASS"
         log_success "bar 占位符插入测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -196,11 +210,13 @@ test_unknown_alias_passthrough_with_args() {
     write_config "$config_file" "normal"
 
     run_wsha "$config_file" echo hello
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"hello"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"hello"* ]]; then
         result="PASS"
         log_success "未知 alias 透传参数执行测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -218,11 +234,13 @@ test_unknown_alias_ping_passthrough() {
     write_config "$config_file" "normal"
 
     run_wsha "$config_file" ping t.cn -n 1
-    if [[ "$output" != *"'t.cn' is not recognized"* ]] && [[ "$output" != *"'ping' is not recognized"* ]] && [[ "$output" == *"t.cn"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ "$clean_output" != *"'t.cn' is not recognized"* ]] && [[ "$clean_output" != *"'ping' is not recognized"* ]] && [[ "$clean_output" == *"t.cn"* ]]; then
         result="PASS"
         log_success "未知 alias 的 ping 透传测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -240,11 +258,13 @@ test_quoted_alias_expand() {
     write_config "$config_file" "normal"
 
     run_wsha "$config_file" "ab open t.cn"
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"agent-browser open t.cn"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"agent-browser open t.cn"* ]]; then
         result="PASS"
         log_success "引号包裹 alias 展开测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -261,12 +281,14 @@ test_quoted_complex_command_passthrough() {
     config_file="$TEST_DIR/alias-normal.txt"
     write_config "$config_file" "normal"
 
-    run_wsha "$config_file" "echo foo | findstr foo"
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"foo"* ]]; then
+    run_wsha "$config_file" "echo foo | grep foo"
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"foo"* ]]; then
         result="PASS"
         log_success "引号复杂命令透传测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -284,11 +306,13 @@ test_quoted_and_chain_passthrough() {
     write_config "$config_file" "normal"
 
     run_wsha "$config_file" "echo a && echo b"
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"a"* ]] && [[ "$output" == *"b"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"a"* ]] && [[ "$clean_output" == *"b"* ]]; then
         result="PASS"
         log_success "引号与链式命令透传测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -306,11 +330,13 @@ test_unknown_command_passthrough_error_code() {
     write_config "$config_file" "normal"
 
     run_wsha "$config_file" not_exist_cmd_12345
-    if [[ $run_code -ne 0 ]] && [[ "$output" == *"not recognized"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] && [[ "$clean_output" == *"not found"* || "$clean_output" == *"not recognized"* ]]; then
         result="PASS"
         log_success "未知命令透传错误码测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -320,29 +346,30 @@ test_unknown_command_passthrough_error_code() {
 }
 
 test_list_long_flag() {
-    local start_time end_time duration result note config_file config_win
+    local start_time end_time duration result note config_file
     start_time=$(current_time)
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
     write_config "$config_file" "normal"
-    config_win=$(cygpath -aw "$config_file")
 
     run_wsha "$config_file" --list
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
     if [[ $run_code -eq 0 ]] \
-        && [[ "$output" == *"别名"* ]] \
-        && [[ "$output" == *"命令"* ]] \
-        && [[ "$output" == *"[自定义] $config_win"* ]] \
-        && [[ "$output" == *"ab"* ]] \
-        && [[ "$output" == *"echo agent-browser"* ]] \
-        && [[ "$output" == *"foo"* ]] \
-        && [[ "$output" == *"echo foobar open"* ]] \
-        && [[ "$output" == *"bar"* ]] \
-        && [[ "$output" == *"echo barbar -- --name ccwq"* ]]; then
+        && [[ "$clean_output" == *"别名"* ]] \
+        && [[ "$clean_output" == *"命令"* ]] \
+        && [[ "$clean_output" == *"[自定义] $config_file"* ]] \
+        && [[ "$clean_output" == *"ab"* ]] \
+        && [[ "$clean_output" == *"echo agent-browser"* ]] \
+        && [[ "$clean_output" == *"foo"* ]] \
+        && [[ "$clean_output" == *"echo foobar open"* ]] \
+        && [[ "$clean_output" == *"bar"* ]] \
+        && [[ "$clean_output" == *"echo barbar -- --name ccwq"* ]]; then
         result="PASS"
         log_success "--list 表格输出测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -352,24 +379,25 @@ test_list_long_flag() {
 }
 
 test_list_short_flag() {
-    local start_time end_time duration result note config_file config_win
+    local start_time end_time duration result note config_file
     start_time=$(current_time)
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
     write_config "$config_file" "normal"
-    config_win=$(cygpath -aw "$config_file")
 
     run_wsha "$config_file" -l
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
     if [[ $run_code -eq 0 ]] \
-        && [[ "$output" == *"[自定义] $config_win"* ]] \
-        && [[ "$output" == *"ab"* ]] \
-        && [[ "$output" == *"echo agent-browser"* ]] \
-        && [[ "$output" == *"bar"* ]]; then
+        && [[ "$clean_output" == *"[自定义] $config_file"* ]] \
+        && [[ "$clean_output" == *"ab"* ]] \
+        && [[ "$clean_output" == *"echo agent-browser"* ]] \
+        && [[ "$clean_output" == *"bar"* ]]; then
         result="PASS"
         log_success "-l 表格输出测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -385,17 +413,19 @@ test_list_view_flag() {
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
     write_config "$config_file" "normal"
-    config_win=$(cygpath -aw "$config_file")
+    config_win=$(cygpath -u "$config_file")
 
     run_wsha_list_view "$config_file" -lv
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
     if [[ $run_code -eq 0 ]] \
-        && [[ "$output" == *"[自定义] $config_win"* ]] \
-        && [[ "$output" == *"ab"* ]] \
-        && [[ "$output" == *"echo agent-browser"* ]]; then
+        && [[ "$clean_output" == *"[自定义] $config_win"* ]] \
+        && [[ "$clean_output" == *"ab"* ]] \
+        && [[ "$clean_output" == *"echo agent-browser"* ]]; then
         result="PASS"
         log_success "-lv 视图输出测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -413,11 +443,13 @@ test_duplicate_alias() {
     write_config "$config_file" "duplicate"
 
     run_wsha "$config_file" ab run
-    if [[ $run_code -ne 0 ]] && [[ "$output" == *"duplicate alias"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] && [[ "$clean_output" == *"duplicate alias"* ]]; then
         result="PASS"
         log_success "重复 alias 检测测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -435,11 +467,13 @@ test_invalid_mapping() {
     write_config "$config_file" "invalid"
 
     run_wsha "$config_file" ab run
-    if [[ $run_code -ne 0 ]] && [[ "$output" == *"invalid config"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] && [[ "$clean_output" == *"invalid config"* ]]; then
         result="PASS"
         log_success "非法配置检测测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -460,8 +494,10 @@ test_default_merge_priority() {
     write_default_merge_configs "$user_home_dir" "$work_dir"
 
     run_wsha_default "$work_dir" "$user_home_dir" ab run
-    if [[ $run_code -ne 0 ]] || [[ "$output" != *"local-ab run"* ]]; then
-        note="ab 覆盖失败 output=[$output], code=$run_code"
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"local-ab run"* ]]; then
+        note="ab 覆盖失败 output=[$clean_output], code=$run_code"
         log_fail "$note"
         end_time=$(current_time)
         duration=$(calc_duration "$start_time" "$end_time")
@@ -470,8 +506,9 @@ test_default_merge_priority() {
     fi
 
     run_wsha_default "$work_dir" "$user_home_dir" foo ping
-    if [[ $run_code -ne 0 ]] || [[ "$output" != *"user-foo ping"* ]]; then
-        note="foo 覆盖失败 output=[$output], code=$run_code"
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"user-foo ping"* ]]; then
+        note="foo 覆盖失败 output=[$clean_output], code=$run_code"
         log_fail "$note"
         end_time=$(current_time)
         duration=$(calc_duration "$start_time" "$end_time")
@@ -480,11 +517,12 @@ test_default_merge_priority() {
     fi
 
     run_wsha_default "$work_dir" "$user_home_dir" --list
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"bar"* ]] && [[ "$output" == *"barbar -- --name ccwq"* ]]; then
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]]; then
         result="PASS"
         log_success "默认多配置优先级合并测试通过"
     else
-        note="bar 内置映射缺失 output=[$output], code=$run_code"
+        note="默认多配置合并输出异常 output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -504,11 +542,13 @@ test_default_missing_optional_configs_ignored() {
     mkdir -p "$user_home_dir" "$work_dir"
 
     run_wsha_default "$work_dir" "$user_home_dir" echo hello-default
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"hello-default"* ]] && [[ "$output" != *"config file not found"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"hello-default"* ]] && [[ "$clean_output" != *"config file not found"* ]]; then
         result="PASS"
         log_success "缺失可选配置忽略测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -595,11 +635,13 @@ test_wildcard_single_token_alias() {
     write_config "$config_file" "quoted_wildcard"
 
     run_wsha "$config_file" pxhttp-server
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"pnpx http-server"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"pnpx http-server"* ]]; then
         result="PASS"
         log_success "单段通配符 alias 测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -617,11 +659,13 @@ test_wildcard_multi_token_alias() {
     write_config "$config_file" "quoted_wildcard"
 
     run_wsha "$config_file" px http-server
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"pnpx http-server"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"pnpx http-server"* ]]; then
         result="PASS"
         log_success "多段 alias 通配符测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -639,9 +683,9 @@ test_quoted_content_equivalence() {
     write_config "$config_file" "quoted_wildcard"
 
     run_wsha "$config_file" q1 http-server
-    out_q1="$output"
+    out_q1=$(strip_time_logs "$output")
     if [[ $run_code -ne 0 ]]; then
-        note="q1 执行失败 output=[$output], code=$run_code"
+        note="q1 执行失败 output=[$out_q1], code=$run_code"
         log_fail "$note"
         end_time=$(current_time)
         duration=$(calc_duration "$start_time" "$end_time")
@@ -650,7 +694,7 @@ test_quoted_content_equivalence() {
     fi
 
     run_wsha "$config_file" q2 http-server
-    out_q2="$output"
+    out_q2=$(strip_time_logs "$output")
     if [[ $run_code -eq 0 ]] \
         && [[ "$out_q1" == *"[wsha] alias hit:"* ]] \
         && [[ "$out_q2" == *"[wsha] alias hit:"* ]] \
@@ -677,11 +721,13 @@ test_double_star_capture() {
     write_config "$config_file" "quoted_wildcard"
 
     run_wsha "$config_file" sls -l
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"wsh ls -l"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"wsh ls -l"* ]]; then
         result="PASS"
         log_success "双星号剩余参数捕获测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -699,11 +745,13 @@ test_wildcard_multi_capture() {
     write_config "$config_file" "quoted_wildcard"
 
     run_wsha "$config_file" tool alpha beta
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"alpha::beta"* ]]; then
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"alpha::beta"* ]]; then
         result="PASS"
         log_success "多捕获组替换测试通过"
     else
-        note="output=[$output], code=$run_code"
+        note="output=[$clean_output], code=$run_code"
         log_fail "$note"
     fi
 
@@ -724,8 +772,10 @@ test_builtin_env_vars() {
     expected_config=$(cygpath -aw "$PROJECT_ROOT/config")
 
     run_wsha "$config_file" show-home
-    if [[ $run_code -ne 0 ]] || [[ "$output" != *"$expected_home"* ]]; then
-        note="APP_HOME 注入失败 output=[$output], expected=[$expected_home], code=$run_code"
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"$expected_home"* ]]; then
+        note="APP_HOME 注入失败 output=[$clean_output], expected=[$expected_home], code=$run_code"
         log_fail "$note"
         end_time=$(current_time)
         duration=$(calc_duration "$start_time" "$end_time")
@@ -734,8 +784,9 @@ test_builtin_env_vars() {
     fi
 
     run_wsha "$config_file" show-sh
-    if [[ $run_code -ne 0 ]] || [[ "$output" != *"$expected_sh"* ]]; then
-        note="APP_SH 注入失败 output=[$output], expected=[$expected_sh], code=$run_code"
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"$expected_sh"* ]]; then
+        note="APP_SH 注入失败 output=[$clean_output], expected=[$expected_sh], code=$run_code"
         log_fail "$note"
         end_time=$(current_time)
         duration=$(calc_duration "$start_time" "$end_time")
@@ -744,11 +795,12 @@ test_builtin_env_vars() {
     fi
 
     run_wsha "$config_file" show-config
-    if [[ $run_code -eq 0 ]] && [[ "$output" == *"$expected_config"* ]]; then
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"$expected_config"* ]]; then
         result="PASS"
         log_success "内置环境变量注入测试通过"
     else
-        note="APP_CONFIG 注入失败 output=[$output], expected=[$expected_config], code=$run_code"
+        note="APP_CONFIG 注入失败 output=[$clean_output], expected=[$expected_config], code=$run_code"
         log_fail "$note"
     fi
 

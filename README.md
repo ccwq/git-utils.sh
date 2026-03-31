@@ -108,17 +108,21 @@ sh\wsh-ping.bat --help
 sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 ```
 
-### 3. 复杂命令别名展开 (`sh/w.bat` / `sh/wsha.bat`)
+### 3. 复杂命令别名展开 (`sh/w.bat` / `sh/wsha.bat` / `sh/w.sh` / `sh/wsha.sh`)
 
-用于在 Windows 下通过配置文件将简短别名展开为完整命令，支持默认参数与运行时参数合并。
+用于通过配置文件将简短别名展开为完整命令，支持默认参数与运行时参数合并。
+
+核心逻辑由 `wsha.sh` 实现，跨平台支持：
+- **Windows**: 通过 `w.bat` / `wsha.bat` 调用 `git bash` 执行 `wsha.sh`
+- **Linux / macOS**: 直接运行 `w.sh` / `wsha.sh`
 
 #### 配置文件
 
 支持按优先级读取并融合多个配置文件（同名 alias 高优先级覆盖低优先级）：
 
 1. 内置配置：`config/wsh-alias.txt`
-2. 用户配置：`%USERPROFILE%\.config\wsh-alias.txt`
-3. 工作目录配置：`%CD%\.config\wsh-alias.txt`
+2. 用户配置：`$HOME/.config/wsh-alias.txt`（Linux）或 `%USERPROFILE%\.config\wsh-alias.txt`（Windows）
+3. 工作目录配置：`$PWD/.config/wsh-alias.txt`（Linux）或 `%CD%\.config\wsh-alias.txt`（Windows）
 
 若某个配置文件不存在则自动忽略。配置内容格式为每行一条：
 
@@ -175,11 +179,14 @@ open-config code %APP_CONFIG%
 #### 用法
 
 ```bash
+# Windows
 w <alias> [args...]
 w --list
 w -l
-w --list-view
-w -lv
+
+# Linux / macOS
+bash sh/w.sh <alias> [args...]
+bash sh/wsha.sh --list
 ```
 
 #### Windows (CMD / PowerShell) 调用示例
@@ -202,6 +209,15 @@ sh\w.bat --list-view
 sh\w.bat -lv
 ```
 
+#### Linux / macOS 调用示例
+
+```bash
+bash sh/w.sh ab open
+bash sh/wsha.sh foo --ping
+bash sh/wsha.sh --list
+bash sh/wsha.sh -l
+```
+
 可选环境变量：
 
 - `WSHA_CONFIG_FILE`：自定义别名配置文件路径（设置后仅加载该文件）。
@@ -220,6 +236,7 @@ sh\w.bat -lv
 其中：
 
 - `w` / `wsha` 会从 `config/wsh-alias.txt`、`%USERPROFILE%\.config\wsh-alias.txt`、`%CD%\.config\wsh-alias.txt` 读取 alias 候选。
+- `w` 只是 `wsha` 的薄转发入口，不额外设置入口标识。
 - `wsh-ping` 会从 `config/wsh-ping.txt` 读取预设主机与端口候选。
 - `wsh-fpatch` 会补全常见选项以及本仓库当前可见的 Git branch/tag。
 
