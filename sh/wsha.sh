@@ -46,33 +46,17 @@ Example:
 EOF
 }
 
-# 设置应用环境变量
+# 设置应用环境变量（精简版：不再遍历 sh 目录生成 wrapper）
 set_app_env() {
     local script_dir="$1"
     APP_HOME=$(cd "$script_dir/.." && pwd)
     APP_SH=$(cd "$script_dir" && pwd)
     APP_CONFIG=$(cd "$APP_HOME/config" 2>/dev/null && pwd || echo "$APP_HOME/config")
     export APP_HOME APP_SH APP_CONFIG
-    # 将 sh 目录加入 PATH，使得脚本可被找到
     export PATH="$APP_SH:$PATH"
-    # 为无扩展名的命令创建函数 wrapper
     wsha() { bash "$APP_SH/wsha.sh" "$@"; }
     w() { bash "$APP_SH/w.sh" "$@"; }
     export -f wsha w
-    # 为 sh 目录下的 .sh 和 .bat 文件创建无后缀的函数 wrapper
-    local f name
-    for f in "$APP_SH"/*.sh "$APP_SH"/*.bat; do
-        [[ -f "$f" ]] || continue
-        name=$(basename "$f")
-        name="${name%.sh}"
-        name="${name%.bat}"
-        # 跳过已定义的 wsha/w
-        [[ "$name" == "wsha" || "$name" == "w" ]] && continue
-        # 跳过已存在的函数，避免重复定义
-        declare -F "$name" &>/dev/null && continue
-        eval "${name}() { \"$f\" \"\$@\"; }"
-        export -f "$name"
-    done
 }
 
 log_test_time() {
@@ -111,10 +95,245 @@ normalize_path() {
 # ALIAS_TEMPLATES[i] = 对应的模板
 # ALIAS_CONFIG_PATHS[i] = 来源配置文件路径
 # ALIAS_SOURCE_NAMES[i] = 来源名称
+# ALIAS_TOKEN_DATA[i] = 预解析后的 token，使用 Unit Separator 分隔
+# ALIAS_TOKEN_COUNTS[i] = token 数量
+# ALIAS_DOUBLE_INDEXES[i] = ** token 位置，-1 表示无
+# ALIAS_LITERAL_CHARS[i] = 去掉空格和通配符后的字面量长度
+# ALIAS_STATIC_WILDCARDS[i] = 固定通配符权重，用于评分
+# ALIAS_FIRST_TOKEN_MODE[i] = literal / wildcard
+# ALIAS_FIRST_TOKEN_LOWER[i] = 首 token 小写值（仅 literal 模式有效）
 declare -a ALIAS_KEYS=()
 declare -a ALIAS_TEMPLATES=()
 declare -a ALIAS_CONFIG_PATHS=()
 declare -a ALIAS_SOURCE_NAMES=()
+declare -a ALIAS_TOKEN_DATA=()
+declare -a ALIAS_TOKEN_COUNTS=()
+declare -a ALIAS_DOUBLE_INDEXES=()
+declare -a ALIAS_LITERAL_CHARS=()
+declare -a ALIAS_STATIC_WILDCARDS=()
+declare -a ALIAS_FIRST_TOKEN_MODE=()
+declare -a ALIAS_FIRST_TOKEN_LOWER=()
+
+# 首 token 分桶索引：literal 首 token 走按 key 分桶，wildcard 首 token 走公共桶
+declare -A ALIAS_BUCKETS_BY_FIRST=()
+declare -a ALIAS_BUCKETS_WILDCARD_FIRST=()
+
+ALIAS_TOKEN_SEP=$'\x1f'
+WSHA_CACHE_VERSION='v2'
+
+# 重置 alias 数据结构
+reset_alias_data() {
+    ALIAS_KEYS=()
+    ALIAS_TEMPLATES=()
+    ALIAS_CONFIG_PATHS=()
+    ALIAS_SOURCE_NAMES=()
+    ALIAS_TOKEN_DATA=()
+    ALIAS_TOKEN_COUNTS=()
+    ALIAS_DOUBLE_INDEXES=()
+    ALIAS_LITERAL_CHARS=()
+    ALIAS_STATIC_WILDCARDS=()
+    ALIAS_FIRST_TOKEN_MODE=()
+    ALIAS_FIRST_TOKEN_LOWER=()
+    ALIAS_BUCKETS_BY_FIRST=()
+    ALIAS_BUCKETS_WILDCARD_FIRST=()
+}
+
+# 将 token 数组序列化为单字符串
+serialize_tokens() {
+    local -a tokens=("$@")
+    local serialized=""
+    local token
+    for token in "${tokens[@]}"; do
+        if [[ -n "$serialized" ]]; then
+            serialized+="$ALIAS_TOKEN_SEP"
+        fi
+        serialized+="$token"
+    done
+    printf '%s' "$serialized"
+}
+
+# 反序列化 token 字符串到全局 _TOKENS
+deserialize_tokens() {
+    local serialized="$1"
+    _TOKENS=()
+    [[ -n "$serialized" ]] || return 0
+    IFS="$ALIAS_TOKEN_SEP" read -r -a _TOKENS <<< "$serialized"
+}
+
+# 为单个 alias 构建预解析元数据
+build_alias_metadata() {
+    local idx="$1"
+    local alias_name="${ALIAS_KEYS[$idx]}"
+    get_tokens "$alias_name"
+    local -a alias_tokens=("${_TOKENS[@]}")
+    local alias_count=${#alias_tokens[@]}
+    local double_token_index=-1
+    local wildcard_weight=0
+    local literal_chars=0
+    local first_mode="wildcard"
+    local first_lower=""
+    local token
+    local ti
+
+    if [[ $alias_count -gt 0 ]]; then
+        if [[ "${alias_tokens[0]}" != *'*'* ]]; then
+            first_mode="literal"
+            first_lower="${alias_tokens[0],,}"
+        fi
+    fi
+
+    for ((ti = 0; ti < alias_count; ti++)); do
+        token="${alias_tokens[$ti]}"
+        if [[ "$token" == *'**'* ]]; then
+            if [[ $double_token_index -eq -1 ]]; then
+                double_token_index=$ti
+            else
+                double_token_index=-2
+            fi
+            wildcard_weight=$((wildcard_weight + 1000))
+        elif [[ "$token" == *'*'* ]]; then
+            local tmp="$token"
+            while [[ "$tmp" == *'*'* ]]; do
+                tmp="${tmp#*\*}"
+                wildcard_weight=$((wildcard_weight + 1))
+            done
+        fi
+    done
+
+    local stripped="${alias_name//\*\*/}"
+    stripped="${stripped//\*/}"
+    stripped="${stripped// /}"
+    literal_chars=${#stripped}
+
+    ALIAS_TOKEN_DATA[$idx]="$(serialize_tokens "${alias_tokens[@]}")"
+    ALIAS_TOKEN_COUNTS[$idx]="$alias_count"
+    ALIAS_DOUBLE_INDEXES[$idx]="$double_token_index"
+    ALIAS_LITERAL_CHARS[$idx]="$literal_chars"
+    ALIAS_STATIC_WILDCARDS[$idx]="$wildcard_weight"
+    ALIAS_FIRST_TOKEN_MODE[$idx]="$first_mode"
+    ALIAS_FIRST_TOKEN_LOWER[$idx]="$first_lower"
+}
+
+# 重建分桶索引，降低匹配时的候选集规模
+rebuild_alias_buckets() {
+    ALIAS_BUCKETS_BY_FIRST=()
+    ALIAS_BUCKETS_WILDCARD_FIRST=()
+
+    local i
+    for ((i = 0; i < ${#ALIAS_KEYS[@]}; i++)); do
+        local first_mode="${ALIAS_FIRST_TOKEN_MODE[$i]}"
+        if [[ "$first_mode" == "literal" ]]; then
+            local bucket_key="${ALIAS_FIRST_TOKEN_LOWER[$i]}"
+            if [[ -n "${ALIAS_BUCKETS_BY_FIRST[$bucket_key]:-}" ]]; then
+                ALIAS_BUCKETS_BY_FIRST[$bucket_key]+=",$i"
+            else
+                ALIAS_BUCKETS_BY_FIRST[$bucket_key]="$i"
+            fi
+        else
+            ALIAS_BUCKETS_WILDCARD_FIRST+=("$i")
+        fi
+    done
+}
+
+# 返回配置文件的版本戳，用于缓存命中判断
+get_file_stamp() {
+    local file_path="$1"
+    if [[ ! -f "$file_path" ]]; then
+        printf 'missing'
+        return 0
+    fi
+    local mtime
+    local size
+    mtime=$(stat -c '%Y' "$file_path" 2>/dev/null || echo 0)
+    size=$(stat -c '%s' "$file_path" 2>/dev/null || echo 0)
+    printf '%s:%s' "$mtime" "$size"
+}
+
+# 生成缓存 key
+build_cache_key() {
+    local mode="$1"
+    shift
+    local key="version=$WSHA_CACHE_VERSION|mode=$mode"
+    local config_path
+    for config_path in "$@"; do
+        key+="|$config_path|$(get_file_stamp "$config_path")"
+    done
+    printf '%s' "$key"
+}
+
+# 生成短缓存文件名，避免 Windows 路径过长
+hash_cache_key() {
+    local cache_key="$1"
+    if command -v sha1sum >/dev/null 2>&1; then
+        printf '%s' "$cache_key" | sha1sum | awk '{print $1}'
+        return 0
+    fi
+    printf '%s' "$cache_key" | cksum | awk '{print $1 "-" $2}'
+}
+
+# 获取缓存文件路径
+get_cache_file_path() {
+    local scope_key="$1"
+    local cache_dir="$HOME/.cache/wsha"
+    mkdir -p "$cache_dir"
+    printf '%s/%s.cache.sh' "$cache_dir" "$scope_key"
+}
+
+# 从缓存文件恢复解析结果
+load_alias_cache() {
+    local cache_file="$1"
+    local expected_key="$2"
+    [[ -f "$cache_file" ]] || return 1
+    reset_alias_data
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" == KEY$'\t'* ]]; then
+            [[ "${line#KEY$'\t'}" == "$expected_key" ]] || return 1
+            continue
+        fi
+        [[ "$line" == DATA$'\t'* ]] || continue
+        IFS=$'\t' read -r _tag key template config_path source_name token_data token_count double_index literal_chars static_wildcards first_mode first_lower <<< "$line"
+        ALIAS_KEYS+=("$key")
+        ALIAS_TEMPLATES+=("$template")
+        ALIAS_CONFIG_PATHS+=("$config_path")
+        ALIAS_SOURCE_NAMES+=("$source_name")
+        ALIAS_TOKEN_DATA+=("$token_data")
+        ALIAS_TOKEN_COUNTS+=("$token_count")
+        ALIAS_DOUBLE_INDEXES+=("$double_index")
+        ALIAS_LITERAL_CHARS+=("$literal_chars")
+        ALIAS_STATIC_WILDCARDS+=("$static_wildcards")
+        ALIAS_FIRST_TOKEN_MODE+=("$first_mode")
+        ALIAS_FIRST_TOKEN_LOWER+=("$first_lower")
+    done < "$cache_file"
+    rebuild_alias_buckets
+    return 0
+}
+
+# 将解析结果写入缓存文件
+write_alias_cache() {
+    local cache_file="$1"
+    local cache_key="$2"
+    local temp_file="${cache_file}.tmp"
+    mkdir -p "$(dirname "$cache_file")"
+    {
+        printf 'KEY\t%s\n' "$cache_key"
+        local i
+        for ((i = 0; i < ${#ALIAS_KEYS[@]}; i++)); do
+            printf 'DATA\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "${ALIAS_KEYS[$i]}" \
+                "${ALIAS_TEMPLATES[$i]}" \
+                "${ALIAS_CONFIG_PATHS[$i]}" \
+                "${ALIAS_SOURCE_NAMES[$i]}" \
+                "${ALIAS_TOKEN_DATA[$i]}" \
+                "${ALIAS_TOKEN_COUNTS[$i]}" \
+                "${ALIAS_DOUBLE_INDEXES[$i]}" \
+                "${ALIAS_LITERAL_CHARS[$i]}" \
+                "${ALIAS_STATIC_WILDCARDS[$i]}" \
+                "${ALIAS_FIRST_TOKEN_MODE[$i]}" \
+                "${ALIAS_FIRST_TOKEN_LOWER[$i]}"
+        done
+    } > "$temp_file" && mv -f "$temp_file" "$cache_file"
+}
 
 # 查找 alias 在 ALIAS_KEYS 中的索引，找不到返回 -1
 find_alias_index() {
@@ -191,8 +410,8 @@ parse_config_line() {
     return 0
 }
 
-# 加载一个配置文件到全局 alias map
-load_config() {
+# 加载单个配置文件到全局 alias map
+load_single_config_file() {
     local config_path="$1"
     local fail_on_duplicate="$2"
     local source_name="$3"
@@ -223,18 +442,60 @@ load_config() {
         fi
 
         if [[ "$idx" -ge 0 ]]; then
-            # 覆盖已有条目
             ALIAS_TEMPLATES[$idx]="$_PARSED_TEMPLATE"
             ALIAS_CONFIG_PATHS[$idx]="$config_path"
             ALIAS_SOURCE_NAMES[$idx]="$source_name"
+            build_alias_metadata "$idx"
         else
-            # 新增条目
             ALIAS_KEYS+=("$_PARSED_ALIAS")
             ALIAS_TEMPLATES+=("$_PARSED_TEMPLATE")
             ALIAS_CONFIG_PATHS+=("$config_path")
             ALIAS_SOURCE_NAMES+=("$source_name")
+            idx=$((${#ALIAS_KEYS[@]} - 1))
+            build_alias_metadata "$idx"
         fi
     done < "$config_path"
+
+    return 0
+}
+
+# 按当前配置集合加载 alias，优先命中缓存
+load_config() {
+    local mode="$1"
+    shift
+    local -a config_specs=("$@")
+    local -a cache_paths=()
+    local spec
+
+    for spec in "${config_specs[@]}"; do
+        IFS='|' read -r _spec_path _spec_dup _spec_source <<< "$spec"
+        cache_paths+=("$_spec_path")
+    done
+
+    local cache_key
+    local cache_scope
+    local cache_file
+    cache_key=$(build_cache_key "$mode" "${cache_paths[@]}")
+    cache_scope=$(hash_cache_key "$cache_key")
+    cache_file=$(get_cache_file_path "$cache_scope")
+
+    reset_alias_data
+    if load_alias_cache "$cache_file" "$cache_key"; then
+        return 0
+    fi
+
+    for spec in "${config_specs[@]}"; do
+        local config_path
+        local fail_on_duplicate
+        local source_name
+        IFS='|' read -r config_path fail_on_duplicate source_name <<< "$spec"
+        if ! load_single_config_file "$config_path" "$fail_on_duplicate" "$source_name"; then
+            return 1
+        fi
+    done
+
+    rebuild_alias_buckets
+    write_alias_cache "$cache_file" "$cache_key"
     return 0
 }
 
@@ -483,49 +744,47 @@ find_best_match() {
     _BEST_ARGS_START=0
 
     local best_score=-1
-    local ai
+    local -a candidate_indexes=()
+    local first_token_lower=""
+    if [[ $input_count -gt 0 ]]; then
+        first_token_lower="${input_tokens[0],,}"
+    fi
 
-    for ((ai = 0; ai < ${#ALIAS_KEYS[@]}; ai++)); do
+    if [[ -n "$first_token_lower" && -n "${ALIAS_BUCKETS_BY_FIRST[$first_token_lower]:-}" ]]; then
+        IFS=',' read -r -a candidate_indexes <<< "${ALIAS_BUCKETS_BY_FIRST[$first_token_lower]}"
+    fi
+    candidate_indexes+=("${ALIAS_BUCKETS_WILDCARD_FIRST[@]}")
+
+    local ai
+    for ai in "${candidate_indexes[@]}"; do
+        [[ -n "$ai" ]] || continue
+
         local alias="${ALIAS_KEYS[$ai]}"
         local template="${ALIAS_TEMPLATES[$ai]}"
+        local alias_count="${ALIAS_TOKEN_COUNTS[$ai]}"
+        local double_token_index="${ALIAS_DOUBLE_INDEXES[$ai]}"
+        [[ $alias_count -gt 0 ]] || continue
+        [[ $double_token_index -ne -2 ]] || continue
+        if [[ $double_token_index -ge 0 && $double_token_index -ne $((alias_count - 1)) ]]; then
+            continue
+        fi
+        if [[ $double_token_index -lt 0 && $input_count -lt $alias_count ]]; then
+            continue
+        fi
+        if [[ $double_token_index -ge 0 && $input_count -lt $((double_token_index + 1)) ]]; then
+            continue
+        fi
 
-        get_tokens "$alias"
+        deserialize_tokens "${ALIAS_TOKEN_DATA[$ai]}"
         local -a alias_tokens=("${_TOKENS[@]}")
-        local alias_count=${#alias_tokens[@]}
-        if [[ $alias_count -eq 0 ]]; then continue; fi
-
-        # 查找 ** token 的位置
-        local double_token_index=-1
-        local di
-        for ((di = 0; di < alias_count; di++)); do
-            if [[ "${alias_tokens[$di]}" == *'**'* ]]; then
-                if [[ $double_token_index -ne -1 ]]; then
-                    double_token_index=-2
-                    break
-                fi
-                double_token_index=$di
-            fi
-        done
-
-        # 多个 ** 跳过
-        if [[ $double_token_index -eq -2 ]]; then continue; fi
-        # ** 不在最后一个 token 跳过
-        if [[ $double_token_index -ge 0 && $double_token_index -ne $((alias_count - 1)) ]]; then continue; fi
-
-        # 输入 token 数量检查
-        if [[ $double_token_index -lt 0 && $input_count -lt $alias_count ]]; then continue; fi
-        if [[ $double_token_index -ge 0 && $input_count -lt $((double_token_index + 1)) ]]; then continue; fi
-
         local ok=true
         local wildcard_count=0
         local -a captures=()
         local rest_capture=""
         local input_consumed=0
-
         local ti
         for ((ti = 0; ti < alias_count; ti++)); do
             if [[ $ti -eq $double_token_index ]]; then
-                # 将剩余 input tokens 拼接
                 local remain_text="${input_tokens[$ti]}"
                 local ri
                 for ((ri = ti + 1; ri < input_count; ri++)); do
@@ -533,11 +792,7 @@ find_best_match() {
                 done
 
                 match_double_star_remainder "${alias_tokens[$ti]}" "$remain_text"
-                if [[ "$_DSTAR_OK" != true ]]; then
-                    ok=false
-                    break
-                fi
-                if [[ -z "$_DSTAR_REST" ]]; then
+                if [[ "$_DSTAR_OK" != true || -z "$_DSTAR_REST" ]]; then
                     ok=false
                     break
                 fi
@@ -553,22 +808,14 @@ find_best_match() {
                 ok=false
                 break
             fi
-            wildcard_count=$(( wildcard_count + _MATCH_WILDCARDS ))
+            wildcard_count=$((wildcard_count + _MATCH_WILDCARDS))
             captures+=("${_MATCH_CAPTURES[@]}")
             input_consumed=$((ti + 1))
         done
 
-        if [[ "$ok" != true ]]; then continue; fi
+        [[ "$ok" == true ]] || continue
 
-        # 计算得分
-        local literal_chars
-        local stripped="${alias//\*\*/}"
-        stripped="${stripped//\*/}"
-        stripped="${stripped// /}"
-        literal_chars=${#stripped}
-
-        local score=$(( alias_count * 10000 + literal_chars * 100 - wildcard_count ))
-
+        local score=$(( alias_count * 10000 + ALIAS_LITERAL_CHARS[$ai] * 100 - wildcard_count ))
         if [[ $score -gt $best_score ]]; then
             best_score=$score
             _BEST_ALIAS="$alias"
@@ -602,7 +849,7 @@ invoke_cmd() {
     local cmd_text="$1"
     # 展开 %VAR% 风格的环境变量
     cmd_text=$(expand_env_vars "$cmd_text")
-    eval "$cmd_text"
+    eval -- "$cmd_text"
     exit $?
 }
 
@@ -645,16 +892,17 @@ main() {
         SOURCE_NAMES=("内置" "用户级" "项目级")
         SOURCE_PATHS=("$builtin_config" "$user_config" "$local_config")
 
-        if ! load_config "$builtin_config" "false" "内置"; then exit 1; fi
-        if ! load_config "$user_config" "false" "用户级"; then exit 1; fi
-        if ! load_config "$local_config" "false" "项目级"; then exit 1; fi
+        if ! load_config "multi" \
+            "$builtin_config|false|内置" \
+            "$user_config|false|用户级" \
+            "$local_config|false|项目级"; then exit 1; fi
         log_test_time "load_config" "$step_start"
     else
         step_start=$(date +%s%N 2>/dev/null || date +%s000000000)
         SOURCE_NAMES=("自定义")
         SOURCE_PATHS=("$single_config")
 
-        if ! load_config "$single_config" "true" "自定义"; then exit 1; fi
+        if ! load_config "single" "$single_config|true|自定义"; then exit 1; fi
         log_test_time "load_config" "$step_start"
     fi
 

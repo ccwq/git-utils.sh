@@ -4,3 +4,4 @@
 ./.shellspec
 /test_playground
 /patch-files
+/tmp-*

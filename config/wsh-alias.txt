@@ -11,6 +11,8 @@ fox firefox
 box killbox
 ev:edit echo %EDITOR%
 
+pp ping t.cn
+
 # 系统
 --update cd /d %APP_HOME% && git pull
 -u wsha --update
