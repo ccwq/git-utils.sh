@@ -13,25 +13,30 @@ ev:edit echo %EDITOR%
 
 pp ping t.cn
 
+
+# gsd2
+gsd npx -y gsd-pi
+
+
 # 系统
 --update cd /d %APP_HOME% && git pull
--u wsha --update
+-u wsha.bat --update
 --open start code %APP_HOME%
 --lazygit cd /d %APP_HOME% && lazygit
--lgit wsha --lazygit
+-lgit wsha.bat --lazygit
 
 # 编辑配置文件
 --edit-config code %APP_CONFIG%/wsh-alias.txt
--ec wsha --edit-config
+-ec wsha.bat --edit-config
 
 # 编辑用户配置文件
 --edit-config-user code %USERPROFILE%/.config/wsh-alias.txt
--ecu wsha --edit-config-user
+-ecu wsha.bat --edit-config-user
 
 
 # cdp
 ## 测试cdp的是否可用
-cdp-test wsh curl http://localhost:9222/json/version
+cdp-test wsh.bat curl http://localhost:9222/json/version
 
 # browser-use
 "bu **" uvx browser-use  $$
@@ -42,15 +47,15 @@ cdp-test wsh curl http://localhost:9222/json/version
 # 在docker环境下使用docker, podman环境下解开使用podman
 # docker docker
 docker podman
-dc wsha docker compose
+dc wsha.bat docker compose
 pc podman compose
 
 
 
 # agent-browser
 ab pnpx agent-browser
-abc wsha ab --cdp 9222
-abcc wsha ab --cdp %CDPORT%
+abc wsha.bat ab --cdp 9222
+abcc wsha.bat ab --cdp %CDPORT%
 ab-p pnpx agent-browser@0.16.3
 ab-p-l pnpx agent-browser@latest
 
@@ -58,7 +63,7 @@ ab-p-l pnpx agent-browser@latest
 codex pnpx @openai/codex@0.115.0
 codex-p pnpx @openai/codex@0.115.0
 codex-l pnpx @openai/codex@latest
-codex-yo wsha -- --yolo
+codex-yo wsha.bat -- --yolo
 
 
 # gemini
@@ -67,15 +72,15 @@ gemini pnpx @google/gemini-cli
 gemini-p pnpx @google/gemini-cli@0.33.1
 gemini-l pnpx @google/gemini-cli@latest
 
-gemini-yo wsha gemini --approval-mode yolo
+gemini-yo wsha.bat gemini --approval-mode yolo
 
 
 # claude
 
-claude wsha claude-p
+claude wsha.bat claude-p
 claude-p pnpx @anthropic-ai/claude-code
 claude-l pnpx @anthropic-ai/claude-code@latest
-claude-yo wsha claude-l --dangerously-skip-permissions
+claude-yo wsha.bat claude-l --dangerously-skip-permissions
 
 # opnencode
 opencode pnpx opencode-ai@1.2.24
@@ -84,24 +89,28 @@ opencode-l pnpx opencode-ai@latest
 # git相关
 git.sync git pull && git push
 git.auto-pull git stash && git pull && git stash pop
-git.auto-commit wsha codex "使用skill:git-commit提交代码按照下面的要求,母语中文,根据情况分1批或者多2,依据功能而定"
+git.auto-commit wsha.bat codex "使用skill:git-commit提交代码按照下面的要求,母语中文,根据情况分1批或者多2,依据功能而定"
 
 ## lazygit
 lz lazygit
 lgit lazygit
 lzgit lazygit
 
-# 内部功能缩写
+# 内部功能缩写 bash
 tping wsh-ping.bat
-tcping wsha tping
+tcping wsha.bat tping
 # 为wsh增加缩写
 "s**" wsh $$
 "ws" wsh
 
+ls wsh.bat ls -ah
+ll wsh.bat ls -lah
+bash wsh.bat .
+
 
 # curl
 # 显示http header
-"show http header" wsh curl -I
+"show http header" wsh.bat curl -I
 
 
 # 特性演示部分
