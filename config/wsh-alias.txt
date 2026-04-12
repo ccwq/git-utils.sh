@@ -63,7 +63,7 @@ ab-p-l pnpx agent-browser@latest
 codex pnpx @openai/codex@0.115.0
 codex-p pnpx @openai/codex@0.115.0
 codex-l pnpx @openai/codex@latest
-codex-yo wsha.bat -- --yolo
+codex-yo wsha.bat codex-l -- --yolo
 
 
 # gemini
