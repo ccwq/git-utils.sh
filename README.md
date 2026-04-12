@@ -32,6 +32,29 @@ npm run init
 
 执行完成后，建议重新打开终端，让新的用户环境变量生效。
 
+### Windows Git Bash 入口
+
+Windows 下推荐统一通过 `sh\exec-git-bash.bat` 调用 Git Bash，而不是手写 `git bash -c ...`。
+
+- `sh\exec-git-bash.bat` 是稳定入口
+- 底层优先使用项目内置的 `bin\win-helper\win-helper.exe` 见 [win-helper](/bin\win-helper\README.md)
+- 如果 `win-helper.exe` 不存在，会自动回退到批处理版路径发现逻辑
+- `win-helper` 仅面向 Windows 使用，是项目内置的 Windows Git Bash 运行时
+
+如果需要重新构建 Windows 运行时：
+
+```bat
+pnpm run build:win-helper
+# 或者
+bin\win-helper\build.bat
+```
+
+构建产物固定输出到：
+
+```bat
+bin\win-helper\win-helper.exe
+```
+
 ## 可用脚本
 
 所有脚本均位于 `sh/` 目录下。
@@ -113,7 +136,7 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 用于通过配置文件将简短别名展开为完整命令，支持默认参数与运行时参数合并。
 
 核心逻辑由 `wsha.sh` 实现，跨平台支持：
-- **Windows**: 通过 `w.bat` / `wsha.bat` 调用 `git bash` 执行 `wsha.sh`
+- **Windows**: 通过 `w.bat` / `wsha.bat` 调用 `sh/exec-git-bash.bat`，并优先由 `bin/win-helper/win-helper.exe` 启动 `wsha.sh`
 - **Linux / macOS**: 直接运行 `w.sh` / `wsha.sh`
 
 #### 配置文件
@@ -266,17 +289,17 @@ set CLINK_PATH path\to\dir\git-utils.sh\clink-lua-scripts
 ./sh/wsh-real-ignore.sh [选项] <文件路径或Glob模式>
 ```
 
-#### Windows (Git Bash) 调用示例
+#### Windows 调用示例
 
 ```bash
 # 忽略单个文件
-git bash -c "./sh/wsh-real-ignore.sh .obsidian/workspace.json"
+sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh .obsidian\workspace.json
 
 # 忽略文件夹
-git bash -c "./sh/wsh-real-ignore.sh .vscode"
+sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh .vscode
 
 # 使用通配符 (注意需要加引号以避免Shell展开)
-git bash -c "./sh/wsh-real-ignore.sh \"*.log\""
+sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh "*.log"
 ```
 
 ### 5. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
@@ -292,14 +315,14 @@ git bash -c "./sh/wsh-real-ignore.sh \"*.log\""
 ./sh/wsh-replace-cn-punc.sh <文件1> [文件2 ...]
 ```
 
-#### Windows (Git Bash) 调用示例
+#### Windows 调用示例
 
 ```bash
 # 替换单个文件
-git bash -c "./sh/wsh-replace-cn-punc.sh README.md"
+sh\exec-git-bash.bat .\sh\wsh-replace-cn-punc.sh README.md
 
 # 使用通配符批量替换
-git bash -c "./sh/wsh-replace-cn-punc.sh \"docs/*.md\""
+sh\exec-git-bash.bat .\sh\wsh-replace-cn-punc.sh "docs/*.md"
 ```
 
 ### 6. 基于提交提取变更文件 (`sh/wsh-fpatch.sh`)
@@ -324,17 +347,17 @@ git bash -c "./sh/wsh-replace-cn-punc.sh \"docs/*.md\""
 - `-i, --input <dir>`: 仅包含指定目录下的文件，支持多个目录逗号分割与 glob（基于 repo 根目录，大小写敏感）。
 - `-e, --exclude <dir>`: 排除指定目录下的文件，支持多个目录逗号分割与 glob（基于 repo 根目录，大小写敏感）。
 
-#### Windows (Git Bash) 调用示例
+#### Windows 调用示例
 
 ```bash
 # 对比最近一次提交与当前工作区，导出变更文件
-git bash -c "./sh/wsh-fpatch.sh HEAD~1"
+sh\exec-git-bash.bat .\sh\wsh-fpatch.sh HEAD~1
 
 # 仅导出 notes 与 src 目录，排除 notes/tmp
-git bash -c "./sh/wsh-fpatch.sh HEAD~1 -i ./notes,src -e ./notes/tmp"
+sh\exec-git-bash.bat .\sh\wsh-fpatch.sh HEAD~1 -i .\notes,src -e .\notes\tmp
 
 # 对比两个提交，导出变更文件到指定目录
-git bash -c "./sh/wsh-fpatch.sh <commit_hash_A> <commit_hash_B> -o ./my-patch"
+sh\exec-git-bash.bat .\sh\wsh-fpatch.sh <commit_hash_A> <commit_hash_B> -o .\my-patch
 ```
 
 ---
@@ -351,7 +374,9 @@ git bash -c "./sh/wsh-fpatch.sh <commit_hash_A> <commit_hash_B> -o ./my-patch"
 # 运行所有测试
 ./test-all.sh
 # 或者在 Windows 下
-git bash -c "./test-all.sh"
+sh\exec-git-bash.bat .\test-all.sh
+# 或者直接使用 package.json
+npm test
 ```
 
 ### 运行单个测试
@@ -360,13 +385,13 @@ git bash -c "./test-all.sh"
 
 ```bash
 # 运行 ignore_workspace 的测试
-git bash -c "./__test__/wsh-real-ignore.test.sh"
+sh\exec-git-bash.bat .\__test__\wsh-real-ignore.test.sh
 
 # 运行 replace_cn_punc_ 的测试
-git bash -c "./__test__/wsh-replace-cn-punc.test.sh"
+sh\exec-git-bash.bat .\__test__\wsh-replace-cn-punc.test.sh
 
 # 运行 wsha 的测试
-git bash -c "./__test__/wsha.test.sh"
+sh\exec-git-bash.bat .\__test__\wsha.test.sh
 ```
 
 ### 测试报告

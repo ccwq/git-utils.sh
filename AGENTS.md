@@ -1,7 +1,8 @@
 # 主要约束
 - 使用中文
-- 当前环境是windows, 调用git bash方式类似下面的 git bash -c "./foo/bar.sh"
-    - 如果找不到git bash命令, 需要根据where.exe git来获取到git-bash地址来执行
+- 当前环境是windows, 优先通过 `sh\exec-git-bash.bat` 调用 Git Bash, 例如 `sh\exec-git-bash.bat .\foo\bar.sh`
+    - `sh\exec-git-bash.bat` 会优先使用项目内置的 `bin\win-helper\win-helper.exe`
+    - 如果 `win-helper.exe` 不存在, 再根据 `where.exe git` 获取 Git Bash 路径执行
 - 脚本需要遵守/prompts/spec.md规范
 
 
