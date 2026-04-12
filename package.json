@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "init": "scripts\\init.bat",
-    "test": ".\\sh\\exec-git-bash.bat -lc \"./test-all.sh\""
+    "test": ".\\sh\\exec-git-bash.bat .\\test-all.sh"
   },
   "keywords": [],
   "author": "",

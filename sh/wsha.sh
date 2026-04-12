@@ -59,6 +59,58 @@ set_app_env() {
     export -f wsha w
 }
 
+token_basename_lower() {
+    local token="$1"
+    token="${token##*\\}"
+    token="${token##*/}"
+    printf '%s' "${token,,}"
+}
+
+is_complex_shell_command() {
+    local text="$1"
+    [[ "$text" == *"&&"* ]] && return 0
+    [[ "$text" == *"||"* ]] && return 0
+    [[ "$text" == *"|"* ]] && return 0
+    [[ "$text" == *";"* ]] && return 0
+    [[ "$text" == *">"* ]] && return 0
+    [[ "$text" == *"<"* ]] && return 0
+    [[ "$text" == *'$('* ]] && return 0
+    [[ "$text" == *'`'* ]] && return 0
+    return 1
+}
+
+normalize_runtime_tokens() {
+    local -a tokens=("$@")
+    _CMD_TOKENS=("${tokens[@]}")
+    [[ ${#_CMD_TOKENS[@]} -gt 0 ]] || return 0
+
+    local first_lower
+    first_lower=$(token_basename_lower "${_CMD_TOKENS[0]}")
+
+    case "$first_lower" in
+        wsha.bat)
+            _CMD_TOKENS=(bash "$APP_SH/wsha.sh" "${_CMD_TOKENS[@]:1}")
+            ;;
+        w.bat)
+            _CMD_TOKENS=(env WSHA_ENTRY=w bash "$APP_SH/wsha.sh" "${_CMD_TOKENS[@]:1}")
+            ;;
+        wsh.bat)
+            if [[ ${#_CMD_TOKENS[@]} -ge 2 && "${_CMD_TOKENS[1]}" == "." ]]; then
+                _CMD_TOKENS=(/usr/bin/bash -i)
+            else
+                _CMD_TOKENS=("${_CMD_TOKENS[@]:1}")
+            fi
+            ;;
+    esac
+
+    [[ ${#_CMD_TOKENS[@]} -gt 0 ]] || return 0
+
+    first_lower=$(token_basename_lower "${_CMD_TOKENS[0]}")
+    if [[ "$first_lower" == "docker" || "$first_lower" == "podman" ]]; then
+        _CMD_TOKENS=(env MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" "${_CMD_TOKENS[@]}")
+    fi
+}
+
 log_test_time() {
     [[ "${WSHA_TEST_TIME_LABEL:-}" == "1" ]] || return 0
     local label="$1"
@@ -849,6 +901,13 @@ invoke_cmd() {
     local cmd_text="$1"
     # 展开 %VAR% 风格的环境变量
     cmd_text=$(expand_env_vars "$cmd_text")
+    if ! is_complex_shell_command "$cmd_text"; then
+        get_tokens "$cmd_text"
+        local -a cmd_tokens=("${_TOKENS[@]}")
+        normalize_runtime_tokens "${cmd_tokens[@]}"
+        "${_CMD_TOKENS[@]}"
+        exit $?
+    fi
     eval -- "$cmd_text"
     exit $?
 }

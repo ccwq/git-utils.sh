@@ -1,6 +1,10 @@
 @echo off
 setlocal EnableExtensions
 
+set "SCRIPT_DIR=%~dp0"
+set "EXE_RUNNER=%SCRIPT_DIR%..\bin\win-helper\win-helper.exe"
+if exist "%EXE_RUNNER%" goto :run_exe
+
 if /i "%~1"=="--help" goto :help
 if /i "%~1"=="-h" goto :help
 
@@ -18,6 +22,10 @@ if "%~1"=="" (
 )
 
 "%GIT_BASH%" %*
+exit /b %errorlevel%
+
+:run_exe
+"%EXE_RUNNER%" %*
 exit /b %errorlevel%
 
 :help

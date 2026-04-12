@@ -2,5 +2,6 @@
 setlocal EnableExtensions
 
 set "SCRIPT_DIR=%~dp0"
-call "%SCRIPT_DIR%exec-git-bash.bat" -lc "'%SCRIPT_DIR%wsha.sh' %*"
+if not defined WSHA_ENTRY set "WSHA_ENTRY=w"
+call "%SCRIPT_DIR%exec-git-bash.bat" "%SCRIPT_DIR%wsha.sh" %*
 exit /b %errorlevel%
