@@ -35,24 +35,8 @@ REM 1) Normal command -> append --color (example: sh ls -l)
 REM 2) Command with pipe (^) -> run as-is in Git Bash (example: sh "ls -l ^| grep foo")
 REM 3) No args -> open interactive Git Bash session
 
-REM Resolve bash.exe from where git first, then fallback paths.
-set "GIT_BASH="
-for /f "delims=" %%G in ('where git 2^>nul') do (
-    if not defined GIT_BASH (
-        for %%B in ("%%~dpG..\bin\bash.exe") do if exist "%%~fB" set "GIT_BASH=%%~fB"
-        if not defined GIT_BASH for %%B in ("%%~dpG..\usr\bin\bash.exe") do if exist "%%~fB" set "GIT_BASH=%%~fB"
-    )
-)
-
-if not defined GIT_BASH if exist "%ProgramFiles%\Git\bin\bash.exe" set "GIT_BASH=%ProgramFiles%\Git\bin\bash.exe"
-if not defined GIT_BASH if exist "%ProgramFiles%\Git\usr\bin\bash.exe" set "GIT_BASH=%ProgramFiles%\Git\usr\bin\bash.exe"
-
-if not defined GIT_BASH (
-    echo [sh.bat] Cannot find Git Bash executable.
-    echo [sh.bat] Tried where git relative paths and default install paths.
-    echo [sh.bat] Please install Git for Windows or add git.exe to PATH.
-    exit /b 1
-)
+set "SCRIPT_DIR=%~dp0"
+set "EXEC_GIT_BASH=%SCRIPT_DIR%exec-git-bash.bat"
 
 if "%~1"=="." (
     set "CUR_DIR=%CD%"
@@ -60,7 +44,7 @@ if "%~1"=="." (
     set "DRIVE=%BASH_DIR:~0,1%"
     set "PATH_NO_DRIVE=%BASH_DIR:~2%"
     set "BASH_DIR=/%DRIVE%%PATH_NO_DRIVE%"
-    "%GIT_BASH%" -lc "cd \"%BASH_DIR%\"; exec /usr/bin/bash -i"
+    call "%EXEC_GIT_BASH%" -lc "cd \"%BASH_DIR%\"; exec /usr/bin/bash -i"
     exit /b %errorlevel%
 )
 
@@ -73,9 +57,9 @@ if "%~2"=="" (
 setlocal EnableDelayedExpansion
 call :isColorCmd "!CMD!"
 if errorlevel 1 (
-    "%GIT_BASH%" -lc "!CMD!"
+    call "%EXEC_GIT_BASH%" -lc "!CMD!"
 ) else (
-    "%GIT_BASH%" -lc "!CMD! --color"
+    call "%EXEC_GIT_BASH%" -lc "!CMD! --color"
 )
 exit /b %errorlevel%
 
