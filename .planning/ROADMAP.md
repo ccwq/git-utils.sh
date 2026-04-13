@@ -69,7 +69,10 @@
   5. `pip install wsha` 后 `w` 命令全局可用
   6. Python 执行失败时 fallback 到 wsha.sh
   7. `w <alias> [args...]` 默认路由到 Python 实现
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 04-01-PLAN.md — CLI 选项实现（--list / --list-view / --find / --cache-clear）
+- [ ] 04-02-PLAN.md — Fallback 逻辑与 pyproject.toml 包路径修正
 **UI hint**: yes
 
 ### Phase 5: Test Compatibility & Validation
@@ -93,7 +96,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Config System & Core Architecture | 0/- | Not started | - |
 | 2. Pattern Matching Core | 0/- | Not started | - |
 | 3. Template Expansion & Execution | 1/2 | In Progress|  |
-| 4. CLI Interface & Shell Integration | 0/- | Not started | - |
+| 4. CLI Interface & Shell Integration | 0/2 | Not started | - |
 | 5. Test Compatibility & Validation | 0/- | Not started | - |
 
 ---
