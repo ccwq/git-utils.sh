@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wsha"
+version = "0.1.0"
+description = "wsha - alias command launcher"
+requires-python = ">=3.8"
+dependencies = [
+    "click>=8.0",
+]
+
+[project.scripts]
+w = "wsha.cli:main"
+wsha = "wsha.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["wsha"]
