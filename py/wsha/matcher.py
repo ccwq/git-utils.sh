@@ -267,3 +267,40 @@ def find_best_match(
     for entry in aliases:
         matcher.add_alias(entry)
     return matcher.find_best_match(input_tokens)
+
+
+def expand_alias(
+    matcher: AliasMatcher, input_text: str
+) -> Optional[tuple[str, str, list[str], str, int]]:
+    """
+    Expand an alias from user input text.
+
+    This is the main entry point for alias expansion:
+    1. Tokenize input_text using get_tokens()
+    2. Call matcher.find_best_match() with tokens
+    3. Return match data if found, None for passthrough
+
+    Args:
+        matcher: AliasMatcher instance with loaded aliases
+        input_text: User input string (e.g., "foo --ping")
+
+    Returns:
+        Tuple of (matched_alias, template, captures, rest_capture, args_start)
+        if a match is found, or None if no match (for passthrough).
+
+    Example:
+        >>> matcher = AliasMatcher()
+        >>> matcher.add_alias(AliasEntry('ab', 'pnpx agent-browser', '/test', 'builtin', 1))
+        >>> result = expand_alias(matcher, 'ab')
+        >>> result[0], result[1]
+        ('ab', 'pnpx agent-browser')
+        >>> expand_alias(matcher, 'echo hello') is None
+        True
+    """
+    # Tokenize the input text
+    input_tokens = get_tokens(input_text)
+    if not input_tokens:
+        return None
+
+    # Find best matching alias
+    return matcher.find_best_match(input_tokens)
