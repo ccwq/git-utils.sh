@@ -84,7 +84,10 @@ Plans:
   2. Python 版本与 shell 版本行为等价（无差异）
   3. 缓存写入/读取往返保持一致
   4. 跨 Python 和 shell 版本切换不破坏缓存
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 05-01-PLAN.md — 包装脚本 + 核心 Python 修复（WSHA_CONFIG_FILE + output 直通 + alias hit 消息）
+- [ ] 05-02-PLAN.md — CLI 接口重写（中文标签 + 全 flag）+ 错误消息修复 + 测试验证
 
 ## Progress
 
@@ -97,7 +100,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Pattern Matching Core | 0/- | Not started | - |
 | 3. Template Expansion & Execution | 1/2 | In Progress|  |
 | 4. CLI Interface & Shell Integration | 0/2 | Not started | - |
-| 5. Test Compatibility & Validation | 0/- | Not started | - |
+| 5. Test Compatibility & Validation | 0/2 | Not started | - |
 
 ---
 
