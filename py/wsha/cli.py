@@ -1,7 +1,9 @@
 """CLI entry point for wsha - alias command launcher."""
 
 import fnmatch
+import os
 import subprocess
+import sys
 from typing import Tuple, List, Dict, Optional
 
 import click
@@ -168,5 +170,53 @@ def main(
     raise SystemExit(exit_code)
 
 
+def fallback_to_shell() -> int:
+    """
+    当 Python 实现失败时，调用 wsha.sh 作为 fallback。per D-27。
+
+    路径解析:
+      cli.py 位于 py/wsha/cli.py
+      sh/wsha.sh 位于 project_root/sh/wsha.sh
+      因此: os.path.dirname(__file__) = py/wsha/
+            os.path.dirname(py/wsha/) = py/
+            os.path.dirname(py/) = project root
+    """
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))   # py/wsha/
+    py_dir = os.path.dirname(pkg_dir)                       # py/
+    project_dir = os.path.dirname(py_dir)                   # project root
+
+    wsha_sh = os.path.join(project_dir, 'sh', 'wsha.sh')
+
+    if not os.path.exists(wsha_sh):
+        click.echo(
+            f"[wsha] fallback failed: wsha.sh not found at {wsha_sh}",
+            err=True
+        )
+        return 1
+
+    # 直接调用 bash wsha.sh，透传 sys.argv[1:]（per D-27）
+    # 使用 subprocess.run 而非 shell=True，避免二次 shell 注入
+    result = subprocess.run(
+        ['bash', wsha_sh] + sys.argv[1:],
+        capture_output=False  # 透传 stdout/stderr 到调用方终端
+    )
+    return result.returncode
+
+
+def run_with_fallback() -> None:
+    """
+    带 fallback 的 CLI 入口。供 pyproject.toml entry point 使用。
+
+    per D-25: ImportError / FileNotFoundError / RuntimeError 触发 fallback
+    per D-26: SystemExit（非零退出码）不触发 fallback——命令本身执行失败不是 Python 错误
+    """
+    try:
+        main()
+    except (ImportError, FileNotFoundError, RuntimeError) as exc:
+        # D-25: Python 模块级错误触发 fallback
+        sys.exit(fallback_to_shell())
+    # SystemExit 不在此捕获，直接透传（D-26）
+
+
 if __name__ == '__main__':
-    main()
+    run_with_fallback()
