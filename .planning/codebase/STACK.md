@@ -1,76 +1,76 @@
-# Technology Stack
+# 技术栈
 
-**Analysis Date:** 2026-04-13
+**分析日期:** 2026-04-13
 
-## Languages
+## 编程语言
 
-**Primary:**
-- Shell (Bash) - Core scripts for Linux/macOS/Windows Git Bash
-- Batch (.bat) - Windows-specific entry points and wrappers
+**主要语言:**
+- Shell (Bash) - Linux/macOS/Windows Git Bash 的核心脚本
+- Batch (.bat) - Windows 专用入口点和包装器
 
-**Secondary:**
-- Rust 2021 - Windows Git Bash runtime (`bin/win-helper/`)
-- Lua - Clink auto-completion scripts (`clink-lua-scripts/`)
+**次要语言:**
+- Rust 2021 - Windows Git Bash 运行时 (`bin/win-helper/`)
+- Lua - Clink 自动补全脚本 (`clink-lua-scripts/`)
 
-## Runtime
+## 运行时环境
 
-**Environment:**
-- Git Bash (Windows) - Primary shell environment for Windows users
-- Standard Bash (Linux/macOS)
+**环境:**
+- Git Bash (Windows) - Windows 用户的主要 shell 环境
+- 标准 Bash (Linux/macOS)
 
-**Package Manager:**
-- pnpm 10.21.0 - Node.js package management
-- Lockfile: Not committed to repository
+**包管理器:**
+- pnpm 10.21.0 - Node.js 包管理
+- Lockfile: 不提交到仓库
 
-## Frameworks
+## 框架
 
-**Core:**
-- Shell scripting (bash) - Primary implementation language
-- Batch scripting - Windows-specific entry points
+**核心:**
+- Shell 脚本 (bash) - 主要实现语言
+- Batch 脚本 - Windows 专用入口点
 
-**Build/Dev:**
-- Cargo (Rust) - Build system for `win-helper`
-- npm/pnpm - Task running and script orchestration
+**构建/开发:**
+- Cargo (Rust) - `win-helper` 的构建系统
+- npm/pnpm - 任务运行和脚本编排
 
-## Key Dependencies
+## 关键依赖
 
-**Critical:**
-- Git - Required dependency (must be installed)
-- Git Bash - Recommended for Windows
+**关键依赖:**
+- Git - 必需依赖（必须已安装）
+- Git Bash - Windows 推荐使用
 
-**Infrastructure:**
-- `bin/tcping.exe` - TCP connectivity testing tool (Windows)
-- `bin/win-helper/win-helper.exe` - Rust binary for Windows Git Bash path resolution
+**基础设施:**
+- `bin/tcping.exe` - TCP 连接测试工具 (Windows)
+- `bin/win-helper/win-helper.exe` - 用于 Windows Git Bash 路径解析的 Rust 二进制文件
 
-## Project Structure
+## 项目结构
 
-**Entry Points:**
-- `sh/exec-git-bash.bat` - Windows Git Bash launcher
-- `sh/w.bat` / `sh/wsha.bat` - Windows alias wrapper entry points
-- `sh/w.sh` / `sh/wsha.sh` - Linux/macOS alias wrapper entry points
+**入口点:**
+- `sh/exec-git-bash.bat` - Windows Git Bash 启动器
+- `sh/w.bat` / `sh/wsha.bat` - Windows 别名包装器入口点
+- `sh/w.sh` / `sh/wsha.sh` - Linux/macOS 别名包装器入口点
 
-**Configuration:**
-- `config/wsh-alias.txt` - Alias definitions
-- `config/wsh-ping.txt` - TCP ping preset targets
+**配置:**
+- `config/wsh-alias.txt` - 别名定义
+- `config/wsh-ping.txt` - TCP ping 预设目标
 
-**Scripts Location:**
-- `sh/` - Main shell/batch script directory
-- `scripts/init.bat` - Initialization script
+**脚本位置:**
+- `sh/` - 主要 shell/batch 脚本目录
+- `scripts/init.bat` - 初始化脚本
 
-**Testing:**
-- `__test__/` - Test scripts directory
-- `test-all.sh` - Test runner script
+**测试:**
+- `__test__/` - 测试脚本目录
+- `test-all.sh` - 测试运行脚本
 
-## Platform Requirements
+## 平台要求
 
-**Development:**
-- Git installed
-- Bash shell (Linux/macOS) or Git Bash (Windows)
+**开发环境:**
+- 已安装 Git
+- Bash shell (Linux/macOS) 或 Git Bash (Windows)
 
-**Production:**
-- Cross-platform: Windows, Linux, macOS
-- Windows-specific: Git Bash, optional Clink for auto-completion
+**生产环境:**
+- 跨平台: Windows, Linux, macOS
+- Windows 专用: Git Bash, 可选的 Clink 自动补全
 
 ---
 
-*Stack analysis: 2026-04-13*
+*技术栈分析: 2026-04-13*

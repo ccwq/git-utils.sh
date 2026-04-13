@@ -1,89 +1,89 @@
-# External Integrations
+# 外部集成
 
-**Analysis Date:** 2026-04-13
+**分析日期:** 2026-04-13
 
-## Shell Environments
+## Shell 环境
 
 **Git Bash (Windows):**
-- Used as primary shell on Windows
-- Launched via `bin/win-helper/win-helper.exe` or `sh/exec-git-bash.bat`
-- Path resolution priority: env var `GIT_BASH` > registry cache > `where git` > default install
+- 用作 Windows 上的主要 shell
+- 通过 `bin/win-helper/win-helper.exe` 或 `sh/exec-git-bash.bat` 启动
+- 路径解析优先级: 环境变量 `GIT_BASH` > 注册表缓存 > `where git` > 默认安装
 
-## Command Aliases (External Tools)
+## 命令别名（外部工具）
 
-The project uses alias configuration (`config/wsh-alias.txt`) to invoke external tools:
+项目使用别名配置（`config/wsh-alias.txt`）调用外部工具:
 
-**AI/Agent Tools:**
-- `agent-browser` - Browser automation (npm package)
+**AI/Agent 工具:**
+- `agent-browser` - 浏览器自动化（npm 包）
 - `@openai/codex` - Codex CLI
 - `@google/gemini-cli` - Gemini CLI
 - `@anthropic-ai/claude-code` - Claude Code
 - `opencode-ai` - OpenCode AI
-- `browser-use` - Browser use tool (via `uvx`)
-- `gsd-pi` - GSD tool
+- `browser-use` - 浏览器使用工具（通过 `uvx`）
+- `gsd-pi` - GSD 工具
 
-**Development Tools:**
-- `lazygit` - Terminal UI for Git
-- `docker` / `podman` - Container tools
-- `code` - VS Code editor
+**开发工具:**
+- `lazygit` - Git 终端 UI
+- `docker` / `podman` - 容器工具
+- `code` - VS Code 编辑器
 
-**Node.js Package Execution:**
-- Uses `pnpx` to execute packages without permanent installation
-- Examples: `pnpx agent-browser`, `pnpx @openai/codex`
+**Node.js 包执行:**
+- 使用 `pnpx` 执行包而不永久安装
+- 示例: `pnpx agent-browser`, `pnpx @openai/codex`
 
-## File Storage
+## 文件存储
 
-**Local Configurations:**
-- `config/wsh-alias.txt` - User alias definitions
-- `config/wsh-ping.txt` - TCP ping presets
-- User config: `$HOME/.config/wsh-alias.txt` (Linux) / `%USERPROFILE%\.config\wsh-alias.txt` (Windows)
-- Project config: `$PWD/.config/wsh-alias.txt` (Linux) / `%CD%\.config\wsh-alias.txt` (Windows)
+**本地配置:**
+- `config/wsh-alias.txt` - 用户别名定义
+- `config/wsh-ping.txt` - TCP ping 预设
+- 用户配置: `$HOME/.config/wsh-alias.txt` (Linux) / `%USERPROFILE%\.config\wsh-alias.txt` (Windows)
+- 项目配置: `$PWD/.config/wsh-alias.txt` (Linux) / `%CD%\.config\wsh-alias.txt` (Windows)
 
-## Terminal Enhancement
+## 终端增强
 
 **Clink (Windows):**
-- Lua scripts in `clink-lua-scripts/` provide auto-completion
--覆盖: `w`/`wsha`, `wsh`, `wsh-ping`, `wsh-fpatch`, `wsh-real-ignore`, `wsh-replace-cn-punc`
-- Usage: `dofile("path/to/git-utils.lua")` or set `CLINK_PATH` environment variable
+- `clink-lua-scripts/` 中的 Lua 脚本提供自动补全
+- 覆盖: `w`/`wsha`, `wsh`, `wsh-ping`, `wsh-fpatch`, `wsh-real-ignore`, `wsh-replace-cn-punc`
+- 用法: `dofile("path/to/git-utils.lua")` 或设置 `CLINK_PATH` 环境变量
 
-## Windows-Specific Integrations
+## Windows 专用集成
 
-**win-helper (Rust binary):**
-- Located at `bin/win-helper/win-helper.exe`
-- Parses Git Bash path and launches bash processes
-- No external Rust crate dependencies
-- Uses Windows native API for process creation
+**win-helper (Rust 二进制):**
+- 位于 `bin/win-helper/win-helper.exe`
+- 解析 Git Bash 路径并启动 bash 进程
+- 无外部 Rust crate 依赖
+- 使用 Windows 原生 API 进行进程创建
 
 **tcping.exe:**
-- TCP connectivity testing tool
-- Located at `bin/tcping.exe`
-- Wrapped by `sh/wsh-ping.bat`
+- TCP 连接测试工具
+- 位于 `bin/tcping.exe`
+- 由 `sh/wsh-ping.bat` 包装
 
-## Environment Variables Used
+## 使用的环境变量
 
-**Built-in:**
-- `APP_HOME` - Project root absolute path
-- `APP_SH` - sh directory absolute path
-- `APP_CONFIG` - config directory absolute path
+**内置:**
+- `APP_HOME` - 项目根目录绝对路径
+- `APP_SH` - sh 目录绝对路径
+- `APP_CONFIG` - config 目录绝对路径
 
-**External:**
-- `GIT_BASH` - Override Git Bash path discovery
-- `WSHA_CONFIG_FILE` - Custom alias config file path
-- `CLINK_PATH` - Clink scripts directory
-- `CDPORT` - CDP port for browser automation
+**外部:**
+- `GIT_BASH` - 覆盖 Git Bash 路径发现
+- `WSHA_CONFIG_FILE` - 自定义别名配置文件路径
+- `CLINK_PATH` - Clink 脚本目录
+- `CDPORT` - 浏览器自动化的 CDP 端口
 
-## CI/CD & Testing
+## CI/CD 与测试
 
-**Test Infrastructure:**
-- `__test__/` - Shell-based test scripts
-- `test-all.sh` - Test runner
-- Generates Markdown reports in `__test__/report/`
+**测试基础设施:**
+- `__test__/` - 基于 Shell 的测试脚本
+- `test-all.sh` - 测试运行器
+- 在 `__test__/report/` 生成 Markdown 报告
 
-**No external CI service detected** - Tests run locally via `npm test` or `./test-all.sh`
+**未检测到外部 CI 服务** - 测试通过 `npm test` 或 `./test-all.sh` 本地运行
 
-## Dependencies
+## 依赖
 
-**Direct npm packages referenced via aliases:**
+**通过别名引用的直接 npm 包:**
 - `agent-browser`
 - `@openai/codex`
 - `@google/gemini-cli`
@@ -94,4 +94,4 @@ The project uses alias configuration (`config/wsh-alias.txt`) to invoke external
 
 ---
 
-*Integration audit: 2026-04-13*
+*集成审计: 2026-04-13*

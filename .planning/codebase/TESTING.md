@@ -1,44 +1,44 @@
-# Testing Patterns
+# 测试模式
 
-**Analysis Date:** 2026-04-13
+**分析日期:** 2026-04-13
 
-## Test Framework
+## 测试框架
 
-**Framework:** ShellSpec (referenced in documentation)
-- Location: `.vendor/shellspec/shellspec` (submodule)
-- Configuration: `.shellspec` file
-- Alternative entry via `sh\exec-git-bash.bat .\.vendor\shellspec\shellspec`
+**框架:** ShellSpec（文档中引用）
+- 位置: `.vendor/shellspec/shellspec`（子模块）
+- 配置: `.shellspec` 文件
+- 通过 `sh\exec-git-bash.bat .\.vendor\shellspec\shellspec` 替代入口
 
-**Run Commands:**
+**运行命令:**
 ```bash
-# Using shellspec directly (in Git Bash)
+# 在 Git Bash 中直接使用 shellspec
 ./.vendor/shellspec/shellspec
 
-# Using Windows batch entry
+# 使用 Windows batch 入口
 sh\exec-git-bash.bat .\.vendor\shellspec\shellspec
 
-# Using npm (configured in package.json)
+# 使用 npm（配置在 package.json）
 npm test
 
-# Legacy test runner
+# 旧版测试运行器
 ./test-all.sh
 ```
 
-## Test File Organization
+## 测试文件组织
 
-**Location:** `__test__/` directory
+**位置:** `__test__/` 目录
 
-**Naming Convention:**
-- Main pattern: `*_test.sh` (e.g., `wsh-real-ignore_test.sh`)
-- Alternative: `*.test.sh` (e.g., `wsh.test.sh`, `wsha.test.sh`)
+**命名约定:**
+- 主要模式: `*_test.sh`（如 `wsh-real-ignore_test.sh`）
+- 替代模式: `*.test.sh`（如 `wsh.test.sh`, `wsha.test.sh`）
 
-**Directory Structure:**
+**目录结构:**
 ```
 __test__/
-├── test_utils.sh           # Shared test utilities
-├── report/                 # Generated test reports
-│   └── *.md               # Markdown reports per test
-├── test_playground/        # Shared sandbox directory
+├── test_utils.sh           # 共享测试工具
+├── report/                 # 生成的测试报告
+│   └── *.md               # 每个测试的 Markdown 报告
+├── test_playground/        # 共享沙盒目录
 ├── wsh-real-ignore_test.sh
 ├── wsha.test.sh
 ├── wsh.test.sh
@@ -46,38 +46,38 @@ __test__/
 └── init.test.sh
 ```
 
-## Test Utilities
+## 测试工具
 
-**Shared Library:** `__test__/test_utils.sh`
+**共享库:** `__test__/test_utils.sh`
 
-**Provided Functions:**
+**提供的函数:**
 ```bash
-# Colors
+# 颜色
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Logging
+# 日志
 log_info() { echo -e "[INFO] $1"; }
 log_success() { echo -e "${GREEN}[PASS] $1${NC}"; }
 log_fail() { echo -e "${RED}[FAIL] $1${NC}"; }
 
-# Timing
-current_time()    # Returns nanoseconds (or seconds fallback)
-calc_duration()   # Calculates duration in seconds (3 decimal places)
+# 计时
+current_time()    # 返回纳秒（或秒回退）
+calc_duration()   # 计算持续时间（3 位小数）
 
-# Test result tracking
-record_test_result()  # Records test name, result, duration, note
-PASS_COUNT            # Global pass counter
-FAIL_COUNT            # Global fail counter
+# 测试结果跟踪
+record_test_result()  # 记录测试名称、结果、耗时、备注
+PASS_COUNT            # 全局通过计数器
+FAIL_COUNT            # 全局失败计数器
 
-# Report generation
-generate_report()     # Generates Markdown report to report/
+# 报告生成
+generate_report()     # 生成 Markdown 报告到 report/
 ```
 
-## Test Structure Pattern
+## 测试结构模式
 
-**Standard Test Template:**
+**标准测试模板:**
 ```bash
 #!/bin/bash
 
@@ -88,14 +88,14 @@ PROJECT_ROOT=$(cd "$BASE_DIR/.." && pwd)
 SCRIPT_TO_TEST="$PROJECT_ROOT/sh/script_name.sh"
 TEST_DIR="$PROJECT_ROOT/test_playground"
 
-# Setup function - initializes test environment
+# Setup 函数 - 初始化测试环境
 setup() {
     log_info "正在设置测试环境..."
     rm -rf "$TEST_DIR"
     mkdir -p "$TEST_DIR"
     cd "$TEST_DIR" || exit 1
     
-    # Initialize git repo for testing
+    # 初始化测试用 git 仓库
     git init -q
     git config user.email "test@example.com"
     git config user.name "Test User"
@@ -103,24 +103,24 @@ setup() {
     log_info "测试环境已准备就绪: $TEST_DIR"
 }
 
-# Cleanup function - removes test artifacts
+# Cleanup 函数 - 移除测试产物
 cleanup() {
     log_info "正在清理测试环境..."
     cd "$PROJECT_ROOT" || exit 1
     rm -rf "$TEST_DIR"
 }
 
-# Individual test functions
+# 单个测试函数
 test_example_case() {
     local start_time end_time duration result note
     start_time=$(current_time)
     result="FAIL"
     note=""
     
-    # Run the script being tested
+    # 运行被测试的脚本
     bash "$SCRIPT_TO_TEST" arg1 arg2 > /dev/null 2>&1
     
-    # Assertions
+    # 断言
     if [[ $run_code -eq 0 ]] && [[ "$output" == *"expected"* ]]; then
         result="PASS"
         log_success "测试名称通过"
@@ -134,7 +134,7 @@ test_example_case() {
     record_test_result "test_example_case" "$result" "$duration" "$note"
 }
 
-# Main orchestrator
+# 主协调器
 main() {
     setup
     
@@ -158,10 +158,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 ```
 
-## Test Pattern: Windows Script Testing
+## 测试模式: Windows 脚本测试
 
-For testing Windows batch files:
-
+测试 Windows batch 文件:
 ```bash
 SCRIPT_WIN=""
 
@@ -176,10 +175,9 @@ run_wsh() {
 }
 ```
 
-## Test Pattern: Config-Based Tests
+## 测试模式: 基于配置的测试
 
-Some tests use configuration files:
-
+某些测试使用配置文件:
 ```bash
 write_config() {
     local file_path="$1"
@@ -208,10 +206,9 @@ run_wsha() {
 }
 ```
 
-## Test Pattern: Output Cleaning
+## 测试模式: 输出清理
 
-For tests that produce time-varying output:
-
+对于产生时间相关输出的测试:
 ```bash
 strip_time_logs() {
     printf "%s" "$1" | awk '
@@ -227,7 +224,7 @@ strip_time_logs() {
 }
 ```
 
-## Test Pattern: Sandboxed Git Repository
+## 测试模式: 沙盒化 Git 仓库
 
 ```bash
 setup() {
@@ -239,39 +236,39 @@ setup() {
     git config user.email "test@example.com"
     git config user.name "Test User"
     
-    # Create initial commit
+    # 创建初始提交
     touch README.md
     git add README.md
     git commit -m "Initial commit" -q
 }
 ```
 
-## Assertions
+## 断言
 
-**Common Assertion Patterns:**
+**常用断言模式:**
 ```bash
-# Check exit code
+# 检查退出码
 if [[ $run_code -eq 0 ]]; then ...
 
-# Check output contains string
+# 检查输出包含字符串
 if [[ "$output" == *"expected"* ]]; then ...
 
-# Check output equals exact string
+# 检查输出等于确切字符串
 if [[ "$output" == "expected" ]]; then ...
 
-# Check file exists
+# 检查文件存在
 if [[ -f "$target_file" ]]; then ...
 
-# Check file in git index
+# 检查文件在 git 索引中
 if git ls-files --error-unmatch "$file" >/dev/null 2>&1; then ...
 
-# Check string in file
+# 检查字符串在文件中
 if grep -qxF "$target" .gitignore; then ...
 ```
 
-## Test Report Format
+## 测试报告格式
 
-Reports are generated as Markdown files in `__test__/report/`:
+报告以 Markdown 文件形式生成在 `__test__/report/`:
 
 ```markdown
 # 测试报告: script_name.test.sh
@@ -293,15 +290,15 @@ Reports are generated as Markdown files in `__test__/report/`:
 
 ## Mocking
 
-**No formal mocking framework is used.** Tests typically:
-- Execute scripts in isolated directories
-- Use temporary git repositories
-- Set environment variables for configuration
-- Verify actual output and side effects
+**没有使用正式的 mocking 框架。** 测试通常:
+- 在隔离目录中执行脚本
+- 使用临时 git 仓库
+- 设置环境变量进行配置
+- 验证实际输出和副作用
 
-## Fixtures and Test Data
+## Fixtures 和测试数据
 
-**Inline fixtures:** Test data is created within test functions using heredocs:
+**内联 fixtures:** 测试数据在使用 heredoc 的测试函数内创建:
 ```bash
 cat > "$TEST_DIR/init-state.env" <<EOF
 Path=C:\\Tools
@@ -309,31 +306,31 @@ CLINK_PATH=C:\\Other\\Clink
 EOF
 ```
 
-**File-based fixtures:** Configuration files created in test directories:
+**基于文件的 fixtures:** 在测试目录中创建的配置文件:
 ```bash
 write_config "$config_file" "normal"
 ```
 
-## Coverage
+## 覆盖率
 
-**No coverage tool is currently used.** The project relies on:
-- Manual test execution
-- Test reports generated in `__test__/report/`
-- Integration tests that verify end-to-end functionality
+**目前没有使用覆盖率工具。** 项目依赖:
+- 手动测试执行
+- 在 `__test__/report/` 生成的测试报告
+- 验证端到端功能的集成测试
 
-## Common Test Patterns Summary
+## 常见测试模式总结
 
-| Pattern | Description |
+| 模式 | 描述 |
 |---------|-------------|
-| `setup/cleanup` | Environment initialization and cleanup |
-| `current_time/calc_duration` | Timing measurement |
-| `record_test_result` | Test result tracking |
-| `generate_report` | Markdown report generation |
-| `bash "$SCRIPT"` | Script invocation |
-| `strip_time_logs` | Output normalization |
-| `cygpath` | Windows path conversion |
-| `cmd.exe //c` | Windows command execution |
+| `setup/cleanup` | 环境初始化和清理 |
+| `current_time/calc_duration` | 计时测量 |
+| `record_test_result` | 测试结果跟踪 |
+| `generate_report` | Markdown 报告生成 |
+| `bash "$SCRIPT"` | 脚本调用 |
+| `strip_time_logs` | 输出规范化 |
+| `cygpath` | Windows 路径转换 |
+| `cmd.exe //c` | Windows 命令执行 |
 
 ---
 
-*Testing analysis: 2026-04-13*
+*测试分析: 2026-04-13*

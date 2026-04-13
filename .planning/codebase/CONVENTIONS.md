@@ -1,45 +1,45 @@
-# Coding Conventions
+# 编码规范
 
-**Analysis Date:** 2026-04-13
+**分析日期:** 2026-04-13
 
-## Project Overview
+## 项目概述
 
-This is a shell/bash script project containing Git utilities for Windows Git Bash, Linux, and macOS. Scripts are written in bash with some Windows batch files (.bat) for Windows integration.
+这是一个包含 Windows Git Bash、Linux 和 macOS Git 实用工具的 shell/bash 脚本项目。脚本使用 bash 编写，部分 Windows 批处理文件（.bat）用于 Windows 集成。
 
-## Shell Script Standards
+## Shell 脚本标准
 
 **Shebang:**
-- Use `#!/bin/bash` for bash scripts
-- Windows batch files use `.bat` extension and CMD syntax
+- Bash 脚本使用 `#!/bin/bash`
+- Windows batch 文件使用 `.bat` 扩展名和 CMD 语法
 
-**File Naming:**
-- Shell scripts: `*.sh` (e.g., `wsh-real-ignore.sh`, `wsha.sh`)
-- Windows batch: `*.bat` (e.g., `wsh.bat`, `wsha.bat`)
-- Test files: `*_test.sh` or `*.test.sh` in `__test__/` directory
+**文件命名:**
+- Shell 脚本: `*.sh`（如 `wsh-real-ignore.sh`, `wsha.sh`）
+- Windows batch: `*.bat`（如 `wsh.bat`, `wsha.bat`）
+- 测试文件: `__test__/` 目录中的 `*_test.sh` 或 `*.test.sh`
 
-## Code Style
+## 代码风格
 
-**Formatting:**
-- Indentation: 4 spaces (not tabs)
-- Lines should not exceed 120 characters
-- Use blank lines to separate logical sections
-- Commands followed by Chinese comments for explanation
+**格式化:**
+- 缩进: 4 个空格（不是 Tab）
+- 行不应超过 120 个字符
+- 使用空行分隔逻辑部分
+- 命令后跟中文注释进行解释
 
-**Comments:**
+**注释:**
 ```bash
 # 这是单行注释，用于解释代码逻辑
 # 函数用途说明使用中文
 ```
 
-**Variable Naming:**
-- Constants: UPPERCASE (e.g., `GREEN`, `NC`)
-- Regular variables: lowercase with underscores (e.g., `target_file`, `output_dir`)
-- Temporary variables: prefixed with underscore or descriptive names (e.g., `_CMD_TOKENS`)
-- Array variables: plural or descriptive names (e.g., `input_patterns`, `exclude_patterns`)
+**变量命名:**
+- 常量: 大写（如 `GREEN`, `NC`）
+- 常规变量: 小写加下划线（如 `target_file`, `output_dir`）
+- 临时变量: 带下划线前缀或描述性名称（如 `_CMD_TOKENS`）
+- 数组变量: 复数或描述性名称（如 `input_patterns`, `exclude_patterns`）
 
-## Function Design
+## 函数设计
 
-**Standard Script Structure:**
+**标准脚本结构:**
 ```bash
 #!/bin/bash
 
@@ -67,15 +67,15 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 ```
 
-**Function Patterns:**
-- Use `local` for function-local variables
-- Return codes: 0 for success, non-zero for failure
-- Use `local var=$(...)` pattern for command substitution
-- Pass arguments by position (`$1`, `$2`, etc.)
+**函数模式:**
+- 函数局部变量使用 `local`
+- 返回码: 0 表示成功，非零表示失败
+- 使用 `local var=$(...)` 模式进行命令替换
+- 按位置传递参数 (`$1`, `$2` 等)
 
-## Error Handling
+## 错误处理
 
-**Return Code Checking:**
+**返回码检查:**
 ```bash
 # 检查上一个命令执行状态
 if [ $? -eq 0 ]; then
@@ -90,29 +90,29 @@ if git rm -r --cached "$TARGET" 2>/dev/null; then
 fi
 ```
 
-**Error Messages:**
+**错误消息:**
 ```bash
 echo "错误: -o 选项需要一个目录参数" >&2
 return 1
 ```
 
-**Suppress Errors When Appropriate:**
+**适当时候抑制错误:**
 ```bash
-# 2>/dev/null suppresses stderr
+# 2>/dev/null 抑制 stderr
 git rm -r --cached --ignore-unmatch "$TARGET" 2>/dev/null
 
-# /dev/null suppresses both stdout and stderr
+# /dev/null 抑制 stdout 和 stderr
 pushd "$repo_root" > /dev/null
 ```
 
-## String Handling
+## 字符串处理
 
-**Quoting:**
-- Always quote variables containing paths or user input: `"$variable"`
-- Use single quotes for literal strings that should not expand
-- Use double quotes for strings with variable expansion
+**引号:**
+- 包含路径或用户输入的变量始终加引号: `"$variable"`
+- 不应展开的字符串使用单引号
+- 有变量展开的字符串使用双引号
 
-**Parameter Expansion:**
+**参数展开:**
 ```bash
 # 去除首尾空白
 value="${value#"${value%%[![:space:]]*}"}"
@@ -126,7 +126,7 @@ token="${token##*/}"
 printf '%s' "${token,,}"
 ```
 
-**Windows Line Ending Handling:**
+**Windows 行尾处理:**
 ```bash
 # 移除 Windows 回车符
 file=$(echo "$file" | tr -d '\r')
@@ -137,32 +137,32 @@ if ! grep -qxF "$TARGET" <(tr -d '\r' < .gitignore) 2>/dev/null; then
 fi
 ```
 
-## Logging and Output
+## 日志和输出
 
-**Color Variables (defined in test_utils.sh and some scripts):**
+**颜色变量（定义在 test_utils.sh 和某些脚本中）:**
 ```bash
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 ```
 
-**Logging Functions:**
+**日志函数:**
 ```bash
 log_info() { echo -e "[INFO] $1"; }
 log_success() { echo -e "${GREEN}[PASS] $1${NC}"; }
 log_fail() { echo -e "${RED}[FAIL] $1${NC}"; }
 ```
 
-## Path Handling
+## 路径处理
 
-**Cross-Platform Path Conversion:**
+**跨平台路径转换:**
 ```bash
 # Windows 下使用 cygpath 转换路径
-SCRIPT_WIN=$(cygpath -am "$SCRIPT_TO_TEST")  # absolute Unix path
-SCRIPT_WIN=$(cygpath -aw "$SCRIPT_TO_TEST")  # absolute Windows path
+SCRIPT_WIN=$(cygpath -am "$SCRIPT_TO_TEST")  # 绝对 Unix 路径
+SCRIPT_WIN=$(cygpath -aw "$SCRIPT_TO_TEST")  # 绝对 Windows 路径
 ```
 
-**Path Normalization:**
+**路径规范化:**
 ```bash
 # 移除 ./ 和 / 前缀
 pattern="${pattern#./}"
@@ -170,21 +170,21 @@ pattern="${pattern#/}"
 pattern="${pattern%/}"
 ```
 
-## Import and Include Patterns
+## 导入和包含模式
 
-**Test Utilities:**
+**测试工具:**
 ```bash
 # 从相对路径加载共享工具
 source "$(dirname "$0")/test_utils.sh"
 ```
 
-**Environment Variables for Configuration:**
+**环境变量配置:**
 ```bash
 # 通过环境变量传递配置
 WSHA_CONFIG_FILE="$config_file" bash "$SCRIPT_TO_TEST" "$@"
 ```
 
-## Pattern: Argument Parsing
+## 模式: 参数解析
 
 ```bash
 while [[ $# -gt 0 ]]; do
@@ -210,7 +210,7 @@ while [[ $# -gt 0 ]]; do
 done
 ```
 
-## Pattern: Array Handling
+## 模式: 数组处理
 
 ```bash
 # 声明关联数组引用
@@ -230,7 +230,7 @@ if [[ ${#input_patterns_ref[@]} -gt 0 ]]; then
 fi
 ```
 
-## Pattern: Command Output Capture
+## 模式: 命令输出捕获
 
 ```bash
 # 捕获命令输出
@@ -241,13 +241,13 @@ run_code=$?
 output=$(printf "%s" "$output" | tr -d '\r')
 ```
 
-## Shell Compatibility
+## Shell 兼容性
 
-**Target Environment:**
-- Primary: Git Bash on Windows (bash 4.x)
-- Also supports: Linux, macOS, WSL
+**目标环境:**
+- 主要: Windows Git Bash (bash 4.x)
+- 也支持: Linux, macOS, WSL
 
-**Portable sed Detection:**
+**便携式 sed 检测:**
 ```bash
 if sed --version >/dev/null 2>&; then
     sed_cmd=(sed -i)
@@ -258,4 +258,4 @@ fi
 
 ---
 
-*Convention analysis: 2026-04-13*
+*规范分析: 2026-04-13*

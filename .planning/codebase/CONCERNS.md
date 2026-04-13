@@ -1,157 +1,157 @@
-# Codebase Concerns
+# 代码库关注点
 
-**Analysis Date:** 2026-04-13
+**分析日期:** 2026-04-13
 
-## Tech Debt
+## 技术债务
 
-**Large Unstructured History Directory:**
-- Issue: `.history/` contains 39+ backup files accumulated over time, including old test reports, AGENTS backups, config backups, and shell script backups
-- Files: `.history/`
-- Impact: Repository bloat, confusing for developers, these should be cleaned up or properly archived
-- Fix approach: Archive or delete old history files; implement a cleanup policy
+**大型无结构历史目录:**
+- 问题: `.history/` 包含 39+ 个随时间积累的备份文件，包括旧测试报告、AGENTS 备份、配置备份和 shell 脚本备份
+- 文件位置: `.history/`
+- 影响: 仓库臃肿，对开发者造成困惑，应该清理或正确归档
+- 修复方法: 归档或删除旧历史文件；实施清理策略
 
-**Complex Alias Matching Architecture in wsha.sh:**
-- Issue: Uses parallel arrays (`ALIAS_KEYS`, `ALIAS_TEMPLATES`, etc.) to simulate a map data structure, adding complexity
-- Files: `sh/wsha.sh` (lines 157-172)
-- Impact: Hard to maintain, error-prone when modifying alias storage
-- Fix approach: Consider refactoring to use associative arrays or a more structured approach
+**wsha.sh 中复杂的别名匹配架构:**
+- 问题: 使用并行数组（`ALIAS_KEYS`, `ALIAS_TEMPLATES` 等）模拟 map 数据结构，增加了复杂性
+- 文件位置: `sh/wsha.sh`（第 157-172 行）
+- 影响: 难以维护，修改别名存储时容易出错
+- 修复方法: 考虑重构为使用关联数组或更结构化的方法
 
-**Caching Implementation with File System Dependencies:**
-- Issue: Cache key generation uses `sha1sum` or `cksum` as fallback, but these may not be consistently available
-- Files: `sh/wsha.sh` (lines 317-324)
-- Impact: Cache may not work correctly on all systems
-- Fix approach: Implement a more portable hash function or use a built-in bash approach
+**依赖文件系统的缓存实现:**
+- 问题: 缓存键生成使用 `sha1sum` 或 `cksum` 作为回退，但这些不一定一致可用
+- 文件位置: `sh/wsha.sh`（第 317-324 行）
+- 影响: 缓存在所有系统上可能无法正常工作
+- 修复方法: 实现更可移植的哈希函数或使用内置 bash 方法
 
-## Known Bugs
+## 已知缺陷
 
-**macOS sed -i Incompatibility:**
-- Symptoms: `sed -i` requires an empty string argument on macOS but not on GNU sed
-- Files: `sh/wsh-replace-cn-punc.sh` (lines 77-82)
-- Trigger: Running the script on macOS
-- Workaround: The code does handle this with a check for `sed --version`, but it may not work reliably on all macOS versions
+**macOS sed -i 不兼容:**
+- 症状: macOS 上 `sed -i` 需要空字符串参数，但 GNU sed 不需要
+- 文件位置: `sh/wsh-replace-cn-punc.sh`（第 77-82 行）
+- 触发条件: 在 macOS 上运行脚本
+- 临时方案: 代码确实用 `sed --version` 检测处理，但可能并非在所有 macOS 版本上都可靠
 
-**Windows stat Command Incompatibility:**
-- Symptoms: `stat -c` is GNU-specific and does not work on BSD/macOS stat
-- Files: `sh/wsha.sh` (lines 299-300)
-- Trigger: Running on non-GNU systems (macOS, some BSD)
-- Workaround: Uses `2>/dev/null` fallback but this loses functionality
+**Windows stat 命令不兼容:**
+- 症状: `stat -c` 是 GNU 特有的，在 BSD/macOS stat 上不工作
+- 文件位置: `sh/wsha.sh`（第 299-300 行）
+- 触发条件: 在非 GNU 系统（macOS、部分 BSD）上运行
+- 临时方案: 使用 `2>/dev/null` 回退但会丢失功能
 
-## Security Considerations
+## 安全考虑
 
-**Use of eval for Command Execution:**
-- Risk: `eval -- "$cmd_text"` executes dynamically constructed commands
-- Files: `sh/wsha.sh` (line 911)
-- Current mitigation: Command is validated through `is_complex_shell_command()` before eval
-- Recommendations: Consider using arrays for command construction instead of string eval; add additional input sanitization for alias templates
+**使用 eval 执行命令:**
+- 风险: `eval -- "$cmd_text"` 执行动态构建的命令
+- 文件位置: `sh/wsha.sh`（第 911 行）
+- 当前缓解: 命令在 eval 前通过 `is_complex_shell_command()` 验证
+- 建议: 考虑使用数组代替字符串 eval 进行命令构建；为别名模板添加额外输入清理
 
-**Alias Template Injection Risk:**
-- Risk: Alias templates with `$1`, `$2`, etc. could potentially be exploited if alias definitions contain user-controlled content
-- Files: `sh/wsha.sh` (lines 1009-1016)
-- Current mitigation: Templates come from config files which are typically user-controlled
-- Recommendations: Document that config files should have appropriate permissions; consider adding a sandbox mode
+**别名模板注入风险:**
+- 风险: 带 `$1`、`$2` 等的别名模板如果别名定义包含用户可控内容，可能被利用
+- 文件位置: `sh/wsha.sh`（第 1009-1016 行）
+- 当前缓解: 模板来自通常是用户控制的配置文件
+- 建议: 记录配置文件应具有适当的权限；考虑添加沙盒模式
 
-**Config File Permission Requirements:**
-- Risk: If config files (`wsh-alias.txt`) are world-writable, malicious aliases could be defined
-- Files: `config/wsh-alias.txt`, `$HOME/.config/wsh-alias.txt`
-- Current mitigation: None
-- Recommendations: Document required permissions (600 or similar)
+**配置文件权限要求:**
+- 风险: 如果配置文件（`wsh-alias.txt`）是全局可写的，可能定义恶意别名
+- 文件位置: `config/wsh-alias.txt`, `$HOME/.config/wsh-alias.txt`
+- 当前缓解: 无
+- 建议: 记录所需权限（600 或类似）
 
-## Performance Bottlenecks
+## 性能瓶颈
 
-**Nested Loop in Alias Bucket Iteration:**
-- Problem: `find_best_match()` iterates through candidate indexes in a loop, with inner token matching
-- Files: `sh/wsha.sh` (lines 788-880)
-- Cause: For each input, it iterates all matching bucket candidates and does token-by-token comparison
-- Improvement path: Consider indexing by alias count to reduce candidates
+**别名桶迭代中的嵌套循环:**
+- 问题: `find_best_match()` 在循环中迭代候选索引，内部进行令牌匹配
+- 文件位置: `sh/wsha.sh`（第 788-880 行）
+- 原因: 对于每个输入，迭代所有匹配的桶候选并进行令牌逐个比较
+- 改进路径: 考虑按别名计数索引以减少候选
 
-**Cache File System Operations:**
-- Problem: Each cache hit still requires reading and parsing the entire cache file
-- Files: `sh/wsha.sh` (lines 335-362)
-- Cause: Cache format stores all aliases in a single file
-- Improvement path: Consider database or more granular caching
+**缓存文件系统操作:**
+- 问题: 每次缓存命中仍需要读取和解析整个缓存文件
+- 文件位置: `sh/wsha.sh`（第 335-362 行）
+- 原因: 缓存格式将所有别名存储在单个文件中
+- 改进路径: 考虑数据库或更细粒度的缓存
 
-## Fragile Areas
+## 脆弱领域
 
-**wsha.sh - Complex Token Matching Logic:**
-- Files: `sh/wsha.sh` (lines 642-775)
-- Why fragile: Regex construction for glob patterns, lazy vs greedy matching issues, bash regex limitations
-- Safe modification: Extensive testing required for any changes to `match_token_pattern()` and `match_double_star_remainder()`
-- Test coverage: `__test__/wsha.test.sh` covers many cases but pattern matching edge cases may exist
+**wsha.sh - 复杂的令牌匹配逻辑:**
+- 文件位置: `sh/wsha.sh`（第 642-775 行）
+- 脆弱原因: glob 模式的正则构造，懒匹配 vs 贪心匹配问题，bash 正则限制
+- 安全修改: 对 `match_token_pattern()` 和 `match_double_star_remainder()` 的任何更改都需要广泛测试
+- 测试覆盖: `__test__/wsha.test.sh` 覆盖了许多情况，但可能存在模式匹配边缘情况
 
-**wsha.sh - Windows Path Conversion:**
-- Files: `sh/wsha.sh` (line 416: `cygpath` usage in tests)
-- Why fragile: `cygpath` only exists on Cygwin/Git Bash, breaks on native Windows or Linux
-- Safe modification: Guard all `cygpath` calls with platform checks
+**wsha.sh - Windows 路径转换:**
+- 文件位置: `sh/wsha.sh`（第 416 行: 测试中的 `cygpath` 使用）
+- 脆弱原因: `cygpath` 仅在 Cygwin/Git Bash 上存在，在原生 Windows 或 Linux 上会失败
+- 安全修改: 用平台检查保护所有 `cygpath` 调用
 
-**w.sh - Exec Bash Entry:**
-- Files: `sh/w.sh` (line 7: `exec bash`)
-- Why fragile: If bash is not in PATH or has different behavior, script fails completely
-- Safe modification: Add fallback or clearer error message
+**w.sh - Exec Bash 入口:**
+- 文件位置: `sh/w.sh`（第 7 行: `exec bash`）
+- 脆弱原因: 如果 bash 不在 PATH 中或行为不同，脚本完全失败
+- 安全修改: 添加回退或更清晰的错误消息
 
-**wsh-replace-cn-punc.sh - Sed Replacement Array:**
-- Files: `sh/wsh-replace-cn-punc.sh` (lines 36-54)
-- Why fragile: Uses `"${sed_cmd[@]}"` which relies on proper array quoting; if array is empty, command fails silently
-- Safe modification: Verify array is not empty before executing
+**wsh-replace-cn-punc.sh - Sed 替换数组:**
+- 文件位置: `sh/wsh-replace-cn-punc.sh`（第 36-54 行）
+- 脆弱原因: 使用 `"${sed_cmd[@]}"` 依赖正确的数组引用；如果数组为空，命令静默失败
+- 安全修改: 执行前验证数组非空
 
-## Scaling Limits
+## 扩展限制
 
-**Alias Count:**
-- Current capacity: Unlimited in theory, but performance degrades with many aliases due to linear bucket iteration
-- Limit: Hundreds of aliases before noticeable slowdown
-- Scaling path: Implement alias indexing by first token AND alias count
+**别名数量:**
+- 当前容量: 理论上无限，但因线性桶迭代，许多别名时性能下降
+- 限制: 数百个别名前开始明显减速
+- 扩展路径: 实现按第一个令牌和别名计数对别名索引
 
-**Config File Size:**
-- Current capacity: Entire config is loaded into memory and parsed line-by-line
-- Limit: Config files up to a few MB should work, but large configs are inefficient
-- Scaling path: Lazy loading or indexed config parsing
+**配置文件大小:**
+- 当前容量: 整个配置加载到内存并逐行解析
+- 限制: 几 MB 以下的配置文件应该可以工作，但大配置文件效率低
+- 扩展路径: 延迟加载或索引配置解析
 
-## Dependencies at Risk
+## 有风险的依赖
 
-**External Tool: sha1sum/cksum:**
-- Risk: `sha1sum` may not be available on all systems; `cksum` is more portable but output format differs
-- Files: `sh/wsha.sh` (lines 319-323)
-- Impact: Cache key generation would fail, causing config to be reloaded every time
-- Migration plan: Use bash built-in `$RANDOM` or a pure bash hash implementation
+**外部工具: sha1sum/cksum:**
+- 风险: `sha1sum` 并非在所有系统上都可用；`cksum` 更可移植但输出格式不同
+- 文件位置: `sh/wsha.sh`（第 319-323 行）
+- 影响: 缓存键生成失败会导致每次都重新加载配置
+- 迁移计划: 使用 bash 内置 `$RANDOM` 或纯 bash 哈希实现
 
 **bin/tcping.exe:**
-- Risk: Pre-compiled Windows binary, not available for Linux/macOS
-- Files: `bin/tcping.exe`
-- Impact: `sh/wsh-ping.bat` only works on Windows
-- Migration plan: Consider a cross-platform alternative using bash sockets
+- 风险: 预编译的 Windows 二进制文件，不适用于 Linux/macOS
+- 文件位置: `bin/tcping.exe`
+- 影响: `sh/wsh-ping.bat` 仅在 Windows 上工作
+- 迁移计划: 考虑使用 bash 套接字的跨平台替代方案
 
-## Missing Critical Features
+## 缺失的关键功能
 
-**No Test Automation/CI:**
-- Problem: Tests are run manually via `npm test` or `test-all.sh`
-- Blocks: No automated verification on commit, no cross-platform test matrix
-- Priority: High
+**无测试自动化/CI:**
+- 问题: 测试通过 `npm test` 或 `test-all.sh` 手动运行
+- 阻碍: 提交时无自动化验证，无跨平台测试矩阵
+- 优先级: 高
 
-**No Error Recovery in Cache Loading:**
-- Problem: If cache file is corrupted, error message is not informative
-- Files: `sh/wsha.sh` (line 338: `[[ -f "$cache_file" ]] || return 1`)
-- Blocks: Debugging cache-related issues is difficult
-- Priority: Medium
+**缓存加载无错误恢复:**
+- 问题: 如果缓存文件损坏，错误消息信息不足
+- 文件位置: `sh/wsha.sh`（第 338 行: `[[ -f "$cache_file" ]] || return 1`）
+- 阻碍: 调试缓存相关问题困难
+- 优先级: 中
 
-## Test Coverage Gaps
+## 测试覆盖缺口
 
-**Cross-Platform Shell Behavior:**
-- What's not tested: BSD sed vs GNU sed differences, BSD stat vs GNU stat, bash version differences
-- Files: `sh/wsh-replace-cn-punc.sh`, `sh/wsha.sh`
-- Risk: Scripts may work on developer's Git Bash but fail on CI Linux or macOS
-- Priority: High
+**跨平台 Shell 行为:**
+- 未测试: BSD sed vs GNU sed 差异、BSD stat vs GNU stat、bash 版本差异
+- 文件位置: `sh/wsh-replace-cn-punc.sh`, `sh/wsha.sh`
+- 风险: 脚本可能在开发者的 Git Bash 上工作但在 CI Linux 或 macOS 上失败
+- 优先级: 高
 
-**Error Path Testing:**
-- What's not tested: What happens when git is not installed, when repo is corrupted, when permissions are denied
-- Files: `sh/w.sh`
-- Risk: Users get cryptic errors instead of helpful guidance
-- Priority: Medium
+**错误路径测试:**
+- 未测试: git 未安装时、仓库损坏时、权限被拒绝时会发生什么
+- 文件位置: `sh/w.sh`
+- 风险: 用户收到神秘错误而不是有用的指导
+- 优先级: 中
 
-**Alias Priority Edge Cases:**
-- What's not tested: What happens when same alias appears in multiple config files with different priorities
-- Files: `sh/wsha.sh` (lines 488-509)
-- Risk: Behavior may not match documentation
-- Priority: Low
+**别名优先级边缘情况:**
+- 未测试: 同一别名出现在多个优先级不同的配置文件中时会发生什么
+- 文件位置: `sh/wsha.sh`（第 488-509 行）
+- 风险: 行为可能与文档不匹配
+- 优先级: 低
 
 ---
 
-*Concerns audit: 2026-04-13*
+*关注点审计: 2026-04-13*
