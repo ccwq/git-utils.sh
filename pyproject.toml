@@ -12,8 +12,14 @@ dependencies = [
 ]
 
 [project.scripts]
-w = "wsha.cli:main"
-wsha = "wsha.cli:main"
+# SHELL-01: uvx wsha 使用此 entry point
+# SHELL-02: pip install wsha 后 w 命令使用此 entry point
+# SHELL-05: w <alias> 路由到 Python 实现（通过 run_with_fallback）
+# SHELL-04: run_with_fallback 包含 fallback 逻辑
+w = "wsha.cli:run_with_fallback"
+wsha = "wsha.cli:run_with_fallback"
 
 [tool.hatch.build.targets.wheel]
-packages = ["wsha"]
+# packages = ["py/wsha"] 告诉 hatchling：py/wsha/ 目录作为 wsha 包打包到 wheel
+# 修正前为 ["wsha"]，该路径在项目根目录下不存在
+packages = ["py/wsha"]
