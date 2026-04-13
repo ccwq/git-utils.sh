@@ -24,15 +24,15 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **MATCH-05**: User can use multiple capture groups — `f* *` captures `$1` and `$2`
 - [ ] **MATCH-06**: Alias matcher selects best match using scoring: `alias_count*10000 + literal_chars*100 - wildcard_weight`
 - [ ] **MATCH-07**: Unknown alias passthrough — `w echo hello` → `echo hello`
-- [ ] **MATCH-08**: Complex shell command passthrough (quoted commands, pipes, chains)
+- [x] **MATCH-08**: Complex shell command passthrough (quoted commands, pipes, chains)
 
 ### Template Expansion
 
-- [ ] **TPL-01**: User can use `$1`, `$2` template replacement for captured tokens
-- [ ] **TPL-02**: User can use `$$` for remainder replacement (double-star capture)
-- [ ] **TPL-03**: User can use `--` placeholder to control where runtime args insert
-- [ ] **TPL-04**: User can use `%VAR%` environment variable expansion in templates
-- [ ] **TPL-05**: Quoted alias names with spaces — `"pcodex l"` defined as `echo codex-last`
+- [x] **TPL-01**: User can use `$1`, `$2` template replacement for captured tokens
+- [x] **TPL-02**: User can use `$$` for remainder replacement (double-star capture)
+- [x] **TPL-03**: User can use `--` placeholder to control where runtime args insert
+- [x] **TPL-04**: User can use `%VAR%` environment variable expansion in templates
+- [x] **TPL-05**: Quoted alias names with spaces — `"pcodex l"` defined as `echo codex-last`
 
 ### CLI Interface
 
@@ -40,7 +40,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **CLI-02**: User can run `w --list-view` or `w -lv` to show detailed view
 - [ ] **CLI-03**: User can run `w --find <pattern>` to search aliases by pattern
 - [ ] **CLI-04**: User can run `w --cache-clear` to clear the config cache
-- [ ] **CLI-05**: Exit codes match shell version behavior (0 = success, 127 = command not found)
+- [x] **CLI-05**: Exit codes match shell version behavior (0 = success, 127 = command not found)
 
 ### Shell Integration
 
@@ -97,17 +97,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MATCH-05 | Phase 2 | Pending |
 | MATCH-06 | Phase 2 | Pending |
 | MATCH-07 | Phase 2 | Pending |
-| MATCH-08 | Phase 3 | Pending |
-| TPL-01 | Phase 3 | Pending |
-| TPL-02 | Phase 3 | Pending |
-| TPL-03 | Phase 3 | Pending |
-| TPL-04 | Phase 3 | Pending |
-| TPL-05 | Phase 3 | Pending |
+| MATCH-08 | Phase 3 | Complete |
+| TPL-01 | Phase 3 | Complete |
+| TPL-02 | Phase 3 | Complete |
+| TPL-03 | Phase 3 | Complete |
+| TPL-04 | Phase 3 | Complete |
+| TPL-05 | Phase 3 | Complete |
 | CLI-01 | Phase 4 | Pending |
 | CLI-02 | Phase 4 | Pending |
 | CLI-03 | Phase 4 | Pending |
 | CLI-04 | Phase 4 | Pending |
-| CLI-05 | Phase 3 | Pending |
+| CLI-05 | Phase 3 | Complete |
 | SHELL-01 | Phase 4 | Pending |
 | SHELL-02 | Phase 4 | Pending |
 | SHELL-03 | Phase 1 | Pending |
