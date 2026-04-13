@@ -38,6 +38,18 @@
 - Git Bash - Windows 推荐使用
 - `bin/tcping.exe` - TCP 连接测试工具 (Windows)
 - `bin/win-helper/win-helper.exe` - 用于 Windows Git Bash 路径解析的 Rust 二进制文件
+## Python 依赖
+- Python 3.8+
+- click>=8.0
+## Python 包结构
+- `py/wsha/` - Python 包源码
+- `py/wsha/__init__.py` - 包入口，导出公共 API
+- `py/wsha/parser.py` - wsh-alias.txt 解析器
+- `py/wsha/config.py` - 配置加载和合并
+- `py/wsha/cache.py` - 缓存管理（~/.cache/wsha/）
+- `py/wsha/errors.py` - 自定义异常类
+- `py/cli.py` - Click CLI 入口
+- `pyproject.toml` - Python 项目配置（hatchling 构建）
 ## 项目结构
 - `sh/exec-git-bash.bat` - Windows Git Bash 启动器
 - `sh/w.bat` / `sh/wsha.bat` - Windows 别名包装器入口点
