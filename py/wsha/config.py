@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Any
-from .parser import parse_file
+from .parser import parse_dir, parse_file, PREFIX_NORMAL, PREFIX_SEQUENTIAL, PREFIX_OR
 from .cache import CacheManager
 from .errors import ConfigParseError, DuplicateAliasError
 
@@ -12,18 +12,19 @@ class AliasEntry:
     """Represents a parsed alias entry."""
 
     def __init__(self, name: str, template: str, config_path: str,
-                 source_name: str, line_no: int):
+                 source_name: str, line_no: int, prefix_type: str = PREFIX_NORMAL):
         self.name = name
         self.template = template
         self.config_path = config_path
         self.source_name = source_name
         self.line_no = line_no
+        self.prefix_type = prefix_type
 
 
 def get_default_config_paths() -> Dict[str, str]:
     """
-    Get default config file paths with priority.
-    Returns dict of source_name -> config_path
+    Get default config directory paths with priority.
+    Returns dict of source_name -> config_directory_path
     """
     home_override = os.environ.get('WSHA_OVERRIDE_HOME') or os.environ.get('HOME')
     if home_override:
@@ -34,21 +35,21 @@ def get_default_config_paths() -> Dict[str, str]:
     app_home = os.environ.get('APP_HOME', '')
     configs = {}
 
-    # Built-in: APP_HOME/config/wsh-alias.txt
+    # Built-in: APP_HOME/config/wsh-alias/ (glob directory)
     if app_home:
-        builtin_path = Path(app_home) / "config" / "wsh-alias.txt"
-        if builtin_path.exists():
-            configs['builtin'] = str(builtin_path)
+        builtin_dir = Path(app_home) / "config" / "wsh-alias"
+        if builtin_dir.is_dir():
+            configs['builtin'] = str(builtin_dir)
 
-    # User-level: $HOME/.config/wsh-alias.txt
-    user_path = home / ".config" / "wsh-alias.txt"
-    if user_path.exists():
-        configs['user'] = str(user_path)
+    # User-level: $HOME/.config/wsh-alias/ (glob directory)
+    user_dir = home / ".config" / "wsh-alias"
+    if user_dir.is_dir():
+        configs['user'] = str(user_dir)
 
-    # Project-level: $PWD/.config/wsh-alias.txt
-    local_path = Path.cwd() / ".config" / "wsh-alias.txt"
-    if local_path.exists():
-        configs['project'] = str(local_path)
+    # Project-level: $PWD/.config/wsh-alias/ (glob directory)
+    local_dir = Path.cwd() / ".config" / "wsh-alias"
+    if local_dir.is_dir():
+        configs['project'] = str(local_dir)
 
     return configs
 
@@ -111,33 +112,62 @@ def load_config(
                 ))
             return aliases, [], sources
 
-    # Parse all config files
-    all_aliases = {}  # name -> AliasEntry (for merging)
+    # Parse all config files/directories
+    all_aliases = {}  # name -> AliasEntry (for merging, first wins)
     all_errors = []
     seen_in_file = {}  # (config_path, name) -> line_no (for duplicate detection)
 
     for source_name, path in sources.items():
-        aliases, parse_errors = parse_file(path)
-        all_errors.extend(parse_errors)
+        # Use parse_dir for directories, parse_file for single files
+        if os.path.isdir(path):
+            dir_aliases, parse_errors = parse_dir(path)
+            all_errors.extend(parse_errors)
 
-        for name, template, line_no in aliases:
-            if fail_on_duplicate:
-                key = (path, name)
-                if key in seen_in_file:
-                    all_errors.append(DuplicateAliasError(
-                        name, path, line_no
-                    ))
-                    continue
-                seen_in_file[key] = line_no
+            for name, template, prefix_type, line_no in dir_aliases:
+                if fail_on_duplicate:
+                    key = (path, name)
+                    if key in seen_in_file:
+                        all_errors.append(DuplicateAliasError(
+                            name, path, line_no
+                        ))
+                        continue
+                    seen_in_file[key] = line_no
 
-            # Merge: higher priority overrides lower
-            all_aliases[name] = AliasEntry(
-                name=name,
-                template=template,
-                config_path=path,
-                source_name=source_name,
-                line_no=line_no
-            )
+                # Merge: higher priority overrides lower
+                # First occurrence wins (duplicate detection as per plan)
+                if name not in all_aliases:
+                    all_aliases[name] = AliasEntry(
+                        name=name,
+                        template=template,
+                        config_path=path,
+                        source_name=source_name,
+                        line_no=line_no,
+                        prefix_type=prefix_type
+                    )
+        elif os.path.isfile(path):
+            file_aliases, parse_errors = parse_file(path)
+            all_errors.extend(parse_errors)
+
+            for name, template, prefix_type, line_no in file_aliases:
+                if fail_on_duplicate:
+                    key = (path, name)
+                    if key in seen_in_file:
+                        all_errors.append(DuplicateAliasError(
+                            name, path, line_no
+                        ))
+                        continue
+                    seen_in_file[key] = line_no
+
+                # Merge: higher priority overrides lower
+                if name not in all_aliases:
+                    all_aliases[name] = AliasEntry(
+                        name=name,
+                        template=template,
+                        config_path=path,
+                        source_name=source_name,
+                        line_no=line_no,
+                        prefix_type=prefix_type
+                    )
 
     # Convert to list preserving order
     alias_list = list(all_aliases.values())
@@ -153,10 +183,44 @@ def load_config(
                 'template': a.template,
                 'config_path': a.config_path,
                 'source_name': a.source_name,
-                'line_no': a.line_no
+                'line_no': a.line_no,
+                'prefix_type': a.prefix_type
             }
             for a in alias_list
         ]
         cache_mgr.save(mode, config_paths, cache_data, cache_key)
 
     return alias_list, all_errors, sources
+
+
+def detect_duplicates(aliases: List[AliasEntry]) -> List[DuplicateAliasError]:
+    """
+    Detect aliases with the same name but different content.
+
+    Args:
+        aliases: List of AliasEntry objects to check
+
+    Returns:
+        List of DuplicateAliasError for aliases with conflicting definitions
+    """
+    # Group by name
+    by_name: Dict[str, List[AliasEntry]] = {}
+    for entry in aliases:
+        if entry.name not in by_name:
+            by_name[entry.name] = []
+        by_name[entry.name].append(entry)
+
+    # Find duplicates with different content
+    errors = []
+    for name, entries in by_name.items():
+        if len(entries) > 1:
+            # Check if templates differ
+            templates = set(e.template for e in entries)
+            if len(templates) > 1:
+                # Has same name but different content - report first one
+                first = entries[0]
+                errors.append(DuplicateAliasError(
+                    name, first.config_path, first.line_no
+                ))
+
+    return errors
