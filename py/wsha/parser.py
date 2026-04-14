@@ -1,11 +1,18 @@
 """Config file parser for wsh-alias.txt format."""
 
 import re
+import glob
+import os
 from typing import Optional, Tuple, List
 from .errors import ConfigParseError
 
+# Prefix types for alias execution chains
+PREFIX_NORMAL = "normal"
+PREFIX_SEQUENTIAL = "sequential"  # &foo - execute in sequence, stop on error
+PREFIX_OR = "or"  # |foo - execute in sequence, stop on success
 
-def parse_line(line: str, config_path: str, line_no: int) -> Optional[Tuple[str, str]]:
+
+def parse_line(line: str, config_path: str, line_no: int) -> Optional[Tuple[str, str, str]]:
     """
     Parse a single line from wsh-alias.txt.
 
@@ -15,7 +22,8 @@ def parse_line(line: str, config_path: str, line_no: int) -> Optional[Tuple[str,
         line_no: Line number in the file (1-based)
 
     Returns:
-        Tuple of (alias_name, template) if valid, None if skip (comment/empty)
+        Tuple of (alias_name, template, prefix_type) if valid, None if skip (comment/empty)
+        prefix_type is one of PREFIX_NORMAL, PREFIX_SEQUENTIAL, or PREFIX_OR
 
     Raises:
         ConfigParseError: If the line has invalid syntax
@@ -33,6 +41,17 @@ def parse_line(line: str, config_path: str, line_no: int) -> Optional[Tuple[str,
 
     alias_name = ""
     template = ""
+    prefix_type = PREFIX_NORMAL
+
+    # Check for prefix indicators (& or |) at the start of alias name
+    # & prefix: sequential execution (stop on error)
+    # | prefix: or execution (stop on success)
+    if trimmed.startswith('&'):
+        prefix_type = PREFIX_SEQUENTIAL
+        trimmed = trimmed[1:]
+    elif trimmed.startswith('|'):
+        prefix_type = PREFIX_OR
+        trimmed = trimmed[1:]
 
     if trimmed.startswith('"'):
         # Quoted alias: "alias name" template content
@@ -73,7 +92,7 @@ def parse_line(line: str, config_path: str, line_no: int) -> Optional[Tuple[str,
     if len(template) >= 2 and template.startswith('"') and template.endswith('"'):
         template = template[1:-1]
 
-    return (alias_name, template)
+    return (alias_name, template, prefix_type)
 
 
 def parse_file(file_path: str) -> Tuple[List, List]:
@@ -101,8 +120,48 @@ def parse_file(file_path: str) -> Tuple[List, List]:
             try:
                 result = parse_line(line, file_path, line_no)
                 if result:
-                    aliases.append((result[0], result[1], line_no))
+                    # result is (alias_name, template, prefix_type)
+                    aliases.append((result[0], result[1], result[2], line_no))
             except ConfigParseError as e:
                 errors.append(e)
+
+    return aliases, errors
+
+
+def parse_dir(dir_path: str) -> Tuple[List, List]:
+    """
+    Parse all config files in a directory using glob.
+
+    Args:
+        dir_path: Path to the config directory
+
+    Returns:
+        Tuple of (aliases, errors) where:
+            - aliases: list of (alias_name, template, line_no) tuples
+            - errors: list of ConfigParseError instances
+
+        Files are processed in alphabetical order.
+        Files starting with underscore (_) are ignored.
+        Only matches *.txt files (1 level deep).
+    """
+    aliases = []
+    errors = []
+
+    if not os.path.isdir(dir_path):
+        return aliases, errors
+
+    # glob.glob("*.txt") matches 1 level deep
+    pattern = os.path.join(dir_path, "*.txt")
+    files = sorted(glob.glob(pattern))
+
+    for file_path in files:
+        # Filter out files starting with underscore
+        basename = os.path.basename(file_path)
+        if basename.startswith('_'):
+            continue
+
+        file_aliases, file_errors = parse_file(file_path)
+        aliases.extend(file_aliases)
+        errors.extend(file_errors)
 
     return aliases, errors

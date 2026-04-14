@@ -5,3 +5,4 @@
 /test_playground
 /patch-files
 /tmp-*
+*.pyc

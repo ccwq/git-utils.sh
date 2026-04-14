@@ -71,8 +71,8 @@
   7. `w <alias> [args...]` 默认路由到 Python 实现
 **Plans**: 2 plans
 Plans:
-- [ ] 04-01-PLAN.md — CLI 选项实现（--list / --list-view / --find / --cache-clear）
-- [ ] 04-02-PLAN.md — Fallback 逻辑与 pyproject.toml 包路径修正
+- [x] 04-01-PLAN.md — CLI 选项实现（--list / --list-view / --find / --cache-clear）
+- [x] 04-02-PLAN.md — Fallback 逻辑与 pyproject.toml 包路径修正
 **UI hint**: yes
 
 ### Phase 5: Test Compatibility & Validation

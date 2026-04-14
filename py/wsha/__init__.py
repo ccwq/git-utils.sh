@@ -7,7 +7,8 @@ from .errors import (
     CacheError,
     ConfigNotFoundError,
 )
-from .parser import parse_line, parse_file
+from .parser import parse_line, parse_file, parse_dir
+from .parser import PREFIX_NORMAL, PREFIX_SEQUENTIAL, PREFIX_OR
 from .cache import CacheManager
 from .config import load_config, AliasEntry, get_default_config_paths
 from .matching import get_tokens, match_token_pattern, match_double_star_remainder
@@ -25,6 +26,10 @@ __all__ = [
     "ConfigNotFoundError",
     "parse_line",
     "parse_file",
+    "parse_dir",
+    "PREFIX_NORMAL",
+    "PREFIX_SEQUENTIAL",
+    "PREFIX_OR",
     "CacheManager",
     "load_config",
     "AliasEntry",

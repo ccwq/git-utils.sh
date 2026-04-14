@@ -203,6 +203,7 @@ class AliasMatcher:
             for ti in range(alias_count):
                 if ti == double_token_index:
                     # ** token - match remainder using match_double_star_remainder
+                    # Build remainder text including current token and all remaining
                     remain_text = input_tokens[ti]
                     for ri in range(ti + 1, input_count):
                         remain_text += " " + input_tokens[ri]
