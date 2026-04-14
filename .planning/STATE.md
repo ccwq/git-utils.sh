@@ -63,6 +63,7 @@ Next step: /gsd-plan-phase 1
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260414-k5k | 重构配置文件解析规则，支持目录glob、重复规则检测、链式执行 | 2026-04-14 | bd9f296 | [260414-k5k-glob](./quick/260414-k5k-glob/) |
+| 260414-l8m | 修改文档和sh脚本以支持新的目录glob配置 | 2026-04-14 | 1fadefc | [260414-l8m-sh-glob](./quick/260414-l8m-sh-glob/) |
 
 ---
 *Last updated: 2026-04-14*
