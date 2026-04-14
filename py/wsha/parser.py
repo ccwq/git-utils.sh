@@ -40,7 +40,7 @@ def parse_line(line: str, config_path: str, line_no: int) -> Optional[Tuple[str,
         match = re.match(r'^"([^"]+)"\s+(.+)$', trimmed)
         if not match:
             raise ConfigParseError(
-                "invalid quoted alias syntax",
+                "invalid config: invalid quoted alias syntax",
                 config_path,
                 line_no
             )
@@ -52,7 +52,7 @@ def parse_line(line: str, config_path: str, line_no: int) -> Optional[Tuple[str,
         parts = trimmed.split(None, 1)
         if len(parts) == 1:
             raise ConfigParseError(
-                f'alias "{parts[0]}" has no target command',
+                f'invalid config: alias "{parts[0]}" has no target command',
                 config_path,
                 line_no
             )
@@ -60,11 +60,11 @@ def parse_line(line: str, config_path: str, line_no: int) -> Optional[Tuple[str,
         template = parts[1]
 
     if not alias_name:
-        raise ConfigParseError("missing alias name", config_path, line_no)
+        raise ConfigParseError("invalid config: missing alias name", config_path, line_no)
 
     if not template:
         raise ConfigParseError(
-            f'alias "{alias_name}" has no target command',
+            f'invalid config: alias "{alias_name}" has no target command',
             config_path,
             line_no
         )
