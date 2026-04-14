@@ -14,13 +14,16 @@ Usage:
   w --list-view | -lv
 
 Config priority:
-  1. config/wsh-alias.txt
-  2. $HOME/.config/wsh-alias.txt
-  3. $PWD/.config/wsh-alias.txt
+  1. config/wsh-alias/*.txt  (APP_HOME)
+  2. $HOME/.config/wsh-alias/*.txt
+  3. $PWD/.config/wsh-alias/*.txt
 
 Rules:
   - Ignore empty lines and lines starting with '#'
-  - Same alias: higher priority overrides lower priority
+  - Files starting with '_' are ignored (e.g. _disabled.txt)
+  - Same alias: first wins (loaded alphabetically within each dir)
+  - Prefix & for sequential execution (stop on error)
+  - Prefix | for or execution (stop on success)
   - Inject env vars: %APP_HOME%, %APP_SH%, %APP_CONFIG%
   - Alias can be quoted to include spaces, like "pcodex l"
   - Alias supports '*' wildcard (single token capture), map to $1..$N
@@ -165,13 +168,14 @@ declare -a ALIAS_LITERAL_CHARS=()
 declare -a ALIAS_STATIC_WILDCARDS=()
 declare -a ALIAS_FIRST_TOKEN_MODE=()
 declare -a ALIAS_FIRST_TOKEN_LOWER=()
+declare -a ALIAS_PREFIX_TYPES=()   # normal / sequential(&) / or(|)
 
 # 首 token 分桶索引：literal 首 token 走按 key 分桶，wildcard 首 token 走公共桶
 declare -A ALIAS_BUCKETS_BY_FIRST=()
 declare -a ALIAS_BUCKETS_WILDCARD_FIRST=()
 
 ALIAS_TOKEN_SEP=$'\x1f'
-WSHA_CACHE_VERSION='v2'
+WSHA_CACHE_VERSION='v3'
 
 # 重置 alias 数据结构
 reset_alias_data() {
@@ -186,6 +190,7 @@ reset_alias_data() {
     ALIAS_STATIC_WILDCARDS=()
     ALIAS_FIRST_TOKEN_MODE=()
     ALIAS_FIRST_TOKEN_LOWER=()
+    ALIAS_PREFIX_TYPES=()
     ALIAS_BUCKETS_BY_FIRST=()
     ALIAS_BUCKETS_WILDCARD_FIRST=()
 }
@@ -344,7 +349,7 @@ load_alias_cache() {
             continue
         fi
         [[ "$line" == DATA$'\t'* ]] || continue
-        IFS=$'\t' read -r _tag key template config_path source_name token_data token_count double_index literal_chars static_wildcards first_mode first_lower <<< "$line"
+        IFS=$'\t' read -r _tag key template config_path source_name token_data token_count double_index literal_chars static_wildcards first_mode first_lower prefix_type <<< "$line"
         ALIAS_KEYS+=("$key")
         ALIAS_TEMPLATES+=("$template")
         ALIAS_CONFIG_PATHS+=("$config_path")
@@ -356,6 +361,7 @@ load_alias_cache() {
         ALIAS_STATIC_WILDCARDS+=("$static_wildcards")
         ALIAS_FIRST_TOKEN_MODE+=("$first_mode")
         ALIAS_FIRST_TOKEN_LOWER+=("$first_lower")
+        ALIAS_PREFIX_TYPES+=("${prefix_type:-normal}")
     done < "$cache_file"
     rebuild_alias_buckets
     return 0
@@ -371,7 +377,7 @@ write_alias_cache() {
         printf 'KEY\t%s\n' "$cache_key"
         local i
         for ((i = 0; i < ${#ALIAS_KEYS[@]}; i++)); do
-            printf 'DATA\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            printf 'DATA\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
                 "${ALIAS_KEYS[$i]}" \
                 "${ALIAS_TEMPLATES[$i]}" \
                 "${ALIAS_CONFIG_PATHS[$i]}" \
@@ -382,7 +388,8 @@ write_alias_cache() {
                 "${ALIAS_LITERAL_CHARS[$i]}" \
                 "${ALIAS_STATIC_WILDCARDS[$i]}" \
                 "${ALIAS_FIRST_TOKEN_MODE[$i]}" \
-                "${ALIAS_FIRST_TOKEN_LOWER[$i]}"
+                "${ALIAS_FIRST_TOKEN_LOWER[$i]}" \
+                "${ALIAS_PREFIX_TYPES[$i]:-normal}"
         done
     } > "$temp_file" && mv -f "$temp_file" "$cache_file"
 }
@@ -456,9 +463,62 @@ parse_config_line() {
         template="${template:1:${#template}-2}"
     fi
 
+    # 检查 & 或 | 前缀，设置执行模式
+    _PARSED_PREFIX="normal"
+    if [[ "$alias_name" == \&* ]]; then
+        _PARSED_PREFIX="sequential"
+        alias_name="${alias_name:1}"
+    elif [[ "$alias_name" == \|* ]]; then
+        _PARSED_PREFIX="or"
+        alias_name="${alias_name:1}"
+    fi
+
     # 通过全局变量返回
     _PARSED_ALIAS="$alias_name"
     _PARSED_TEMPLATE="$template"
+    return 0
+}
+
+# 加载目录中的所有 *.txt 文件，跳过 _ 前缀文件，按字母序排序
+load_config_dir() {
+    local dir_path="$1"
+    local fail_on_duplicate="$2"
+    local source_name="$3"
+
+    if [[ -z "$dir_path" ]] || [[ ! -d "$dir_path" ]]; then return 0; fi
+
+    # glob 获取 *.txt 文件（1层深）
+    local -a txt_files=()
+    for f in "$dir_path"/*.txt; do
+        [[ -f "$f" ]] && txt_files+=("$f")
+    done
+
+    if [[ ${#txt_files[@]} -eq 0 ]]; then return 0; fi
+
+    # 冒泡排序（按字母序，避免外部依赖）
+    local sorted=false
+    local n=${#txt_files[@]}
+    while [[ "$sorted" == false ]]; do
+        sorted=true
+        local i
+        for ((i=0; i<n-1; i++)); do
+            if [[ "${txt_files[$i]}" > "${txt_files[$((i+1))]}" ]]; then
+                local tmp="${txt_files[$i]}"
+                txt_files[$i]="${txt_files[$((i+1))]}"
+                txt_files[$((i+1))]="$tmp"
+                sorted=false
+            fi
+        done
+        ((n--))
+    done
+
+    local file
+    for file in "${txt_files[@]}"; do
+        local basename="${file##*/}"
+        # 跳过 _ 前缀文件
+        [[ "$basename" == _* ]] && continue
+        load_single_config_file "$file" "$fail_on_duplicate" "$source_name" || return 1
+    done
     return 0
 }
 
@@ -498,6 +558,7 @@ load_single_config_file() {
             ALIAS_CONFIG_PATHS[$idx]="$config_path"
             ALIAS_SOURCE_NAMES[$idx]="$source_name"
             build_alias_metadata "$idx"
+            ALIAS_PREFIX_TYPES[$idx]="$_PARSED_PREFIX"
         else
             ALIAS_KEYS+=("$_PARSED_ALIAS")
             ALIAS_TEMPLATES+=("$_PARSED_TEMPLATE")
@@ -505,6 +566,7 @@ load_single_config_file() {
             ALIAS_SOURCE_NAMES+=("$source_name")
             idx=$((${#ALIAS_KEYS[@]} - 1))
             build_alias_metadata "$idx"
+            ALIAS_PREFIX_TYPES[$idx]="$_PARSED_PREFIX"
         fi
     done < "$config_path"
 
@@ -519,9 +581,20 @@ load_config() {
     local -a cache_paths=()
     local spec
 
+    # 为 dir 类型展开文件列表，用于构建精确缓存 key
     for spec in "${config_specs[@]}"; do
-        IFS='|' read -r _spec_path _spec_dup _spec_source <<< "$spec"
-        cache_paths+=("$_spec_path")
+        IFS='|' read -r _spec_path _spec_dup _spec_source _spec_dir <<< "$spec"
+        if [[ "$_spec_dir" == "dir" ]]; then
+            if [[ -d "$_spec_path" ]]; then
+                for f in "$_spec_path"/*.txt; do
+                    [[ -f "$f" ]] && cache_paths+=("$f")
+                done
+            else
+                cache_paths+=("$_spec_path")  # 目录不存在时记为 missing
+            fi
+        else
+            cache_paths+=("$_spec_path")
+        fi
     done
 
     local cache_key
@@ -540,9 +613,16 @@ load_config() {
         local config_path
         local fail_on_duplicate
         local source_name
-        IFS='|' read -r config_path fail_on_duplicate source_name <<< "$spec"
-        if ! load_single_config_file "$config_path" "$fail_on_duplicate" "$source_name"; then
-            return 1
+        local spec_dir
+        IFS='|' read -r config_path fail_on_duplicate source_name spec_dir <<< "$spec"
+        if [[ "$spec_dir" == "dir" ]]; then
+            if ! load_config_dir "$config_path" "$fail_on_duplicate" "$source_name"; then
+                return 1
+            fi
+        else
+            if ! load_single_config_file "$config_path" "$fail_on_duplicate" "$source_name"; then
+                return 1
+            fi
         fi
     done
 
@@ -568,12 +648,12 @@ show_list_table() {
         local src_name="${SOURCE_NAMES[$si]}"
         local src_path="${SOURCE_PATHS[$si]}"
 
-        # 收集属于该来源的条目
+        # 收集属于该来源的条目（按来源名称匹配，兼容目录模式）
         local -a group_aliases=()
         local -a group_templates=()
         local i
         for ((i = 0; i < ${#ALIAS_KEYS[@]}; i++)); do
-            if [[ "${ALIAS_CONFIG_PATHS[$i]}" == "$src_path" ]]; then
+            if [[ "${ALIAS_SOURCE_NAMES[$i]}" == "$src_name" ]]; then
                 group_aliases+=("${ALIAS_KEYS[$i]}")
                 group_templates+=("${ALIAS_TEMPLATES[$i]}")
             fi
@@ -939,22 +1019,22 @@ main() {
     set_app_env "$script_dir"
     log_test_time "set_app_env" "$step_start"
 
-    # 配置文件路径
-    local builtin_config="$APP_HOME/config/wsh-alias.txt"
-    local user_config="$HOME/.config/wsh-alias.txt"
-    local local_config="$(pwd)/.config/wsh-alias.txt"
+    # 配置目录路径（支持目录 glob 加载）
+    local builtin_config_dir="$APP_HOME/config/wsh-alias"
+    local user_config_dir="$HOME/.config/wsh-alias"
+    local local_config_dir="$(pwd)/.config/wsh-alias"
 
     # 加载配置
     local single_config="${WSHA_CONFIG_FILE:-}"
     if [[ -z "$single_config" ]]; then
         step_start=$(date +%s%N 2>/dev/null || date +%s000000000)
         SOURCE_NAMES=("内置" "用户级" "项目级")
-        SOURCE_PATHS=("$builtin_config" "$user_config" "$local_config")
+        SOURCE_PATHS=("$builtin_config_dir" "$user_config_dir" "$local_config_dir")
 
         if ! load_config "multi" \
-            "$builtin_config|false|内置" \
-            "$user_config|false|用户级" \
-            "$local_config|false|项目级"; then exit 1; fi
+            "$builtin_config_dir|false|内置|dir" \
+            "$user_config_dir|false|用户级|dir" \
+            "$local_config_dir|false|项目级|dir"; then exit 1; fi
         log_test_time "load_config" "$step_start"
     else
         step_start=$(date +%s%N 2>/dev/null || date +%s000000000)
