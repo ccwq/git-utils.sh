@@ -4,4 +4,4 @@
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 export WSHA_ENTRY="w"
-exec bash "$SCRIPT_DIR/wsha.sh" 
+exec bash "$SCRIPT_DIR/wsha.sh" "$@" 
