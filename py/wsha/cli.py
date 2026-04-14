@@ -48,6 +48,33 @@ def _resolve_display_path(source_name: str, source_path: str) -> str:
     return to_display_path(source_path)
 
 
+def _split_display_path(source_path: str, display_path: str) -> Tuple[str, str]:
+    """Split a path into directory context and filename for list rendering."""
+    if not display_path:
+        return "", ""
+
+    normalized = display_path.rstrip("/") or display_path
+
+    # 目录型配置先显示目录上下文，再从目录中挑出实际文件名。
+    if source_path and os.path.isdir(source_path):
+        try:
+            candidates = sorted(
+                name for name in os.listdir(source_path)
+                if name.endswith(".txt") and not name.startswith("_")
+            )
+        except OSError:
+            candidates = []
+        if candidates:
+            return normalized, candidates[0]
+        return normalized, os.path.basename(normalized)
+
+    parent_dir = os.path.dirname(normalized)
+    file_name = os.path.basename(normalized)
+    if parent_dir in ("", "."):
+        return normalized, file_name
+    return parent_dir, file_name
+
+
 def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
     """Print aliases grouped by config file with colored table output."""
     # Show environment variables
@@ -59,11 +86,6 @@ def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
             display_val = to_display_path(val)
             click.echo(f"# {key}={display_val}")
     click.echo("")
-
-    header_name = click.style("别名".ljust(18), fg="cyan", bold=True)
-    header_template = click.style("命令", fg="cyan", bold=True)
-    separator_name = click.style("----".ljust(18), fg="bright_black")
-    separator_template = click.style("----", fg="bright_black")
 
     grouped: Dict[str, List[AliasEntry]] = defaultdict(list)
     group_order: List[str] = []
@@ -84,15 +106,31 @@ def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
 
         source_name = entries[0].source_name
         display_path = _resolve_display_path(source_name, config_path)
+        dir_path, file_name = _split_display_path(config_path, display_path)
+
+        # 先给出目录上下文，再强调具体文件名，方便按文件浏览配置来源。
         title = click.style(get_source_label(source_name), fg="yellow", bold=True)
-        click.echo(f"{title} {display_path}", color=True)
+        click.echo(f"{title} {dir_path}", color=True)
+        click.echo(f"  {click.style(file_name, fg='yellow', bold=True)}", color=True)
         click.echo("")
-        click.echo(f"{header_name:<18} {header_template}", color=True)
-        click.echo(f"{separator_name:<18} {separator_template}", color=True)
+
+        # 按当前文件组计算列宽，保持别名列和命令列真正对齐。
+        max_alias_len = max([len("别名")] + [len(entry.name) for entry in entries])
+        max_command_len = max([len("命令")] + [len(entry.template) for entry in entries])
+
+        header_name = click.style(f"{'别名':<{max_alias_len}}", fg="cyan", bold=True)
+        header_template = click.style(f"{'命令':<{max_command_len}}", fg="cyan", bold=True)
+        separator_name = click.style(f"{'-' * max_alias_len}", fg="bright_black")
+        separator_template = click.style(f"{'-' * max_command_len}", fg="bright_black")
+
+        click.echo(f"{header_name}  {header_template}", color=True)
+        click.echo(f"{separator_name}  {separator_template}", color=True)
 
         for entry in entries:
-            alias_name = click.style(entry.name, fg="green", bold=True)
-            click.echo(f"  {alias_name:<16} {entry.template}", color=True)
+            alias_cell = f"{entry.name:<{max_alias_len}}"
+            command_cell = f"{entry.template:<{max_command_len}}"
+            alias_name = click.style(alias_cell, fg="green", bold=True)
+            click.echo(f"{alias_name}  {command_cell}", color=True)
 
         click.echo("")
 
