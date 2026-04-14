@@ -174,11 +174,9 @@ def invoke_cmd(cmd_text: str) -> int:
 
     # Step 2: Check if it's a complex shell command
     if not is_complex_shell_command(cmd_text):
-        # Simple command - execute directly with subprocess
+        # Simple command - use shell=True so Windows searches PATH
         try:
-            # Use shlex.split to properly parse the command
-            cmd_tokens = shlex.split(cmd_text)
-            result = subprocess.run(cmd_tokens)
+            result = subprocess.run(cmd_text, shell=True)
             return result.returncode
         except FileNotFoundError:
             import sys
