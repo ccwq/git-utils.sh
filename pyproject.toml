@@ -23,3 +23,7 @@ wsha = "wsha.cli:run_with_fallback"
 # packages = ["py/wsha"] 告诉 hatchling：py/wsha/ 目录作为 wsha 包打包到 wheel
 # 修正前为 ["wsha"]，该路径在项目根目录下不存在
 packages = ["py/wsha"]
+
+[tool.hatch.build.targets.wheel.data]
+# 打包 py/wsha/data/ 目录下的所有 .txt 文件
+include = ["py/wsha/data/*.txt"]

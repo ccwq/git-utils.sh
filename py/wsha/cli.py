@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple
 import click
 
 from .cache import CacheManager
-from .config import AliasEntry, load_config, get_app_env
+from .config import AliasEntry, load_config, get_app_env, ensure_user_config
 from .errors import ConfigParseError
 from .expand import expand_template, invoke_cmd, print_alias_hit
 from .matching import get_tokens
@@ -105,6 +105,9 @@ def main(
     cache_clear: bool,
 ) -> None:
     """wsha - alias command launcher (Python implementation)."""
+    # 确保用户配置存在（首次运行时自动创建）
+    ensure_user_config()
+
     if cache_clear:
         CacheManager().clear()
         click.echo("Cache cleared.")
