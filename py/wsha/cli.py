@@ -3,6 +3,7 @@
 import os
 import subprocess as sp
 import sys
+from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 import click
@@ -48,7 +49,7 @@ def _resolve_display_path(source_name: str, source_path: str) -> str:
 
 
 def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
-    """Print aliases grouped by source using shell-compatible table output."""
+    """Print aliases grouped by config file with colored table output."""
     # Show environment variables
     app_env = get_app_env()
     click.echo("# 环境变量:")
@@ -58,23 +59,40 @@ def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
             display_val = to_display_path(val)
             click.echo(f"# {key}={display_val}")
     click.echo("")
-    click.echo(f"{'别名':<18} 命令")
 
-    by_source: Dict[str, List[AliasEntry]] = {}
-    source_order: List[str] = []
+    header_name = click.style("别名".ljust(18), fg="cyan", bold=True)
+    header_template = click.style("命令", fg="cyan", bold=True)
+    separator_name = click.style("----".ljust(18), fg="bright_black")
+    separator_template = click.style("----", fg="bright_black")
+
+    grouped: Dict[str, List[AliasEntry]] = defaultdict(list)
+    group_order: List[str] = []
     for alias in aliases:
-        if alias.source_name not in by_source:
-            by_source[alias.source_name] = []
-            source_order.append(alias.source_name)
-        by_source[alias.source_name].append(alias)
+        group_key = os.path.normpath(alias.config_path or "")
+        if group_key not in grouped:
+            group_order.append(group_key)
+        grouped[group_key].append(alias)
 
-    for source_name in source_order:
-        source_path = sources.get(source_name, "")
-        display_path = _resolve_display_path(source_name, source_path)
-        click.echo(f"{get_source_label(source_name)} {display_path}")
+    if not group_order:
+        click.echo(click.style("[wsha] no alias found.", fg="bright_black"))
+        return
 
-        for entry in by_source[source_name]:
-            click.echo(f"  {entry.name:<16} {entry.template}")
+    for config_path in group_order:
+        entries = grouped[config_path]
+        if not entries:
+            continue
+
+        source_name = entries[0].source_name
+        display_path = _resolve_display_path(source_name, config_path)
+        title = click.style(get_source_label(source_name), fg="yellow", bold=True)
+        click.echo(f"{title} {display_path}", color=True)
+        click.echo("")
+        click.echo(f"{header_name:<18} {header_template}", color=True)
+        click.echo(f"{separator_name:<18} {separator_template}", color=True)
+
+        for entry in entries:
+            alias_name = click.style(entry.name, fg="green", bold=True)
+            click.echo(f"  {alias_name:<16} {entry.template}", color=True)
 
         click.echo("")
 
