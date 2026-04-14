@@ -21,6 +21,55 @@ class AliasEntry:
         self.prefix_type = prefix_type
 
 
+def _detect_package_root() -> Optional[Path]:
+    """
+    Detect the package root when APP_HOME is not set.
+    Used when wsha is installed via pip install -e . or pip install.
+    """
+    try:
+        # wsha package is at py/wsha/, so parent.parent gives project root
+        import wsha as wsha_pkg
+        pkg_file = Path(wsha_pkg.__file__).resolve()
+        # py/wsha/__init__.py -> py/wsha -> project root
+        package_dir = pkg_file.parent  # py/wsha/
+        project_root = package_dir.parent  # py/
+        if project_root.name == 'py' and (project_root.parent / 'config').exists():
+            return project_root.parent
+    except (ImportError, ValueError, TypeError):
+        pass
+    return None
+
+
+def get_app_env() -> Dict[str, str]:
+    """
+    Get effective APP_* environment variables.
+    Returns detected or configured paths for APP_HOME, APP_SH, APP_CONFIG.
+    """
+    env = {}
+
+    # APP_HOME: use env var or detect from package
+    app_home = os.environ.get('APP_HOME', '')
+    if not app_home:
+        detected = _detect_package_root()
+        if detected:
+            app_home = str(detected.resolve())
+    env['APP_HOME'] = app_home
+
+    # APP_SH: sh directory relative to APP_HOME
+    if app_home:
+        env['APP_SH'] = str(Path(app_home) / 'sh')
+    else:
+        env['APP_SH'] = ''
+
+    # APP_CONFIG: config directory relative to APP_HOME
+    if app_home:
+        env['APP_CONFIG'] = str(Path(app_home) / 'config')
+    else:
+        env['APP_CONFIG'] = ''
+
+    return env
+
+
 def get_default_config_paths() -> Dict[str, str]:
     """
     Get default config directory paths with priority.
@@ -36,10 +85,18 @@ def get_default_config_paths() -> Dict[str, str]:
     configs = {}
 
     # Built-in: APP_HOME/config/wsh-alias/ (glob directory)
+    # If APP_HOME not set, auto-detect from package location
     if app_home:
         builtin_dir = Path(app_home) / "config" / "wsh-alias"
         if builtin_dir.is_dir():
             configs['builtin'] = str(builtin_dir)
+    else:
+        # Auto-detect: find project root from package location
+        detected_root = _detect_package_root()
+        if detected_root:
+            builtin_dir = detected_root / "config" / "wsh-alias"
+            if builtin_dir.is_dir():
+                configs['builtin'] = str(builtin_dir)
 
     # User-level: $HOME/.config/wsh-alias/ (glob directory)
     user_dir = home / ".config" / "wsh-alias"

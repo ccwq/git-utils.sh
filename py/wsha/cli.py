@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple
 import click
 
 from .cache import CacheManager
-from .config import AliasEntry, load_config
+from .config import AliasEntry, load_config, get_app_env
 from .errors import ConfigParseError
 from .expand import expand_template, invoke_cmd, print_alias_hit
 from .matching import get_tokens
@@ -49,6 +49,15 @@ def _resolve_display_path(source_name: str, source_path: str) -> str:
 
 def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
     """Print aliases grouped by source using shell-compatible table output."""
+    # Show environment variables
+    app_env = get_app_env()
+    click.echo("# 环境变量:")
+    for key in ['APP_HOME', 'APP_SH', 'APP_CONFIG']:
+        val = app_env.get(key, '')
+        if val:
+            display_val = to_display_path(val)
+            click.echo(f"# {key}={display_val}")
+    click.echo("")
     click.echo(f"{'别名':<18} 命令")
 
     by_source: Dict[str, List[AliasEntry]] = {}
