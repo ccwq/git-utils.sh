@@ -25,7 +25,12 @@ def get_default_config_paths() -> Dict[str, str]:
     Get default config file paths with priority.
     Returns dict of source_name -> config_path
     """
-    home = Path.home()
+    home_override = os.environ.get('WSHA_OVERRIDE_HOME') or os.environ.get('HOME')
+    if home_override:
+        home = Path(home_override)
+    else:
+        home = Path.home()
+
     app_home = os.environ.get('APP_HOME', '')
     configs = {}
 
@@ -35,13 +40,13 @@ def get_default_config_paths() -> Dict[str, str]:
         if builtin_path.exists():
             configs['builtin'] = str(builtin_path)
 
-    # User-level: ~/.config/wsh-alias.txt
+    # User-level: $HOME/.config/wsh-alias.txt
     user_path = home / ".config" / "wsh-alias.txt"
     if user_path.exists():
         configs['user'] = str(user_path)
 
-    # Project-level: ./config/wsh-alias.txt
-    local_path = Path.cwd() / "config" / "wsh-alias.txt"
+    # Project-level: $PWD/.config/wsh-alias.txt
+    local_path = Path.cwd() / ".config" / "wsh-alias.txt"
     if local_path.exists():
         configs['project'] = str(local_path)
 
@@ -69,6 +74,12 @@ def load_config(
     """
     cache_mgr = CacheManager()
     sources = {}
+
+    # Honor WSHA_CONFIG_FILE env var for single-file mode used by tests
+    env_config_file = os.environ.get('WSHA_CONFIG_FILE')
+    if env_config_file and mode == "multi" and config_path is None:
+        mode = "single"
+        config_path = env_config_file
 
     # Determine config paths based on mode
     if mode == "single" and config_path:
