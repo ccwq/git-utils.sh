@@ -349,6 +349,7 @@ load_alias_cache() {
             continue
         fi
         [[ "$line" == DATA$'\t'* ]] || continue
+        local first_lower
         IFS=$'\t' read -r _tag key template config_path source_name token_data token_count double_index literal_chars static_wildcards first_mode first_lower prefix_type <<< "$line"
         ALIAS_KEYS+=("$key")
         ALIAS_TEMPLATES+=("$template")
@@ -635,6 +636,23 @@ load_config() {
 # 列表显示相关
 # ============================================================
 
+# ANSI 颜色码（支持 Git Bash / Linux / macOS）
+if [[ -t 1 || -n "${FORCE_COLOR:-}" ]]; then
+    C_RESET=$'\033[0m'
+    C_BOLD=$'\033[1m'
+    C_GREEN=$'\033[32m'     # 别名
+    C_CYAN=$'\033[36m'      # 表头
+    C_YELLOW=$'\033[33m'    # 来源路径
+    C_DIM=$'\033[2m'        # 分隔线
+else
+    C_RESET=''
+    C_BOLD=''
+    C_GREEN=''
+    C_CYAN=''
+    C_YELLOW=''
+    C_DIM=''
+fi
+
 # 来源描述符数组
 declare -a SOURCE_NAMES=()
 declare -a SOURCE_PATHS=()
@@ -642,20 +660,37 @@ declare -a SOURCE_PATHS=()
 # 显示列表（表格模式）
 show_list_table() {
     local found_any=false
-    local si
+    local -a group_paths=()
+    local i
 
-    for ((si = 0; si < ${#SOURCE_NAMES[@]}; si++)); do
-        local src_name="${SOURCE_NAMES[$si]}"
-        local src_path="${SOURCE_PATHS[$si]}"
+    # 按配置文件路径分组，保留首次出现顺序
+    for ((i = 0; i < ${#ALIAS_CONFIG_PATHS[@]}; i++)); do
+        local config_path="${ALIAS_CONFIG_PATHS[$i]}"
+        local seen=false
+        local existing
+        for existing in "${group_paths[@]}"; do
+            if [[ "$existing" == "$config_path" ]]; then
+                seen=true
+                break
+            fi
+        done
+        if [[ "$seen" == false ]]; then
+            group_paths+=("$config_path")
+        fi
+    done
 
-        # 收集属于该来源的条目（按来源名称匹配，兼容目录模式）
+    for config_path in "${group_paths[@]}"; do
         local -a group_aliases=()
         local -a group_templates=()
-        local i
+        local source_name=""
+        local src_path=""
+
+        # 收集属于该配置文件的条目
         for ((i = 0; i < ${#ALIAS_KEYS[@]}; i++)); do
-            if [[ "${ALIAS_SOURCE_NAMES[$i]}" == "$src_name" ]]; then
+            if [[ "${ALIAS_CONFIG_PATHS[$i]}" == "$config_path" ]]; then
                 group_aliases+=("${ALIAS_KEYS[$i]}")
                 group_templates+=("${ALIAS_TEMPLATES[$i]}")
+                [[ -z "$source_name" ]] && source_name="${ALIAS_SOURCE_NAMES[$i]}"
             fi
         done
 
@@ -674,21 +709,25 @@ show_list_table() {
             fi
         done
 
-        # 输出来源标题
-        echo "[${src_name}] ${src_path}"
+        # 来源标题：显示来源类型 + 具体配置文件
+        if [[ -z "$source_name" ]]; then
+            source_name="unknown"
+        fi
+        src_path="$config_path"
+        printf "%s[%s] %s%s\n" "$C_YELLOW$C_BOLD" "$source_name" "$src_path" "$C_RESET"
         echo ""
         # 输出表头
-        printf "%-${max_alias_len}s  %s\n" "别名" "命令"
-        printf "%-${max_alias_len}s  %s\n" "----" "----"
+        printf "%s%-${max_alias_len}s  %s%s\n" "$C_CYAN$C_BOLD" "别名" "命令" "$C_RESET"
+        printf "%s%-${max_alias_len}s  %s%s\n" "$C_DIM" "----" "----" "$C_RESET"
         # 输出每行
         for ((j = 0; j < ${#group_aliases[@]}; j++)); do
-            printf "%-${max_alias_len}s  %s\n" "${group_aliases[$j]}" "${group_templates[$j]}"
+            printf "%s%-${max_alias_len}s  %s%s\n" "$C_GREEN" "${group_aliases[$j]}" "${group_templates[$j]}" "$C_RESET"
         done
         echo ""
     done
 
     if [[ "$found_any" == false ]]; then
-        echo "[wsha] no alias found."
+        printf "%s[wsha] no alias found.%s\n" "$C_DIM" "$C_RESET"
     fi
 }
 
