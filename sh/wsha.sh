@@ -683,7 +683,9 @@ show_list_table() {
         local -a group_aliases=()
         local -a group_templates=()
         local source_name=""
-        local src_path=""
+        local display_path=""
+        local display_dir=""
+        local display_file=""
 
         # 收集属于该配置文件的条目
         for ((i = 0; i < ${#ALIAS_KEYS[@]}; i++)); do
@@ -699,29 +701,50 @@ show_list_table() {
         fi
         found_any=true
 
-        # 计算别名列最大宽度
-        local max_alias_len=4  # "别名" 占 4 个显示字符（实际中文宽度不定，取合理值）
-        local j
-        for ((j = 0; j < ${#group_aliases[@]}; j++)); do
-            local alen=${#group_aliases[$j]}
-            if [[ $alen -gt $max_alias_len ]]; then
-                max_alias_len=$alen
-            fi
-        done
+        # 先显示目录上下文，再单独强调文件名，方便用户按文件浏览配置。
+        display_path="$config_path"
+        display_dir=$(dirname "$display_path")
+        display_file=$(basename "$display_path")
+        if [[ "$display_dir" == "." ]]; then
+            display_dir="$APP_HOME/config/wsh-alias"
+        fi
 
-        # 来源标题：显示来源类型 + 具体配置文件
         if [[ -z "$source_name" ]]; then
             source_name="unknown"
         fi
-        src_path="$config_path"
-        printf "%s[%s] %s%s\n" "$C_YELLOW$C_BOLD" "$source_name" "$src_path" "$C_RESET"
+        printf "%s[%s] %s%s\n" "$C_YELLOW$C_BOLD" "$source_name" "$display_dir" "$C_RESET"
+        printf "  %s%s%s\n" "$C_YELLOW$C_BOLD" "$display_file" "$C_RESET"
         echo ""
-        # 输出表头
-        printf "%s%-${max_alias_len}s  %s%s\n" "$C_CYAN$C_BOLD" "别名" "命令" "$C_RESET"
-        printf "%s%-${max_alias_len}s  %s%s\n" "$C_DIM" "----" "----" "$C_RESET"
-        # 输出每行
+
+        # 按当前文件组计算双列宽度，保证别名列和命令列持续对齐。
+        local max_alias_len=0
+        local max_command_len=0
+        local j
         for ((j = 0; j < ${#group_aliases[@]}; j++)); do
-            printf "%s%-${max_alias_len}s  %s%s\n" "$C_GREEN" "${group_aliases[$j]}" "${group_templates[$j]}" "$C_RESET"
+            local alen=${#group_aliases[$j]}
+            local clen=${#group_templates[$j]}
+            if [[ $alen -gt $max_alias_len ]]; then
+                max_alias_len=$alen
+            fi
+            if [[ $clen -gt $max_command_len ]]; then
+                max_command_len=$clen
+            fi
+        done
+
+        local header_alias="别名"
+        local header_command="命令"
+        if [[ ${#header_alias} -gt $max_alias_len ]]; then
+            max_alias_len=${#header_alias}
+        fi
+        if [[ ${#header_command} -gt $max_command_len ]]; then
+            max_command_len=${#header_command}
+        fi
+
+        # 表头、分隔线和数据行统一使用同一列宽。
+        printf "%s%-${max_alias_len}s  %-${max_command_len}s%s\n" "$C_CYAN$C_BOLD" "$header_alias" "$header_command" "$C_RESET"
+        printf "%s%-${max_alias_len}s  %-${max_command_len}s%s\n" "$C_DIM" "${header_alias//?/-}" "${header_command//?/-}" "$C_RESET"
+        for ((j = 0; j < ${#group_aliases[@]}; j++)); do
+            printf "%s%-${max_alias_len}s  %-${max_command_len}s%s\n" "$C_GREEN" "${group_aliases[$j]}" "${group_templates[$j]}" "$C_RESET"
         done
         echo ""
     done
