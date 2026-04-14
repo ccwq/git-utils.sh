@@ -76,6 +76,20 @@ bash sh\wsha.sh --list
 
 ---
 
+## 配置说明
+
+wsha 默认会按目录加载配置文件，扫描以下 `*.txt` 文件目录：
+
+- 内置配置: `APP_HOME/config/wsh-alias/`
+- 用户级配置: `$HOME/.config/wsh-alias/`
+- 项目级配置: `$PWD/.config/wsh-alias/`
+
+文件名以 `_` 开头的配置文件会被忽略。
+
+如果你需要临时指定单个配置文件，也可以继续使用 `WSHA_CONFIG_FILE` 覆盖默认行为。
+
+---
+
 ## 编译构建
 
 ### 1. Python CLI 工具
