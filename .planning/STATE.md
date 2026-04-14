@@ -5,7 +5,7 @@ milestone_name: 配置解析重构
 status: planning
 stopped_at: Requirements & Roadmap complete
 last_updated: "2026-04-14T06:10:00.000Z"
-last_activity: 2026-04-14 -- Requirements & Roadmap created
+last_activity: 2026-04-14 -- Completed quick task 260414-mos: README配置路径更新 + pip install首次运行自动复制配置
 progress:
   total_phases: 5
   completed_phases: 0
@@ -60,10 +60,11 @@ Next step: /gsd-plan-phase 1
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260414-k5k | 重构配置文件解析规则，支持目录glob、重复规则检测、链式执行 | 2026-04-14 | bd9f296 | [260414-k5k-glob](./quick/260414-k5k-glob/) |
-| 260414-l8m | 修改文档和sh脚本以支持新的目录glob配置 | 2026-04-14 | 1fadefc | [260414-l8m-sh-glob](./quick/260414-l8m-sh-glob/) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 260414-k5k | 重构配置文件解析规则，支持目录glob、重复规则检测、链式执行 | 2026-04-14 | bd9f296 | | [260414-k5k-glob](./quick/260414-k5k-glob/) |
+| 260414-l8m | 修改文档和sh脚本以支持新的目录glob配置 | 2026-04-14 | 1fadefc | | [260414-l8m-sh-glob](./quick/260414-l8m-sh-glob/) |
+| 260414-mos | README配置路径更新 + pip install首次运行自动复制配置 | 2026-04-14 | 396527b | Verified | [260414-mos-readme-md-pip-install](./quick/260414-mos-readme-md-pip-install/) |
 
 ---
 *Last updated: 2026-04-14*
