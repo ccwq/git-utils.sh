@@ -143,9 +143,11 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 
 支持按优先级读取并融合多个配置文件（同名 alias 高优先级覆盖低优先级）：
 
-1. 内置配置：`config/wsh-alias.txt`
-2. 用户配置：`$HOME/.config/wsh-alias.txt`（Linux）或 `%USERPROFILE%\.config\wsh-alias.txt`（Windows）
-3. 工作目录配置：`$PWD/.config/wsh-alias.txt`（Linux）或 `%CD%\.config\wsh-alias.txt`（Windows）
+1. 内置配置：`config/wsh-alias/`（包含 default.txt 等文件）
+2. 用户配置：`$HOME/.config/wsh-alias/`（Linux）或 `%USERPROFILE%\.config\wsh-alias\`（Windows）
+3. 工作目录配置：`$PWD/.config/wsh-alias/`（Linux）或 `%CD%\.config\wsh-alias\`（Windows）
+
+配置目录支持 glob 模式加载同名 alias 高优先级覆盖低优先级。
 
 若某个配置文件不存在则自动忽略。配置内容格式为每行一条：
 
@@ -258,7 +260,7 @@ bash sh/wsha.sh -l
 
 其中：
 
-- `w` / `wsha` 会从 `config/wsh-alias.txt`、`%USERPROFILE%\.config\wsh-alias.txt`、`%CD%\.config\wsh-alias.txt` 读取 alias 候选。
+- `w` / `wsha` 会从 `config/wsh-alias/`、`%USERPROFILE%\.config\wsh-alias\`、`%CD%\.config\wsh-alias\` 读取 alias 候选。
 - `w` 只是 `wsha` 的薄转发入口，不额外设置入口标识。
 - `wsh-ping` 会从 `config/wsh-ping.txt` 读取预设主机与端口候选。
 - `wsh-fpatch` 会补全常见选项以及本仓库当前可见的 Git branch/tag。
