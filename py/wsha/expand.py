@@ -141,6 +141,18 @@ def expand_template(
     return (final_template, 0)
 
 
+def print_alias_hit(entry: str, raw_input: str, final_cmd: str) -> None:
+    """
+    Print the alias hit message to stderr.
+
+    Per shell L1056:
+    echo "[wsha] alias hit: $entry $raw_input -> $final_cmd" >&2
+    """
+    import sys
+
+    print(f"[wsha] alias hit: {entry} {raw_input} -> {final_cmd}", file=sys.stderr)
+
+
 def invoke_cmd(cmd_text: str) -> int:
     """
     Execute the expanded command and return exit code.
@@ -166,30 +178,35 @@ def invoke_cmd(cmd_text: str) -> int:
         try:
             # Use shlex.split to properly parse the command
             cmd_tokens = shlex.split(cmd_text)
-            result = subprocess.run(
-                cmd_tokens,
-                capture_output=True,
-                text=True,
-            )
+            result = subprocess.run(cmd_tokens)
             return result.returncode
         except FileNotFoundError:
+            import sys
+
             # Command not found
+            command_name = shlex.split(cmd_text)[0] if cmd_text else 'cmd'
+            print(f"bash: {command_name}: command not found", file=sys.stderr)
             return 127
-        except Exception:
+        except Exception as exc:
+            import sys
+
             # General error
+            print(f"Error executing command: {exc}", file=sys.stderr)
             return 1
     else:
         # Complex shell command - use bash -c
         try:
-            result = subprocess.run(
-                ["bash", "-c", cmd_text],
-                capture_output=True,
-                text=True,
-            )
+            result = subprocess.run(["bash", "-c", cmd_text])
             return result.returncode
         except FileNotFoundError:
+            import sys
+
             # bash not found
+            print("bash: command not found", file=sys.stderr)
             return 127
-        except Exception:
+        except Exception as exc:
+            import sys
+
             # General error
+            print(f"Error executing command: {exc}", file=sys.stderr)
             return 1

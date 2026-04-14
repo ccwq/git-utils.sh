@@ -10,7 +10,7 @@ import click
 
 from .config import load_config, AliasEntry
 from .cache import CacheManager
-from .expand import expand_template, invoke_cmd
+from .expand import expand_template, invoke_cmd, print_alias_hit
 from .matching import get_tokens
 from .matcher import AliasMatcher
 
@@ -164,6 +164,11 @@ def main(
 
     # Expand template with captures and runtime args
     final_cmd, _ = expand_template(template, captures, rest_capture, runtime_args)
+
+    # 输出别名命中日志，保持与 shell 版本一致
+    raw_input_text = input_text
+    entry_label = getattr(matched_alias, 'name', alias_input)
+    print_alias_hit(entry_label, raw_input_text, final_cmd)
 
     # Execute and propagate exit code
     exit_code = invoke_cmd(final_cmd)
