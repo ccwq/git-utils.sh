@@ -1,93 +1,72 @@
-# Roadmap: git-utils.sh - v1.0 wsha Python Rewrite
+# Roadmap: git-utils.sh - v1.1 配置解析重构
 
 ## Overview
 
-用 Python 重写 wsha 核心逻辑，解决调试困难和代码冗余，同时保持与 wsha.sh 的完全兼容性。实现"默认 Python，fallback shell"策略，通过现有 33KB 测试套件验证行为等价性。
+重构 wsha 配置解析规则，从单文件改为 glob 目录模式，支持跨文件序列/或执行、优先级覆盖和 doctor 重复检测。
 
 ## Phases
 
-- [ ] **Phase 1: Config System & Core Architecture** - Python 包结构、配置解析、多源合并、缓存机制
-- [ ] **Phase 2: Pattern Matching Core** - 别名匹配、通配符展开、令牌评分算法
-- [ ] **Phase 3: Template Expansion & Execution** - 模板变量替换、命令执行、退出码兼容
-- [ ] **Phase 4: CLI Interface & Shell Integration** - Click CLI、uvx/pip 安装、entry point 路由
-- [ ] **Phase 5: Test Compatibility & Validation** - 通过现有测试套件验证行为等价性
+- [ ] **Phase 1: Config Glob & Directory Loading** - glob 目录加载、忽略 `_` 开头文件、多源合并
+- [ ] **Phase 2: Prefix Execution (&, |, !)** - 序列执行、或执行、优先级覆盖
+- [ ] **Phase 3: Doctor Duplicate Detection** - 重复规则检测、报告格式化、退出码
+- [ ] **Phase 4: Backward Compatibility** - 单文件兼容、缓存目录适配、现有测试通过
+- [ ] **Phase 5: Integration & E2E Validation** - 端到端测试、现有测试套件验证
 
 ## Phase Details
 
-### Phase 1: Config System & Core Architecture
-**Goal**: Python 包结构和配置加载系统就绪，支持多源配置合并和缓存
+### Phase 1: Config Glob & Directory Loading
+**Goal**: 配置目录 glob 模式加载，支持忽略 `_` 开头文件和优先级合并
 **Depends on**: Nothing (first phase)
-**Requirements**: CFG-01, CFG-02, CFG-03, CFG-04, CFG-05, SHELL-03, SHELL-06, SHELL-07
+**Requirements**: CFG-GLOB-01, CFG-GLOB-02, CFG-GLOB-03, CFG-GLOB-04
 **Success Criteria** (what must be TRUE):
-  1. Python 可以解析 wsh-alias.txt 格式（无引号、带引号、注释行）
-  2. 多源配置按优先级合并（内置 < 用户 < 项目级）
-  3. 配置缓存保存在 ~/.cache/wsha/，基于文件时间戳验证
-  4. `w --cache-clear` 可以清除缓存
-  5. 缓存文件损坏时给出明确错误信息
-  6. Python 版本与 shell 版本共享同一配置文件
-  7. 单个配置文件中重复别名可以被检测
-  8. 配置文件格式错误时给出描述性错误信息
+  1. `config/wsh-alias/*.txt` 正确加载（1层深度，忽略 `_` 开头）
+  2. `$HOME/.config/wsh-alias/*.txt` 正确加载，优先级高于内置
+  3. `$PWD/.config/wsh-alias/*.txt` 正确加载，优先级最高
+  4. 同名规则默认只执行第一个
+  5. `!` 前缀规则优先级提升，可强制覆盖
 **Plans**: TBD
 
-### Phase 2: Pattern Matching Core
-**Goal**: 完整的别名匹配引擎，支持通配符和令牌评分
+### Phase 2: Prefix Execution (&, |, !)
+**Goal**: 实现跨文件序列执行、或执行和优先级覆盖逻辑
 **Depends on**: Phase 1
-**Requirements**: MATCH-01, MATCH-02, MATCH-03, MATCH-04, MATCH-05, MATCH-06, MATCH-07
+**Requirements**: CFG-EXEC-01, CFG-EXEC-02, CFG-EXEC-03
 **Success Criteria** (what must be TRUE):
-  1. `w ab` 可以展开为 `pnpx agent-browser`
-  2. `w foo --ping` 参数可以透传 → `foobar open --ping`
-  3. `px*` 匹配 `pxhttp-server`，`*` 捕获单个令牌
-  4. `s**` 使用 `**` 捕获剩余所有内容作为 `$$`
-  5. `f* *` 模式可以捕获多个令牌到 `$1` 和 `$2`
-  6. 多个匹配时使用评分算法选择最佳匹配：alias_count*10000 + literal_chars*100 - wildcard_weight
-  7. 未知别名直接透传：`w echo hello` → `echo hello`
+  1. `&foo` 跨文件序列执行，所有同名 `&foo` 按优先级依次执行
+  2. `|foo` 跨文件或执行，遇成功即停
+  3. 序列执行遇错即停，符合 shell `&&` 语义
+  4. 或执行遇成功即停，符合 shell `||` 语义
 **Plans**: TBD
 
-### Phase 3: Template Expansion & Execution
-**Goal**: 模板展开和命令执行功能完整，退出码兼容 shell 版本
+### Phase 3: Doctor Duplicate Detection
+**Goal**: 重复规则检测和报告
 **Depends on**: Phase 2
-**Requirements**: MATCH-08, TPL-01, TPL-02, TPL-03, TPL-04, TPL-05, CLI-05
+**Requirements**: CFG-DOCTOR-01, CFG-DOCTOR-02, CFG-DOCTOR-03
 **Success Criteria** (what must be TRUE):
-  1. 模板中 `$1`, `$2` 可以替换为捕获的令牌
-  2. `$$` 可以替换为 `**` 捕获的剩余内容
-  3. `--` 占位符控制运行时参数插入位置
-  4. `%VAR%` 模板中可以展开环境变量
-  5. 带空格的别名如 `"pcodex l"` 正确定义为 `echo codex-last`
-  6. 复杂 shell 命令（管道、重定向、链式）正确透传
-  7. 退出码与 shell 版本兼容：0=成功，127=命令未找到
+  1. `w --doctor` 可以检测所有配置源
+  2. 报告包含规则名、文件路径、行号、内容
+  3. 无重复时报告 "All clear"，有重复时返回非零退出码
 **Plans**: TBD
 
-### Phase 4: CLI Interface & Shell Integration
-**Goal**: Python 实现可通过 uvx 和 pip 安装，entry point 路由正常
+### Phase 4: Backward Compatibility
+**Goal**: 现有功能不受影响，缓存机制适配新结构
 **Depends on**: Phase 3
-**Requirements**: CLI-01, CLI-02, CLI-03, CLI-04, SHELL-01, SHELL-02, SHELL-04, SHELL-05
+**Requirements**: CFG-BACKWARD-01, CFG-BACKWARD-02, CFG-BACKWARD-03
 **Success Criteria** (what must be TRUE):
-  1. `w --list` 或 `w -l` 以表格格式显示所有别名
-  2. `w --list-view` 或 `w -lv` 显示详细视图
-  3. `w --find <pattern>` 可以按模式搜索别名
-  4. `uvx wsha` 可以运行 Python 实现
-  5. `pip install wsha` 后 `w` 命令全局可用
-  6. Python 执行失败时 fallback 到 wsha.sh
-  7. `w <alias> [args...]` 默认路由到 Python 实现
-**Plans**: 2 plans
-Plans:
-- [x] 04-01-PLAN.md — CLI 选项实现（--list / --list-view / --find / --cache-clear）
-- [x] 04-02-PLAN.md — Fallback 逻辑与 pyproject.toml 包路径修正
-**UI hint**: yes
+  1. 现有 `wsh-alias.txt` 单文件仍可读取
+  2. 缓存机制适配 glob 目录（目录内任一文件变化使缓存失效）
+  3. 现有 `__test__/wsha.test.sh` 测试全部通过
+**Plans**: TBD
 
-### Phase 5: Test Compatibility & Validation
-**Goal**: 所有现有测试通过，行为与 shell 版本等价
+### Phase 5: Integration & E2E Validation
+**Goal**: 端到端验证和测试套件通过
 **Depends on**: Phase 4
-**Requirements**: (验证所有 phase 1-4 实现)
+**Requirements**: All above
 **Success Criteria** (what must be TRUE):
-  1. 运行 `__test__/wsha.test.sh` 所有测试通过
-  2. Python 版本与 shell 版本行为等价（无差异）
-  3. 缓存写入/读取往返保持一致
-  4. 跨 Python 和 shell 版本切换不破坏缓存
-**Plans**: 2 plans
-Plans:
-- [ ] 05-01-PLAN.md — 包装脚本 + 核心 Python 修复（WSHA_CONFIG_FILE + output 直通 + alias hit 消息）
-- [ ] 05-02-PLAN.md — CLI 接口重写（中文标签 + 全 flag）+ 错误消息修复 + 测试验证
+  1. 完整配置加载流程测试通过
+  2. `&` 和 `|` 执行逻辑测试通过
+  3. `doctor` 命令测试通过
+  4. 向后兼容测试通过
+**Plans**: TBD
 
 ## Progress
 
@@ -96,13 +75,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Config System & Core Architecture | 0/- | Not started | - |
-| 2. Pattern Matching Core | 0/- | Not started | - |
-| 3. Template Expansion & Execution | 1/2 | In Progress|  |
-| 4. CLI Interface & Shell Integration | 0/2 | Not started | - |
-| 5. Test Compatibility & Validation | 0/2 | Not started | - |
+| 1. Config Glob & Directory Loading | 0/- | Not started | - |
+| 2. Prefix Execution (&, \|, !) | 0/- | Not started | - |
+| 3. Doctor Duplicate Detection | 0/- | Not started | - |
+| 4. Backward Compatibility | 0/- | Not started | - |
+| 5. Integration & E2E Validation | 0/- | Not started | - |
 
 ---
 
-*Roadmap created: 2026-04-13*
-*v1.0 milestone: wsha Python rewrite*
+*Roadmap created: 2026-04-14*
+*v1.1 milestone: 配置解析重构*

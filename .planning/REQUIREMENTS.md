@@ -52,6 +52,43 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **SHELL-06**: Duplicate alias detection within single config file
 - [ ] **SHELL-07**: Invalid config file error handling with descriptive messages
 
+## v1.1 Requirements
+
+Configuration parsing refactoring requirements.
+
+### Config Glob
+
+- [ ] **CFG-GLOB-01**: 配置目录 glob 模式 `wsh-alias/*.txt`（1层深度，忽略 `_` 开头文件）
+- [ ] **CFG-GLOB-02**: 三个配置源优先级：内置 < 用户级 < 工作目录
+- [ ] **CFG-GLOB-03**: 同名规则默认只执行第一个
+- [ ] **CFG-GLOB-04**: `!` 前缀规则优先级提升，可强制覆盖其他同名规则
+
+### Config Execution
+
+- [ ] **CFG-EXEC-01**: `&` 前缀跨文件序列执行（等价 `&&`）
+- [ ] **CFG-EXEC-02**: `|` 前缀跨文件或执行（等价 `||`）
+- [ ] **CFG-EXEC-03**: 序列执行遇错即停，或执行遇成功即停
+- [ ] **CFG-BACKWARD-01**: 现有 `wsh-alias.txt` 单文件仍可读取（向后兼容）
+- [ ] **CFG-BACKWARD-02**: 现有 `__test__/wsha.test.sh` 测试全部通过
+- [ ] **CFG-BACKWARD-03**: 缓存机制适配 glob 目录
+
+### Doctor
+
+- [ ] **CFG-DOCTOR-01**: `w --doctor` 子命令检测所有配置源
+- [ ] **CFG-DOCTOR-02**: 报告重复规则：规则名、文件路径、行号、内容
+- [ ] **CFG-DOCTOR-03**: 无重复时报告 "All clear"，有重复时返回非零退出码
+
+### Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CFG-GLOB-01 ~ 04 | Phase 1 | Pending |
+| CFG-EXEC-01 ~ 03 | Phase 1 | Pending |
+| CFG-BACKWARD-01 ~ 03 | Phase 1 | Pending |
+| CFG-DOCTOR-01 ~ 03 | Phase 1 | Pending |
+
+---
+
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
