@@ -9,12 +9,11 @@ from typing import Dict, List, Optional, Tuple
 import click
 
 from .cache import CacheManager
-from .config import AliasEntry, load_config, get_app_env, ensure_user_config
+from .config import AliasEntry, ensure_user_config, get_app_env, load_config
 from .errors import ConfigParseError
 from .expand import expand_template, invoke_cmd, print_alias_hit
-from .matching import get_tokens
 from .matcher import AliasMatcher
-
+from .matching import get_tokens
 
 SOURCE_LABEL_MAP = {
     "custom": "[自定义]",
@@ -59,7 +58,8 @@ def _split_display_path(source_path: str, display_path: str) -> Tuple[str, str]:
     if source_path and os.path.isdir(source_path):
         try:
             candidates = sorted(
-                name for name in os.listdir(source_path)
+                name
+                for name in os.listdir(source_path)
                 if name.endswith(".txt") and not name.startswith("_")
             )
         except OSError:
@@ -80,8 +80,8 @@ def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
     # Show environment variables
     app_env = get_app_env()
     click.echo("# 环境变量:")
-    for key in ['APP_HOME', 'APP_SH', 'APP_CONFIG']:
-        val = app_env.get(key, '')
+    for key in ["APP_HOME", "APP_SH", "APP_CONFIG"]:
+        val = app_env.get(key, "")
         if val:
             display_val = to_display_path(val)
             click.echo(f"# {key}={display_val}")
@@ -116,10 +116,14 @@ def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
 
         # 按当前文件组计算列宽，保持别名列和命令列真正对齐。
         max_alias_len = max([len("别名")] + [len(entry.name) for entry in entries])
-        max_command_len = max([len("命令")] + [len(entry.template) for entry in entries])
+        max_command_len = max(
+            [len("命令")] + [len(entry.template) for entry in entries]
+        )
 
         header_name = click.style(f"{'别名':<{max_alias_len}}", fg="cyan", bold=True)
-        header_template = click.style(f"{'命令':<{max_command_len}}", fg="cyan", bold=True)
+        header_template = click.style(
+            f"{'命令':<{max_command_len}}", fg="cyan", bold=True
+        )
         separator_name = click.style(f"{'-' * max_alias_len}", fg="bright_black")
         separator_template = click.style(f"{'-' * max_command_len}", fg="bright_black")
 
@@ -140,17 +144,25 @@ def find_aliases(aliases: List[AliasEntry], pattern: str) -> List[AliasEntry]:
     import fnmatch
 
     return [
-        entry for entry in aliases
-        if fnmatch.fnmatch(entry.name, pattern) or fnmatch.fnmatch(entry.template, pattern)
+        entry
+        for entry in aliases
+        if fnmatch.fnmatch(entry.name, pattern)
+        or fnmatch.fnmatch(entry.template, pattern)
     ]
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.argument("alias_input", required=False)
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
-@click.option("--list", "-l", "do_list", is_flag=True, help="List all aliases in table format")
-@click.option("--list-view", "do_list_view", is_flag=True, help="List all aliases in table format")
-@click.option("--find", "-f", "find_pattern", default=None, help="Search aliases by pattern")
+@click.option(
+    "--list", "-l", "do_list", is_flag=True, help="List all aliases in table format"
+)
+@click.option(
+    "--list-view", "do_list_view", is_flag=True, help="List all aliases in table format"
+)
+@click.option(
+    "--find", "-f", "find_pattern", default=None, help="Search aliases by pattern"
+)
 @click.option("--cache-clear", is_flag=True, help="Clear the config cache")
 def main(
     alias_input: Optional[str],
@@ -162,7 +174,7 @@ def main(
 ) -> None:
     """wsha - alias command launcher (Python implementation)."""
     # 确保用户配置存在（首次运行时自动创建）
-    ensure_user_config()
+    # ensure_user_config()
 
     if cache_clear:
         CacheManager().clear()

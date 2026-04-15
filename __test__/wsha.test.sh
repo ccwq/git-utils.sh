@@ -115,15 +115,15 @@ write_default_merge_configs() {
     local user_home_dir="$1"
     local work_dir="$2"
 
-    mkdir -p "$user_home_dir/.config"
-    mkdir -p "$work_dir/.config"
+    mkdir -p "$user_home_dir/.config/wsh-alias"
+    mkdir -p "$work_dir/.config/wsh-alias"
 
-    cat > "$user_home_dir/.config/wsh-alias.txt" <<'EOF'
+    cat > "$user_home_dir/.config/wsh-alias/default.txt" <<'EOF'
 ab echo user-ab
 foo echo user-foo
 EOF
 
-    cat > "$work_dir/.config/wsh-alias.txt" <<'EOF'
+    cat > "$work_dir/.config/wsh-alias/default.txt" <<'EOF'
 ab echo local-ab
 bar echo local-bar
 EOF
@@ -560,9 +560,9 @@ test_default_list_merged_aliases() {
     work_dir="$TEST_DIR/list-work"
     mkdir -p "$user_home_dir" "$work_dir"
     write_default_merge_configs "$user_home_dir" "$work_dir"
-    builtin_win=$(cygpath -u "$PROJECT_ROOT/config/wsh-alias.txt")
-    user_win=$(cygpath -u "$user_home_dir/.config/wsh-alias.txt")
-    local_win=$(cygpath -u "$work_dir/.config/wsh-alias.txt")
+    builtin_win=$(cygpath -u "$PROJECT_ROOT/config/wsh-alias")
+    user_win=$(cygpath -u "$user_home_dir/.config/wsh-alias")
+    local_win=$(cygpath -u "$work_dir/.config/wsh-alias")
 
     run_wsha_default "$work_dir" "$user_home_dir" --list
     if [[ $run_code -eq 0 ]] \
