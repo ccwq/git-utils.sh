@@ -1,9 +1,9 @@
 """Config loading and multi-source merging."""
 
 import os
+import shutil
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Any
-from importlib.resources import files
 from .parser import parse_dir, parse_file, PREFIX_NORMAL, PREFIX_SEQUENTIAL, PREFIX_OR
 from .cache import CacheManager
 from .errors import ConfigParseError, DuplicateAliasError
@@ -43,7 +43,7 @@ def _detect_package_root() -> Optional[Path]:
 
 def ensure_user_config() -> Path:
     """
-    确保用户配置目录存在，首次运行时从包内复制默认配置。
+    确保用户配置目录存在，首次运行时从项目源码复制默认配置。
     仅在配置文件不存在时复制，不覆盖已存在的用户配置。
     """
     home_override = os.environ.get('WSHA_OVERRIDE_HOME') or os.environ.get('HOME')
@@ -62,18 +62,16 @@ def ensure_user_config() -> Path:
     # 创建目录
     user_dir.mkdir(parents=True, exist_ok=True)
 
-    # 从包内数据复制
-    try:
-        default_content = files('wsha.data').joinpath('default.txt').read_text(encoding='utf-8')
-        user_file.write_text(default_content, encoding='utf-8')
-    except Exception:
-        # 如果复制失败，尝试从 APP_HOME 复制（开发时）
-        app_home = os.environ.get('APP_HOME', '')
-        if app_home:
-            src_default = Path(app_home) / "config" / "wsh-alias" / "default.txt"
-            if src_default.exists():
-                import shutil
-                shutil.copy2(src_default, user_file)
+    # 从 APP_HOME 的源码配置复制
+    app_home = os.environ.get('APP_HOME', '')
+    if not app_home:
+        detected = _detect_package_root()
+        if detected:
+            app_home = str(detected)
+    if app_home:
+        src_default = Path(app_home) / "config" / "wsh-alias" / "default.txt"
+        if src_default.exists():
+            shutil.copy2(src_default, user_file)
 
     return user_dir
 
@@ -218,12 +216,12 @@ def load_config(
             dir_aliases, parse_errors = parse_dir(path)
             all_errors.extend(parse_errors)
 
-            for name, template, prefix_type, line_no in dir_aliases:
+            for name, template, prefix_type, line_no, file_path in dir_aliases:
                 if fail_on_duplicate:
-                    key = (path, name)
+                    key = (file_path, name)
                     if key in seen_in_file:
                         all_errors.append(DuplicateAliasError(
-                            name, path, line_no
+                            name, file_path, line_no
                         ))
                         continue
                     seen_in_file[key] = line_no
@@ -234,7 +232,7 @@ def load_config(
                     all_aliases[name] = AliasEntry(
                         name=name,
                         template=template,
-                        config_path=path,
+                        config_path=file_path,
                         source_name=source_name,
                         line_no=line_no,
                         prefix_type=prefix_type

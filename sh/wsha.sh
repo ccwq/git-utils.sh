@@ -1090,13 +1090,13 @@ main() {
     local single_config="${WSHA_CONFIG_FILE:-}"
     if [[ -z "$single_config" ]]; then
         step_start=$(date +%s%N 2>/dev/null || date +%s000000000)
-        SOURCE_NAMES=("内置" "用户级" "项目级")
+        SOURCE_NAMES=("内置" "用户" "项目")
         SOURCE_PATHS=("$builtin_config_dir" "$user_config_dir" "$local_config_dir")
 
         if ! load_config "multi" \
             "$builtin_config_dir|false|内置|dir" \
-            "$user_config_dir|false|用户级|dir" \
-            "$local_config_dir|false|项目级|dir"; then exit 1; fi
+            "$user_config_dir|false|用户|dir" \
+            "$local_config_dir|false|项目|dir"; then exit 1; fi
         log_test_time "load_config" "$step_start"
     else
         step_start=$(date +%s%N 2>/dev/null || date +%s000000000)

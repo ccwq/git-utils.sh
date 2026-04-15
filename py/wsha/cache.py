@@ -11,7 +11,7 @@ from .errors import CacheError
 class CacheManager:
     """Manages config caching with mtime-based validation."""
 
-    CACHE_VERSION = "v2"
+    CACHE_VERSION = "v3"
     CACHE_DIR = Path.home() / ".cache" / "wsha"
 
     def __init__(self):

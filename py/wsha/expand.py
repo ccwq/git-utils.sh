@@ -115,27 +115,25 @@ def expand_template(
     # Replace $$ with rest capture (remainder from ** pattern)
     final_template = final_template.replace("$$", rest_capture)
 
-    # Handle -- placeholder for runtime argument insertion
-    # Per shell L1024-1044
-    if "--" in final_template:
-        # Split template, insert runtime_args at -- position
-        tokens = shlex.split(final_template)
-        final_tokens = []
-        placeholder_found = False
+    # Handle -- placeholder for runtime argument insertion.
+    # Only a standalone "--" token is a placeholder; flags like "--cdp"
+    # must behave like normal arguments and still keep appended runtime args.
+    tokens = shlex.split(final_template)
+    final_tokens = []
+    placeholder_found = False
 
-        for token in tokens:
-            if token == "--":
-                placeholder_found = True
-                if runtime_args:
-                    final_tokens.extend(runtime_args)
-            else:
-                final_tokens.append(token)
+    for token in tokens:
+        if token == "--":
+            placeholder_found = True
+            if runtime_args:
+                final_tokens.extend(runtime_args)
+        else:
+            final_tokens.append(token)
 
+    if placeholder_found:
         final_template = " ".join(final_tokens)
-    else:
-        # No -- placeholder, append runtime_args at the end
-        if runtime_args:
-            final_template = final_template + " " + " ".join(runtime_args)
+    elif runtime_args:
+        final_template = final_template + " " + " ".join(runtime_args)
 
     # Success exit code
     return (final_template, 0)

@@ -137,7 +137,7 @@ def parse_dir(dir_path: str) -> Tuple[List, List]:
 
     Returns:
         Tuple of (aliases, errors) where:
-            - aliases: list of (alias_name, template, line_no) tuples
+            - aliases: list of (alias_name, template, prefix_type, line_no, file_path) tuples
             - errors: list of ConfigParseError instances
 
         Files are processed in alphabetical order.
@@ -161,7 +161,8 @@ def parse_dir(dir_path: str) -> Tuple[List, List]:
             continue
 
         file_aliases, file_errors = parse_file(file_path)
-        aliases.extend(file_aliases)
+        for alias_name, template, prefix_type, line_no in file_aliases:
+            aliases.append((alias_name, template, prefix_type, line_no, file_path))
         errors.extend(file_errors)
 
     return aliases, errors

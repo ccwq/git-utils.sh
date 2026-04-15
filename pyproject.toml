@@ -25,6 +25,4 @@ wsha = "wsha.cli:run_with_fallback"
 packages = ["py/wsha"]
 
 [tool.hatch.build.targets.wheel.data]
-# 打包 py/wsha/data/ 目录下的所有 .txt 文件
-# include = ["py/wsha/data/*.txt"]
 include = ["config/wsh-alias/*.txt"]

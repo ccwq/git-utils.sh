@@ -18,8 +18,8 @@ from .matching import get_tokens
 SOURCE_LABEL_MAP = {
     "custom": "[自定义]",
     "builtin": "[内置]",
-    "user": "[用户级]",
-    "project": "[项目级]",
+    "user": "[用户]",
+    "project": "[项目]",
 }
 
 
@@ -99,19 +99,15 @@ def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
         click.echo(click.style("[wsha] no alias found.", fg="bright_black"))
         return
 
-    for config_path in group_order:
+    for index, config_path in enumerate(group_order):
         entries = grouped[config_path]
         if not entries:
             continue
 
         source_name = entries[0].source_name
         display_path = _resolve_display_path(source_name, config_path)
-        dir_path, file_name = _split_display_path(config_path, display_path)
-
-        # 先给出目录上下文，再强调具体文件名，方便按文件浏览配置来源。
         title = click.style(get_source_label(source_name), fg="yellow", bold=True)
-        click.echo(f"{title} {dir_path}", color=True)
-        click.echo(f"  {click.style(file_name, fg='yellow', bold=True)}", color=True)
+        click.echo(f"{title} {display_path}", color=True)
         click.echo("")
 
         # 按当前文件组计算列宽，保持别名列和命令列真正对齐。
@@ -137,6 +133,8 @@ def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
             click.echo(f"{alias_name}  {command_cell}", color=True)
 
         click.echo("")
+        if index < len(group_order) - 1:
+            click.echo("============")
 
 
 def find_aliases(aliases: List[AliasEntry], pattern: str) -> List[AliasEntry]:
@@ -151,28 +149,68 @@ def find_aliases(aliases: List[AliasEntry], pattern: str) -> List[AliasEntry]:
     ]
 
 
-@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.argument("alias_input", required=False)
-@click.argument("args", nargs=-1, type=click.UNPROCESSED)
-@click.option(
-    "--list", "-l", "do_list", is_flag=True, help="List all aliases in table format"
+def _parse_cli_request(
+    argv: Tuple[str, ...],
+) -> Tuple[Optional[str], Tuple[str, ...], bool, bool, Optional[str], bool]:
+    """Parse top-level CLI controls while preserving dash-prefixed commands."""
+    alias_input: Optional[str] = None
+    args: Tuple[str, ...] = ()
+    do_list = False
+    do_list_view = False
+    find_pattern: Optional[str] = None
+    cache_clear = False
+
+    if not argv:
+        return alias_input, args, do_list, do_list_view, find_pattern, cache_clear
+
+    first = argv[0]
+    rest = tuple(argv[1:])
+
+    # 只在首个 token 命中管理指令时拦截，其余内容都按原始命令透传。
+    if first in ("--list", "-l"):
+        do_list = True
+    elif first == "--list-view":
+        do_list_view = True
+    elif first in ("--find", "-f"):
+        if not rest:
+            raise click.UsageError("Option '--find' requires an argument.")
+        find_pattern = rest[0]
+        if len(rest) > 1:
+            extra = " ".join(rest[1:])
+            raise click.UsageError(f"Got unexpected extra arguments ({extra})")
+    elif first.startswith("--find="):
+        find_pattern = first.split("=", 1)[1]
+    elif first == "--cache-clear":
+        cache_clear = True
+        if rest:
+            extra = " ".join(rest)
+            raise click.UsageError(f"Got unexpected extra arguments ({extra})")
+    else:
+        alias_input = first
+        args = rest
+
+    return alias_input, args, do_list, do_list_view, find_pattern, cache_clear
+
+
+@click.command(
+    context_settings=dict(
+        help_option_names=["-h", "--help"],
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    )
 )
-@click.option(
-    "--list-view", "do_list_view", is_flag=True, help="List all aliases in table format"
-)
-@click.option(
-    "--find", "-f", "find_pattern", default=None, help="Search aliases by pattern"
-)
-@click.option("--cache-clear", is_flag=True, help="Clear the config cache")
-def main(
-    alias_input: Optional[str],
-    args: Tuple[str, ...],
-    do_list: bool,
-    do_list_view: bool,
-    find_pattern: Optional[str],
-    cache_clear: bool,
-) -> None:
+@click.argument("argv", nargs=-1, type=click.UNPROCESSED)
+def main(argv: Tuple[str, ...]) -> None:
     """wsha - alias command launcher (Python implementation)."""
+    (
+        alias_input,
+        args,
+        do_list,
+        do_list_view,
+        find_pattern,
+        cache_clear,
+    ) = _parse_cli_request(argv)
+
     # 确保用户配置存在（首次运行时自动创建）
     # ensure_user_config()
 
@@ -236,10 +274,18 @@ def main(
 
     final_cmd, _ = expand_template(template, captures, rest_capture, runtime_args)
 
-    entry_name = os.environ.get("WSHA_ENTRY", "wsha")
+    entry_name = _get_entry_name()
     print_alias_hit(entry_name, input_text, final_cmd)
 
-    exit_code = invoke_cmd(final_cmd)
+    previous_entry = os.environ.get("WSHA_ENTRY")
+    os.environ["WSHA_ENTRY"] = entry_name
+    try:
+        exit_code = invoke_cmd(final_cmd)
+    finally:
+        if previous_entry is None:
+            os.environ.pop("WSHA_ENTRY", None)
+        else:
+            os.environ["WSHA_ENTRY"] = previous_entry
     raise SystemExit(exit_code)
 
 
@@ -254,13 +300,32 @@ def fallback_to_shell() -> int:
         click.echo(f"[wsha] fallback failed: wsha.sh not found at {wsha_sh}", err=True)
         return 1
 
-    result = sp.run(["bash", wsha_sh] + sys.argv[1:], capture_output=False)
+    fallback_env = os.environ.copy()
+    fallback_env.setdefault("WSHA_ENTRY", _get_entry_name())
+    result = sp.run(
+        ["bash", wsha_sh] + sys.argv[1:],
+        capture_output=False,
+        env=fallback_env,
+    )
     return result.returncode
 
 
 def _normalize_argv() -> None:
     """Normalize shell-style shorthand flags before Click parses argv."""
     sys.argv = ["--list-view" if arg == "-lv" else arg for arg in sys.argv]
+
+
+def _get_entry_name() -> str:
+    """Infer whether the current executable is `w` or `wsha`."""
+    if os.environ.get("WSHA_ENTRY"):
+        return os.environ["WSHA_ENTRY"]
+
+    argv0 = os.path.basename(sys.argv[0] or "")
+    stem, _ext = os.path.splitext(argv0)
+    stem = stem.lower()
+    if stem in {"w", "wsha"}:
+        return stem
+    return "wsha"
 
 
 def run_with_fallback() -> None:
