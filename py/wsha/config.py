@@ -250,6 +250,21 @@ def load_config(
                 ))
             return aliases, [], sources
 
+    # Normal 安装且缓存为空时，自动从项目源码预热
+    if mode == "multi" and config_path is None:
+        # 检查是否需要预热（缓存目录存在但内容为空）
+        if not is_editable_install():
+            cache_dir = Path.home() / ".cache" / "wsha"
+            if cache_dir.exists() and not any(cache_dir.glob("*.txt")):
+                # 缓存目录存在但没有配置文件，执行预热
+                project_root = _detect_package_root()
+                if project_root:
+                    src_config = project_root / "config" / "wsh-alias"
+                    if src_config.exists():
+                        for txt_file in src_config.glob("*.txt"):
+                            if not txt_file.name.startswith("_"):
+                                shutil.copy2(txt_file, cache_dir / txt_file.name)
+
     # Parse all config files/directories
     all_aliases = {}  # name -> AliasEntry (for merging, first wins)
     all_errors = []
