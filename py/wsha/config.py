@@ -133,6 +133,10 @@ def get_default_config_paths() -> Dict[str, str]:
     """
     Get default config directory paths with priority.
     Returns dict of source_name -> config_directory_path
+
+    根据安装模式决定配置源：
+    - Editable 安装：使用项目源码 config/wsh-alias/
+    - Normal 安装：使用 ~/.cache/wsha/ 预热缓存
     """
     home_override = os.environ.get('WSHA_OVERRIDE_HOME') or os.environ.get('HOME')
     if home_override:
@@ -143,26 +147,44 @@ def get_default_config_paths() -> Dict[str, str]:
     app_home = os.environ.get('APP_HOME', '')
     configs = {}
 
-    # Built-in: APP_HOME/config/wsh-alias/ (glob directory)
-    # If APP_HOME not set, auto-detect from package location
-    if app_home:
-        builtin_dir = Path(app_home) / "config" / "wsh-alias"
-        if builtin_dir.is_dir():
-            configs['builtin'] = str(builtin_dir)
-    else:
-        # Auto-detect: find project root from package location
-        detected_root = _detect_package_root()
-        if detected_root:
-            builtin_dir = detected_root / "config" / "wsh-alias"
+    # 检测安装模式
+    if is_editable_install():
+        # Editable 安装：使用项目源码配置
+        if app_home:
+            builtin_dir = Path(app_home) / "config" / "wsh-alias"
             if builtin_dir.is_dir():
                 configs['builtin'] = str(builtin_dir)
+        else:
+            # APP_HOME 未设置时自动检测
+            detected_root = _detect_package_root()
+            if detected_root:
+                builtin_dir = detected_root / "config" / "wsh-alias"
+                if builtin_dir.is_dir():
+                    configs['builtin'] = str(builtin_dir)
+    else:
+        # Normal 安装：使用 ~/.cache/wsha/ 作为配置源
+        cache_dir = home / ".cache" / "wsha"
+        if cache_dir.is_dir():
+            configs['cache'] = str(cache_dir)
+        else:
+            # 缓存不存在时回退到检测项目源码
+            if app_home:
+                builtin_dir = Path(app_home) / "config" / "wsh-alias"
+                if builtin_dir.is_dir():
+                    configs['builtin'] = str(builtin_dir)
+            else:
+                detected_root = _detect_package_root()
+                if detected_root:
+                    builtin_dir = detected_root / "config" / "wsh-alias"
+                    if builtin_dir.is_dir():
+                        configs['builtin'] = str(builtin_dir)
 
-    # User-level: $HOME/.config/wsh-alias/ (glob directory)
+    # 用户级配置：$HOME/.config/wsh-alias/
     user_dir = home / ".config" / "wsh-alias"
     if user_dir.is_dir():
         configs['user'] = str(user_dir)
 
-    # Project-level: $PWD/.config/wsh-alias/ (glob directory)
+    # 项目级配置：$PWD/.config/wsh-alias/
     local_dir = Path.cwd() / ".config" / "wsh-alias"
     if local_dir.is_dir():
         configs['project'] = str(local_dir)
