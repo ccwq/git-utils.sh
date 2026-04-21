@@ -167,6 +167,25 @@ def test_cache_corruption_recovery():
         os.unlink(temp_path)
 
 
+def test_is_editable_install_detection():
+    """Test is_editable_install() returns bool."""
+    from wsha.config import is_editable_install
+    result = is_editable_install()
+    assert isinstance(result, bool), f"Expected bool, got {type(result)}"
+
+
+def test_is_editable_install_pip_show():
+    """Test is_editable_install() uses pip show output."""
+    import subprocess as sp
+    from wsha.config import is_editable_install
+    result = is_editable_install()
+
+    # 如果是 editable 安装，pip show 应该包含Editable project location
+    if result:
+        show_result = sp.run(["pip", "show", "wsha"], capture_output=True, text=True)
+        assert "Editable project location:" in show_result.stdout
+
+
 def main():
     """Run all tests."""
     tests = [
@@ -181,6 +200,8 @@ def main():
         test_cache_clear,
         test_cache_mtime_validation,
         test_cache_corruption_recovery,
+        test_is_editable_install_detection,
+        test_is_editable_install_pip_show,
     ]
 
     passed = 0
