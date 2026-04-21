@@ -41,6 +41,29 @@ def _detect_package_root() -> Optional[Path]:
     return None
 
 
+def is_editable_install() -> bool:
+    """
+    检测 wsha 是否为 editable 安装。
+
+    通过 pip show wsha 检查是否有 'Editable project location:' 字段。
+    有该字段 → editable 安装，配置源为项目源码
+    无该字段 → normal 安装，使用 ~/.cache/wsha/ 中的缓存
+    """
+    try:
+        import subprocess as sp
+        result = sp.run(
+            ["pip", "show", "wsha"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return "Editable project location:" in result.stdout
+    except (FileNotFoundError, sp.TimeoutExpired, OSError):
+        pass
+    return False
+
+
 def ensure_user_config() -> Path:
     """
     确保用户配置目录存在，首次运行时从项目源码复制默认配置。
