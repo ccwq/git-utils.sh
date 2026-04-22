@@ -552,6 +552,25 @@ def expand_template(template: str, captures: List[str], rest_capture: str, runti
     return " ".join(final_tokens)
 
 
+def expand_env_vars(text: str) -> str:
+    """展开 %VAR% 风格的环境变量"""
+    result = text
+
+    # 匹配 %VAR_NAME%（字母数字下划线）
+    pattern = re.compile(r'%([A-Za-z_][A-Za-z0-9_]*)%')
+
+    while True:
+        match = pattern.search(result)
+        if not match:
+            break
+
+        var_name = match.group(1)
+        var_value = os.environ.get(var_name, '')
+        result = result.replace(match.group(0), var_value)
+
+    return result
+
+
 def token_basename_lower(token: str) -> str:
     """获取 token 的 basename（忽略大小写）"""
     basename = token.replace('\\', '/').split('/')[-1]
@@ -673,6 +692,9 @@ def main():
 
     # 展开模板
     final_cmd = expand_template(template, captures, rest_capture, runtime_args)
+
+    # 展开环境变量
+    final_cmd = expand_env_vars(final_cmd)
 
     # 如果是复杂命令，不做 token 规范化
     if is_complex_shell_command(final_cmd):
