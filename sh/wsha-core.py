@@ -182,12 +182,11 @@ def load_single_config_file(config_path: str, source_name: str) -> bool:
 
                 if existing_idx >= 0:
                     _aliases[existing_idx] = alias
+                    update_buckets(existing_idx, alias)
                 else:
                     _aliases.append(alias)
                     existing_idx = len(_aliases) - 1
-
-                # 更新分桶
-                update_buckets(existing_idx, alias)
+                    update_buckets(existing_idx, alias)
 
     except IOError as e:
         print(f"[wsha] error reading {config_path}: {e}", file=sys.stderr)
