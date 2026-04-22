@@ -2,6 +2,6 @@
 setlocal EnableExtensions
 
 set "SCRIPT_DIR=%~dp0"
-if not defined WSHA_ENTRY set "WSHA_ENTRY=w"
-call "%SCRIPT_DIR%exec-git-bash.bat" "%SCRIPT_DIR%wsha.sh" %*
+set "WSHA_ENTRY=w"
+python "%SCRIPT_DIR%wsha-core.py" -e w %*
 exit /b %errorlevel%
