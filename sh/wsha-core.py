@@ -347,7 +347,7 @@ def match_double_star_remainder(pattern: str, input_text: str) -> Tuple[bool, Li
 
     match = re.match(full_regex, input_text, re.IGNORECASE)
     if match:
-        return (True, list(match.groups()[:-1]), match.group(len(match.groups())))
+        return (True, list(match.groups()[:-1]), match.groups()[-1])
     return (False, [], "")
 
 
