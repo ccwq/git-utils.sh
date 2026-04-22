@@ -552,6 +552,49 @@ def expand_template(template: str, captures: List[str], rest_capture: str, runti
     return " ".join(final_tokens)
 
 
+def token_basename_lower(token: str) -> str:
+    """获取 token 的 basename（忽略大小写）"""
+    basename = token.replace('\\', '/').split('/')[-1]
+    return basename.lower()
+
+
+def is_complex_shell_command(text: str) -> bool:
+    """判断是否为复杂 shell 命令"""
+    complex_chars = ['&&', '||', '|', ';', '>', '<', '$(']
+    for c in complex_chars:
+        if c in text:
+            return True
+    return False
+
+
+def normalize_runtime_tokens(tokens: List[str]) -> List[str]:
+    """规范化运行时 token，处理 Windows Git Bash 特殊调用"""
+    if not tokens:
+        return tokens
+
+    result = list(tokens)
+    first_lower = token_basename_lower(tokens[0])
+
+    # 处理 w.bat, wsha.bat, wsh.bat 等
+    if first_lower in ['wsha.bat', 'w.bat', 'wsh.bat']:
+        if first_lower == 'wsha.bat':
+            result = ['bash', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wsha.sh')] + result[1:]
+        elif first_lower == 'w.bat':
+            result = ['env', f'WSHA_ENTRY=w', 'bash', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wsha.sh')] + result[1:]
+        elif first_lower == 'wsh.bat':
+            if len(result) >= 2 and result[1] == '.':
+                result = ['/usr/bin/bash', '-i']
+            else:
+                result = result[1:]
+
+    # 处理 Docker/Podman
+    first_lower = token_basename_lower(result[0])
+    if first_lower in ['docker', 'podman']:
+        result = ['env', 'MSYS_NO_PATHCONV=1', 'MSYS2_ARG_CONV_EXCL=*'] + result
+
+    return result
+
+
 def list_aliases():
     """列出所有别名"""
     if not _aliases:
@@ -631,7 +674,15 @@ def main():
     # 展开模板
     final_cmd = expand_template(template, captures, rest_capture, runtime_args)
 
-    print(final_cmd)
+    # 如果是复杂命令，不做 token 规范化
+    if is_complex_shell_command(final_cmd):
+        print(final_cmd)
+    else:
+        # token 规范化
+        tokens = tokenize(final_cmd)
+        normalized = normalize_runtime_tokens(tokens)
+        print(" ".join(normalized))
+
     return 0
 
 
