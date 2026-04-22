@@ -171,11 +171,13 @@ def invoke_cmd(cmd_text: str) -> int:
     cmd_text = expand_env_vars(cmd_text)
 
     # Step 2: Check if it's a complex shell command
+    # Use Popen instead of run() to avoid blocking - wsha exits immediately
+    # while the actual command continues running in the background
     if not is_complex_shell_command(cmd_text):
         # Simple command - use shell=True so Windows searches PATH
         try:
-            result = subprocess.run(cmd_text, shell=True)
-            return result.returncode
+            subprocess.Popen(cmd_text, shell=True)
+            return 0
         except FileNotFoundError:
             import sys
 
@@ -192,8 +194,8 @@ def invoke_cmd(cmd_text: str) -> int:
     else:
         # Complex shell command - use bash -c
         try:
-            result = subprocess.run(["bash", "-c", cmd_text])
-            return result.returncode
+            subprocess.Popen(["bash", "-c", cmd_text])
+            return 0
         except FileNotFoundError:
             import sys
 

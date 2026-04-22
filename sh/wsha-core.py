@@ -218,10 +218,17 @@ def update_buckets(idx: int, alias: Alias):
 
 def get_app_env():
     """获取应用环境变量"""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    app_home = os.path.dirname(script_dir)
-    app_sh = script_dir
-    app_config = os.path.join(app_home, 'config')
+    # 优先使用环境变量（由 wsha.sh 设置）
+    app_home = os.environ.get('APP_HOME', '')
+    if app_home:
+        app_sh = os.environ.get('APP_SH', os.path.join(app_home, 'sh'))
+        app_config = os.environ.get('APP_CONFIG', os.path.join(app_home, 'config'))
+    else:
+        # 回退到基于脚本路径计算
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        app_home = os.path.dirname(script_dir)
+        app_sh = script_dir
+        app_config = os.path.join(app_home, 'config')
     return app_home, app_sh, app_config
 
 
@@ -331,6 +338,20 @@ def load_config() -> bool:
 
     # 保存缓存
     save_alias_cache()
+
+    return True
+
+
+def load_config_single(config_path: str) -> bool:
+    """加载单个配置文件（单配置模式，不使用缓存）"""
+    global _aliases, _alias_buckets, _alias_wildcard_first
+
+    _aliases = []
+    _alias_buckets = {}
+    _alias_wildcard_first = []
+
+    if not load_single_config_file(config_path, "自定义"):
+        return False
 
     return True
 
@@ -669,7 +690,11 @@ def main():
         return 1
 
     # 加载配置
-    load_config()
+    single_config = os.environ.get("WSHA_CONFIG_FILE", "")
+    if single_config:
+        load_config_single(single_config)
+    else:
+        load_config()
 
     # 构建输入 token
     input_tokens = [parsed.alias] + parsed.args
