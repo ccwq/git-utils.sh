@@ -82,6 +82,13 @@ is_complex_shell_command() {
     return 1
 }
 
+# 调用 wsha-core.py 获取展开后的命令
+invoke_via_core() {
+    local entry="$1"
+    shift
+    uv run python "$APP_SH/wsha-core.py" -e "$entry" "$@"
+}
+
 normalize_runtime_tokens() {
     local -a tokens=("$@")
     _CMD_TOKENS=("${tokens[@]}")
@@ -1122,82 +1129,27 @@ main() {
         exit 0
     fi
 
-    # 构建输入 token 数组
+    # 调用 wsha-core.py
     step_start=$(date +%s%N 2>/dev/null || date +%s000000000)
-    local -a input_tokens=("$@")
-    if [[ $# -eq 1 ]]; then
-        get_tokens "$1"
-        if [[ ${#_TOKENS[@]} -gt 1 ]]; then
-            input_tokens=("${_TOKENS[@]}")
-        fi
-    fi
-    log_test_time "prepare_input_tokens" "$step_start"
+    local entry="${WSHA_ENTRY:-wsha}"
+    local result
+    result=$(invoke_via_core "$entry" "$@")
+    log_test_time "invoke_via_core" "$step_start"
 
-    # 查找最佳匹配
-    step_start=$(date +%s%N 2>/dev/null || date +%s000000000)
-    find_best_match "${input_tokens[@]}"
-    log_test_time "find_best_match" "$step_start"
-
-    # 未找到匹配，直接透传执行
-    if [[ -z "$_BEST_ALIAS" ]]; then
-        if [[ $# -eq 1 ]]; then
-            invoke_cmd "$1"
-        else
-            invoke_cmd "$*"
-        fi
-    fi
-
-    # 替换模板中的捕获变量
-    step_start=$(date +%s%N 2>/dev/null || date +%s000000000)
-    local final_template="$_BEST_TEMPLATE"
-    local ci
-    for ((ci = ${#_BEST_CAPTURES[@]}; ci >= 1; ci--)); do
-        final_template="${final_template//\$$ci/${_BEST_CAPTURES[$((ci - 1))]}}"
-    done
-    # 替换 $$ 为 rest capture
-    final_template="${final_template//\$\$/$_BEST_REST_CAPTURE}"
-
-    # 收集运行时参数
-    local -a runtime_args=()
-    if [[ ${#input_tokens[@]} -gt $_BEST_ARGS_START ]]; then
-        runtime_args=("${input_tokens[@]:$_BEST_ARGS_START}")
-    fi
-
-    # 处理模板中的 -- 占位符
-    get_tokens "$final_template"
-    local -a template_tokens=("${_TOKENS[@]}")
-    local -a final_tokens=()
-    local placeholder_used=false
-
-    local t
-    for t in "${template_tokens[@]}"; do
-        if [[ "$t" == "--" ]]; then
-            placeholder_used=true
-            if [[ ${#runtime_args[@]} -gt 0 ]]; then
-                final_tokens+=("${runtime_args[@]}")
+    if [[ -n "$result" ]]; then
+        # 判断是否为透传（原样返回）还是展开结果
+        if [[ "$result" == "$*" ]]; then
+            # 透传，直接执行原始命令
+            if is_complex_shell_command "$result"; then
+                eval -- "$result"
+            else
+                invoke_cmd "$result"
             fi
         else
-            final_tokens+=("$t")
+            # 展开后的命令，执行它
+            invoke_cmd "$result"
         fi
-    done
-
-    if [[ "$placeholder_used" == false && ${#runtime_args[@]} -gt 0 ]]; then
-        final_tokens+=("${runtime_args[@]}")
     fi
-
-    local final_cmd="${final_tokens[*]}"
-    log_test_time "expand_template" "$step_start"
-    if [[ -z "$final_cmd" ]]; then
-        echo "[wsha] expanded command is empty for alias \"$_BEST_ALIAS\"" >&2
-        exit 1
-    fi
-
-    # 输出匹配信息到 stderr
-    local entry="${WSHA_ENTRY:-wsha}"
-    local raw_input="${input_tokens[*]}"
-    echo "[wsha] alias hit: $entry $raw_input -> $final_cmd" >&2
-
-    invoke_cmd "$final_cmd"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
