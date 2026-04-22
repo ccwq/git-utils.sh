@@ -9,6 +9,8 @@ import sys
 import os
 import re
 import argparse
+import hashlib
+import time
 from typing import List, Dict, Optional, Tuple
 
 WSHA_ENTRY = os.environ.get("WSHA_ENTRY", "wsha")
@@ -223,10 +225,93 @@ def get_app_env():
     return app_home, app_sh, app_config
 
 
+def get_cache_file_path() -> str:
+    """获取缓存文件路径"""
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    return os.path.join(CACHE_DIR, "wsha.cache")
+
+
+def get_config_mtime_size() -> str:
+    """获取配置目录的 mtime+size 用于缓存验证"""
+    app_home, _, _ = get_app_env()
+    builtin_dir = os.path.join(app_home, 'config', 'wsh-alias')
+
+    mtimes = []
+    if os.path.isdir(builtin_dir):
+        for f in os.listdir(builtin_dir):
+            if f.endswith('.txt') and not f.startswith('_'):
+                path = os.path.join(builtin_dir, f)
+                try:
+                    stat = os.stat(path)
+                    mtimes.append(f"{path}:{stat.st_mtime}:{stat.st_size}")
+                except OSError:
+                    pass
+
+    mtimes.sort()
+    content = ";".join(mtimes)
+    return hashlib.md5(content.encode()).hexdigest()
+
+
+def load_alias_cache() -> bool:
+    """从缓存加载别名配置"""
+    cache_file = get_cache_file_path()
+    if not os.path.exists(cache_file):
+        return False
+
+    try:
+        stat = os.stat(cache_file)
+        if time.time() - stat.st_mtime > CACHE_MAX_AGE:
+            return False
+
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        global _aliases, _alias_buckets, _alias_wildcard_first
+        _aliases = []
+
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = line.split('\t')
+            if len(parts) < 5:
+                continue
+
+            alias = Alias(parts[0], parts[1], parts[2], parts[3])
+            alias.prefix_type = parts[4] if len(parts) > 4 else "normal"
+            alias.build_metadata()
+
+            _aliases.append(alias)
+            update_buckets(len(_aliases) - 1, alias)
+
+        return True
+
+    except (IOError, OSError):
+        return False
+
+
+def save_alias_cache():
+    """保存别名配置到缓存"""
+    cache_file = get_cache_file_path()
+
+    try:
+        with open(cache_file, 'w', encoding='utf-8') as f:
+            f.write("# wsha cache\n")
+            for alias in _aliases:
+                f.write(f"{alias.key}\t{alias.template}\t{alias.config_path}\t{alias.source_name}\t{alias.prefix_type}\n")
+    except IOError:
+        pass
+
+
 def load_config() -> bool:
-    """加载所有配置"""
+    """加载所有配置（使用缓存）"""
     global _aliases, _alias_buckets, _alias_wildcard_first
 
+    # 尝试从缓存加载
+    if load_alias_cache():
+        return True
+
+    # 缓存不存在或过期，重新加载
     _aliases = []
     _alias_buckets = {}
     _alias_wildcard_first = []
@@ -243,6 +328,9 @@ def load_config() -> bool:
         return False
     if not load_config_dir(local_dir, "项目"):
         return False
+
+    # 保存缓存
+    save_alias_cache()
 
     return True
 
