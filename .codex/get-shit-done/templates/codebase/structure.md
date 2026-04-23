@@ -216,7 +216,7 @@ get-shit-done/
 
 **New Workflow:**
 - Implementation: `get-shit-done/workflows/{name}.md`
-- Usage: Reference from command with `@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/{name}.md`
+- Usage: Reference from command with `@D:/project/git-utils.sh/.codex/get-shit-done/workflows/{name}.md`
 
 **New Reference Document:**
 - Implementation: `get-shit-done/references/{name}.md`
@@ -229,12 +229,12 @@ get-shit-done/
 ## Special Directories
 
 **get-shit-done/**
-- Purpose: Resources installed to E:/project/self.project/git-utils.sh/.codex/
+- Purpose: Resources installed to D:/project/git-utils.sh/.codex/
 - Source: Copied by bin/install.js during installation
 - Committed: Yes (source of truth)
 
 **commands/**
-- Purpose: Slash commands installed to E:/project/self.project/git-utils.sh/.codex/commands/
+- Purpose: Slash commands installed to D:/project/git-utils.sh/.codex/commands/
 - Source: Copied by bin/install.js during installation
 - Committed: Yes (source of truth)
 

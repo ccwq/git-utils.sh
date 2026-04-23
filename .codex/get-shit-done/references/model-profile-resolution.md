@@ -12,7 +12,7 @@ Default: `balanced` if not set or config missing.
 
 ## Lookup Table
 
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/model-profiles.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/model-profiles.md
 
 Look up the agent in the table for the resolved profile. Pass the model parameter to Task calls:
 

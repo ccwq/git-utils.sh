@@ -1,8 +1,8 @@
 ---
 name: "gsd-scan"
-description: "Rapid codebase assessment — lightweight alternative to /gsd-map-codebase"
+description: "Rapid codebase assessment — lightweight alternative to $gsd-map-codebase"
 metadata:
-  short-description: "Rapid codebase assessment — lightweight alternative to /gsd-map-codebase"
+  short-description: "Rapid codebase assessment — lightweight alternative to $gsd-map-codebase"
 ---
 
 <codex_skill_adapter>
@@ -49,13 +49,13 @@ Result parsing:
 Run a focused codebase scan for a single area, producing targeted documents in `.planning/codebase/`.
 Accepts an optional `--focus` flag: `tech`, `arch`, `quality`, `concerns`, or `tech+arch` (default).
 
-Lightweight alternative to `/gsd-map-codebase` — spawns one mapper agent instead of four parallel ones.
+Lightweight alternative to `$gsd-map-codebase` — spawns one mapper agent instead of four parallel ones.
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/scan.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/scan.md
 </execution_context>
 
 <process>
-Execute the scan workflow from @E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/scan.md end-to-end.
+Execute the scan workflow from @D:/project/git-utils.sh/.codex/get-shit-done/workflows/scan.md end-to-end.
 </process>

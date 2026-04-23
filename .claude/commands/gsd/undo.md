@@ -20,9 +20,9 @@ Three modes:
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.claude/get-shit-done/workflows/undo.md
-@E:/project/self.project/git-utils.sh/.claude/get-shit-done/references/ui-brand.md
-@E:/project/self.project/git-utils.sh/.claude/get-shit-done/references/gate-prompts.md
+@D:/project/git-utils.sh/.claude/get-shit-done/workflows/undo.md
+@D:/project/git-utils.sh/.claude/get-shit-done/references/ui-brand.md
+@D:/project/git-utils.sh/.claude/get-shit-done/references/gate-prompts.md
 </execution_context>
 
 <context>
@@ -30,5 +30,5 @@ $ARGUMENTS
 </context>
 
 <process>
-Execute the undo workflow from @E:/project/self.project/git-utils.sh/.claude/get-shit-done/workflows/undo.md end-to-end.
+Execute the undo workflow from @D:/project/git-utils.sh/.claude/get-shit-done/workflows/undo.md end-to-end.
 </process>

@@ -50,7 +50,7 @@ Scan all phases for pending, skipped, blocked, and human_needed UAT items. Cross
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/audit-uat.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/audit-uat.md
 </execution_context>
 
 <context>

@@ -49,7 +49,7 @@ Result parsing:
 **Flags:**
 - `--name` (required) — Workspace name
 - `--repos` — Comma-separated repo paths or names. If omitted, interactive selection from child git repos in cwd
-- `--path` — Target directory. Defaults to `~/gsd-workspaces/<name>`
+- `--path` — Target directory. Defaults to `~$gsd-workspaces/<name>`
 - `--strategy` — `worktree` (default, lightweight) or `clone` (fully independent)
 - `--branch` — Branch to checkout. Defaults to `workspace/<name>`
 - `--auto` — Skip interactive questions, use defaults
@@ -67,15 +67,15 @@ Create a physical workspace directory containing copies of specified git repos (
 - `<path>/.planning/` — independent planning directory
 - `<path>/<repo>/` — git worktree or clone for each specified repo
 
-**After this command:** `cd` into the workspace and run `/gsd-new-project` to initialize GSD.
+**After this command:** `cd` into the workspace and run `$gsd-new-project` to initialize GSD.
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/new-workspace.md
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/new-workspace.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <process>
-Execute the new-workspace workflow from @E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/new-workspace.md end-to-end.
+Execute the new-workspace workflow from @D:/project/git-utils.sh/.codex/get-shit-done/workflows/new-workspace.md end-to-end.
 Preserve all workflow gates (validation, approvals, commits, routing).
 </process>

@@ -10,10 +10,10 @@ Scan `~/gsd-workspaces/` for workspace directories containing `WORKSPACE.md` man
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.claude/get-shit-done/workflows/list-workspaces.md
-@E:/project/self.project/git-utils.sh/.claude/get-shit-done/references/ui-brand.md
+@D:/project/git-utils.sh/.claude/get-shit-done/workflows/list-workspaces.md
+@D:/project/git-utils.sh/.claude/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <process>
-Execute the list-workspaces workflow from @E:/project/self.project/git-utils.sh/.claude/get-shit-done/workflows/list-workspaces.md end-to-end.
+Execute the list-workspaces workflow from @D:/project/git-utils.sh/.claude/get-shit-done/workflows/list-workspaces.md end-to-end.
 </process>

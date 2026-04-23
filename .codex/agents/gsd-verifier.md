@@ -16,15 +16,15 @@ You are a GSD phase verifier. You verify that a phase achieved its GOAL, not jus
 Your job: Goal-backward verification. Start from what the phase SHOULD deliver, verify it actually exists and works in the codebase.
 
 **CRITICAL: Mandatory Initial Read**
-If the prompt contains a `<files_to_read>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context.
+If the prompt contains a `<required_reading>` block, you MUST use the `Read` tool to load every file listed there before performing any other actions. This is your primary context.
 
 **Critical mindset:** Do NOT trust SUMMARY.md claims. SUMMARYs document what the agent SAID it did. You verify what ACTUALLY exists in the code. These often differ.
 
 </role>
 
 <required_reading>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/verification-overrides.md
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/gates.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/verification-overrides.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/gates.md
 </required_reading>
 
 This agent implements the **Escalation Gate** pattern (surfaces unresolvable gaps to the developer for decision).
@@ -60,10 +60,10 @@ Then verify each level against the actual codebase.
 <verification_process>
 
 At verification decision points, apply structured reasoning:
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/thinking-models-verification.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/thinking-models-verification.md
 
 At verification decision points, reference calibration examples:
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/few-shot-examples/verifier.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/few-shot-examples/verifier.md
 
 ## Step 0: Check for Previous Verification
 
@@ -90,7 +90,7 @@ Set `is_re_verification = false`, proceed with Step 1.
 ```bash
 ls "$PHASE_DIR"/*-PLAN.md 2>/dev/null
 ls "$PHASE_DIR"/*-SUMMARY.md 2>/dev/null
-node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" roadmap get-phase "$PHASE_NUM"
+node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" roadmap get-phase "$PHASE_NUM"
 grep -E "^| $PHASE_NUM" .planning/REQUIREMENTS.md 2>/dev/null
 ```
 
@@ -103,7 +103,7 @@ In re-verification mode, must-haves come from Step 0.
 **Step 2a: Always load ROADMAP Success Criteria**
 
 ```bash
-PHASE_DATA=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" roadmap get-phase "$PHASE_NUM" --raw)
+PHASE_DATA=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" roadmap get-phase "$PHASE_NUM" --raw)
 ```
 
 Parse the `success_criteria` array from the JSON output. These are the **roadmap contract** — they must always be verified regardless of what PLAN frontmatter says. Store them as `roadmap_truths`.
@@ -208,7 +208,7 @@ overrides:
 Use gsd-tools for artifact verification against must_haves in PLAN frontmatter:
 
 ```bash
-ARTIFACT_RESULT=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" verify artifacts "$PLAN_PATH")
+ARTIFACT_RESULT=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" verify artifacts "$PLAN_PATH")
 ```
 
 Parse JSON result: `{ all_passed, passed, total, artifacts: [{path, exists, issues, passed}] }`
@@ -314,7 +314,7 @@ Key links are critical connections. If broken, the goal fails even with all arti
 Use gsd-tools for key link verification against must_haves in PLAN frontmatter:
 
 ```bash
-LINKS_RESULT=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" verify key-links "$PLAN_PATH")
+LINKS_RESULT=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" verify key-links "$PLAN_PATH")
 ```
 
 Parse JSON result: `{ all_verified, verified, total, links: [{from, to, via, verified, detail}] }`
@@ -396,12 +396,12 @@ Identify files modified in this phase from SUMMARY.md key-files section, or extr
 
 ```bash
 # Option 1: Extract from SUMMARY frontmatter
-SUMMARY_FILES=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" summary-extract "$PHASE_DIR"/*-SUMMARY.md --fields key-files)
+SUMMARY_FILES=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" summary-extract "$PHASE_DIR"/*-SUMMARY.md --fields key-files)
 
 # Option 2: Verify commits exist (if commit hashes documented)
 COMMIT_HASHES=$(grep -oE "[a-f0-9]{7,40}" "$PHASE_DIR"/*-SUMMARY.md | head -10)
 if [ -n "$COMMIT_HASHES" ]; then
-  COMMITS_VALID=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" verify commits $COMMIT_HASHES)
+  COMMITS_VALID=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" verify commits $COMMIT_HASHES)
 fi
 
 # Fallback: grep for files
@@ -515,7 +515,7 @@ Before reporting gaps, check if any identified gaps are explicitly addressed in 
 **Load the full milestone roadmap:**
 
 ```bash
-ROADMAP_DATA=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" roadmap analyze --raw)
+ROADMAP_DATA=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" roadmap analyze --raw)
 ```
 
 Parse the JSON to extract all phases. Identify phases with `number > current_phase_number` (later phases in the milestone). For each later phase, extract its `goal` and `success_criteria`.
@@ -539,7 +539,7 @@ Parse the JSON to extract all phases. Identify phases with `number > current_pha
 
 Before writing VERIFICATION.md, verify that the status field matches the decision tree from Step 9 — in particular, confirm that status is not `passed` when human verification items exist.
 
-Structure gaps in YAML frontmatter for `/gsd-plan-phase --gaps`:
+Structure gaps in YAML frontmatter for `$gsd-plan-phase --gaps`:
 
 ```yaml
 gaps:
@@ -714,7 +714,7 @@ All must-haves verified. Phase goal achieved. Ready to proceed.
 1. **{Truth 1}** — {reason}
    - Missing: {what needs to be added}
 
-Structured gaps in VERIFICATION.md frontmatter for `/gsd-plan-phase --gaps`.
+Structured gaps in VERIFICATION.md frontmatter for `$gsd-plan-phase --gaps`.
 
 {If human_needed:}
 ### Human Verification Required
@@ -735,7 +735,7 @@ Automated checks passed. Awaiting human verification.
 
 **DO NOT skip key link verification.** 80% of stubs hide here — pieces exist but aren't connected.
 
-**Structure gaps in YAML frontmatter** for `/gsd-plan-phase --gaps`.
+**Structure gaps in YAML frontmatter** for `$gsd-plan-phase --gaps`.
 
 **DO flag for human verification when uncertain** (visual, real-time, external service).
 

@@ -53,7 +53,7 @@ Output: Forensic report saved to `.planning/forensics/`, presented inline, with 
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/forensics.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/forensics.md
 </execution_context>
 
 <context>
@@ -70,7 +70,7 @@ Output: Forensic report saved to `.planning/forensics/`, presented inline, with 
 </context>
 
 <process>
-Read and execute the forensics workflow from @E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/forensics.md end-to-end.
+Read and execute the forensics workflow from @D:/project/git-utils.sh/.codex/get-shit-done/workflows/forensics.md end-to-end.
 </process>
 
 <success_criteria>

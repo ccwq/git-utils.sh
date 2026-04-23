@@ -6,8 +6,8 @@ offers mid-conversation research when useful, then routes crystallized outputs t
 <required_reading>
 Read all files referenced by the invoking prompt's execution_context before starting.
 
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/questioning.md
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/domain-probes.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/questioning.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/domain-probes.md
 </required_reading>
 
 <available_agent_types>
@@ -107,11 +107,11 @@ For each selected output, write the file:
 - **Seeds:** Create `.planning/seeds/{slug}.md` with frontmatter (title, trigger_condition, planted_date)
 - **Research questions:** Append to `.planning/research/questions.md`
 - **Requirements:** Append to `.planning/REQUIREMENTS.md` with next available REQ ID
-- **Phases:** Use existing `/gsd-add-phase` command via SlashCommand
+- **Phases:** Use existing `$gsd-add-phase` command via SlashCommand
 
 Commit if `commit_docs` is enabled:
 ```bash
-node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" commit "docs: capture exploration — {topic_slug}" --files {file_list}
+node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" commit "docs: capture exploration — {topic_slug}" --files {file_list}
 ```
 
 ## Step 6: Close
@@ -123,7 +123,7 @@ node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cj
 **Outputs:** {count} artifact(s) created
 {list of created files}
 
-Continue exploring with `/gsd-explore` or start working with `/gsd-next`.
+Continue exploring with `$gsd-explore` or start working with `$gsd-next`.
 ```
 
 </process>

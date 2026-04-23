@@ -53,7 +53,7 @@ Output: Conversational output only (no file creation) - ends with "What do you t
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/list-phase-assumptions.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/list-phase-assumptions.md
 </execution_context>
 
 <context>

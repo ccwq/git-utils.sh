@@ -59,8 +59,8 @@ Uses ROADMAP.md phase discovery and Skill() flat invocations for each phase comm
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/autonomous.md
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/autonomous.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <context>
@@ -74,6 +74,6 @@ Project context, phase list, and state are resolved inside the workflow using in
 </context>
 
 <process>
-Execute the autonomous workflow from @E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/autonomous.md end-to-end.
+Execute the autonomous workflow from @D:/project/git-utils.sh/.codex/get-shit-done/workflows/autonomous.md end-to-end.
 Preserve all workflow gates (phase discovery, per-phase execution, blocker handling, progress display).
 </process>

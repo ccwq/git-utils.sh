@@ -76,9 +76,9 @@ GSD > INTEL
 
 Intel system is disabled. To activate:
 
-  node E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs config-set intel.enabled true
+  node D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs config-set intel.enabled true
 
-Then run /gsd-intel refresh to build the initial index.
+Then run $gsd-intel refresh to build the initial index.
 ```
 
 ---
@@ -100,7 +100,7 @@ Parse `{{GSD_ARGS}}` to determine the operation mode:
 ```
 GSD > INTEL
 
-Usage: /gsd-intel <mode>
+Usage: $gsd-intel <mode>
 
 Modes:
   query <term>  Search intel files for a term
@@ -114,12 +114,12 @@ Modes:
 Run:
 
 ```bash
-node E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs intel query <term>
+node D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs intel query <term>
 ```
 
 Parse the JSON output and display results:
 - If the output contains `"disabled": true`, display the disabled message from Step 1 and **STOP**
-- If no matches found, display: `No intel matches for '<term>'. Try /gsd-intel refresh to build the index.`
+- If no matches found, display: `No intel matches for '<term>'. Try $gsd-intel refresh to build the index.`
 - Otherwise, display matching entries grouped by intel file
 
 **STOP** after displaying results. Do not spawn an agent.
@@ -129,7 +129,7 @@ Parse the JSON output and display results:
 Run:
 
 ```bash
-node E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs intel status
+node D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs intel status
 ```
 
 Parse the JSON output and display each intel file with:
@@ -144,7 +144,7 @@ Parse the JSON output and display each intel file with:
 Run:
 
 ```bash
-node E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs intel diff
+node D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs intel diff
 ```
 
 Parse the JSON output and display:
@@ -174,7 +174,7 @@ Task(
   prompt="You are the gsd-intel-updater agent. Your job is to analyze this codebase and write/update intelligence files in .planning/intel/.
 
 Project root: ${CWD}
-gsd-tools path: E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs
+gsd-tools path: D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs
 
 Instructions:
 1. Analyze the codebase structure, dependencies, APIs, and architecture
@@ -198,7 +198,7 @@ Wait for the agent to complete.
 After the agent completes, run:
 
 ```bash
-node E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs intel status
+node D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs intel status
 ```
 
 Display a summary showing:

@@ -46,13 +46,13 @@ Result parsing:
 </codex_skill_adapter>
 
 <objective>
-Bridge local completion → merged PR. After /gsd-verify-work passes, ship the work: push branch, create PR with auto-generated body, optionally trigger review, and track the merge.
+Bridge local completion → merged PR. After $gsd-verify-work passes, ship the work: push branch, create PR with auto-generated body, optionally trigger review, and track the merge.
 
 Closes the plan → execute → verify → ship loop.
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/ship.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/ship.md
 </execution_context>
 
-Execute the ship workflow from @E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/ship.md end-to-end.
+Execute the ship workflow from @D:/project/git-utils.sh/.codex/get-shit-done/workflows/ship.md end-to-end.

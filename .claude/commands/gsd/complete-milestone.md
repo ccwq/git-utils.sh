@@ -19,8 +19,8 @@ Output: Milestone archived (roadmap + requirements), PROJECT.md evolved, git tag
 <execution_context>
 **Load these files NOW (before proceeding):**
 
-- @E:/project/self.project/git-utils.sh/.claude/get-shit-done/workflows/complete-milestone.md (main workflow)
-- @E:/project/self.project/git-utils.sh/.claude/get-shit-done/templates/milestone-archive.md (archive template)
+- @D:/project/git-utils.sh/.claude/get-shit-done/workflows/complete-milestone.md (main workflow)
+- @D:/project/git-utils.sh/.claude/get-shit-done/templates/milestone-archive.md (archive template)
   </execution_context>
 
 <context>

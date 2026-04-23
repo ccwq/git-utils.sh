@@ -1,8 +1,8 @@
 ---
 name: "gsd-research-phase"
-description: "Research how to implement a phase (standalone - usually use /gsd-plan-phase instead)"
+description: "Research how to implement a phase (standalone - usually use $gsd-plan-phase instead)"
 metadata:
-  short-description: "Research how to implement a phase (standalone - usually use /gsd-plan-phase instead)"
+  short-description: "Research how to implement a phase (standalone - usually use $gsd-plan-phase instead)"
 ---
 
 <codex_skill_adapter>
@@ -48,7 +48,7 @@ Result parsing:
 <objective>
 Research how to implement a phase. Spawns gsd-phase-researcher agent with phase context.
 
-**Note:** This is a standalone research command. For most workflows, use `/gsd-plan-phase` which integrates research automatically.
+**Note:** This is a standalone research command. For most workflows, use `$gsd-plan-phase` which integrates research automatically.
 
 **Use this command when:**
 - You want to research without planning yet
@@ -76,7 +76,7 @@ Normalize phase input in step 1 before any directory lookups.
 ## 0. Initialize Context
 
 ```bash
-INIT=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" init phase-op "{{GSD_ARGS}}")
+INIT=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" init phase-op "{{GSD_ARGS}}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -84,13 +84,13 @@ Extract from init JSON: `phase_dir`, `phase_number`, `phase_name`, `phase_found`
 
 Resolve researcher model:
 ```bash
-RESEARCHER_MODEL=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" resolve-model gsd-phase-researcher --raw)
+RESEARCHER_MODEL=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" resolve-model gsd-phase-researcher --raw)
 ```
 
 ## 1. Validate Phase
 
 ```bash
-PHASE_INFO=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" roadmap get-phase "${phase_number}")
+PHASE_INFO=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" roadmap get-phase "${phase_number}")
 ```
 
 **If `found` is false:** Error and exit. **If `found` is true:** Extract `phase_number`, `phase_name`, `goal` from JSON.
@@ -152,7 +152,7 @@ Mode: ecosystem
 </additional_context>
 
 <downstream_consumer>
-Your RESEARCH.md will be loaded by `/gsd-plan-phase` which uses specific sections:
+Your RESEARCH.md will be loaded by `$gsd-plan-phase` which uses specific sections:
 - `## Standard Stack` → Plans use these libraries
 - `## Architecture Patterns` → Task structure follows these
 - `## Don't Hand-Roll` → Tasks NEVER build custom solutions for listed problems

@@ -52,8 +52,8 @@ Output: {phase_num}-UI-REVIEW.md
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/ui-review.md
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/ui-review.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <context>
@@ -61,6 +61,6 @@ Phase: {{GSD_ARGS}} — optional, defaults to last completed phase.
 </context>
 
 <process>
-Execute @E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/ui-review.md end-to-end.
+Execute @D:/project/git-utils.sh/.codex/get-shit-done/workflows/ui-review.md end-to-end.
 Preserve all workflow gates.
 </process>

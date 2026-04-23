@@ -52,10 +52,10 @@ Provides situational awareness before continuing work.
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/progress.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/progress.md
 </execution_context>
 
 <process>
-Execute the progress workflow from @E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/progress.md end-to-end.
+Execute the progress workflow from @D:/project/git-utils.sh/.codex/get-shit-done/workflows/progress.md end-to-end.
 Preserve all routing logic (Routes A through F) and edge case handling.
 </process>

@@ -39,7 +39,7 @@ Exit.
 ## Step 2: Check for existing documents
 
 ```bash
-INIT=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" init map-codebase 2>/dev/null || echo "{}")
+INIT=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" init map-codebase 2>/dev/null || echo "{}")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 ```
 
@@ -88,7 +88,7 @@ Task(
 **Documents produced:**
 {list of documents written with line counts}
 
-Use `/gsd-map-codebase` for a comprehensive 4-area parallel scan.
+Use `$gsd-map-codebase` for a comprehensive 4-area parallel scan.
 ```
 
 </process>

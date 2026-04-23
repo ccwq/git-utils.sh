@@ -46,14 +46,14 @@ Result parsing:
 </codex_skill_adapter>
 
 <objective>
-Generate a developer behavioral profile from session analysis (or questionnaire) and produce artifacts (USER-PROFILE.md, /gsd-dev-preferences, AGENTS.md section) that personalize the agent's responses.
+Generate a developer behavioral profile from session analysis (or questionnaire) and produce artifacts (USER-PROFILE.md, $gsd-dev-preferences, AGENTS.md section) that personalize the agent's responses.
 
 Routes to the profile-user workflow which orchestrates the full flow: consent gate, session analysis or questionnaire fallback, profile generation, result display, and artifact selection.
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/profile-user.md
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/profile-user.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <context>

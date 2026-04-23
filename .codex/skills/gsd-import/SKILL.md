@@ -54,9 +54,9 @@ Future: `--prd` mode for PRD extraction is planned for a follow-up PR.
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/import.md
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/references/gate-prompts.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/import.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/ui-brand.md
+@D:/project/git-utils.sh/.codex/get-shit-done/references/gate-prompts.md
 </execution_context>
 
 <context>

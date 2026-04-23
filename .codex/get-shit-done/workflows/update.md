@@ -20,7 +20,7 @@ First, derive `PREFERRED_CONFIG_DIR` and `PREFERRED_RUNTIME` from the invoking p
 - Otherwise -> `claude`
 
 Use `PREFERRED_CONFIG_DIR` when available so custom `--config-dir` installs are checked before default locations.
-Use `PREFERRED_RUNTIME` as the first runtime checked so `/gsd-update` targets the runtime that invoked it.
+Use `PREFERRED_RUNTIME` as the first runtime checked so `$gsd-update` targets the runtime that invoked it.
 
 Kilo config precedence must match the installer: `KILO_CONFIG_DIR` -> `dirname(KILO_CONFIG)` -> `XDG_CONFIG_HOME/kilo` -> `~/.config/kilo`.
 
@@ -289,7 +289,16 @@ Exit.
 **Installed:** X.Y.Z
 **Latest:** A.B.C
 
-You're ahead of the latest release (development version?).
+You're ahead of the latest release — this looks like a dev install.
+
+If you see a "⚠ dev install — re-run installer to sync hooks" warning in
+your statusline, your hook files are older than your VERSION file. Fix it
+by re-running the local installer from your dev branch:
+
+    node bin/install.js --global --claude
+
+Running $gsd-update would install the npm release (A.B.C) and downgrade
+your dev version — do NOT use it to resolve this warning.
 ```
 
 Exit.
@@ -329,7 +338,7 @@ Exit.
 - `agents/gsd-*` files will be replaced
 
 (Paths are relative to detected runtime install location:
-global: `E:/project/self.project/git-utils.sh/.codex/`, `~/.config/opencode/`, `~/.opencode/`, `~/.gemini/`, `~/.config/kilo/`, or `~/.codex/`
+global: `D:/project/git-utils.sh/.codex/`, `~/.config/opencode/`, `~/.opencode/`, `~/.gemini/`, `~/.config/kilo/`, or `~/.codex/`
 local: `./.codex/`, `./.config/opencode/`, `./.opencode/`, `./.gemini/`, `./.kilo/`, or `./.codex/`)
 
 Your custom files in other locations are preserved:
@@ -338,9 +347,11 @@ Your custom files in other locations are preserved:
 - Custom hooks ✓
 - Your AGENTS.md files ✓
 
-If you've modified any GSD files directly, they'll be automatically backed up to `gsd-local-patches/` and can be reapplied with `/gsd-reapply-patches` after the update.
+If you've modified any GSD files directly, they'll be automatically backed up to `gsd-local-patches/` and can be reapplied with `$gsd-reapply-patches` after the update.
 ```
 
+
+**Text mode (`workflow.text_mode: true` in config or `--text` flag):** Set `TEXT_MODE=true` if `--text` is present in `{{GSD_ARGS}}` OR `text_mode` from init JSON is `true`. When TEXT_MODE is active, replace every `AskUserQuestion` call with a plain-text numbered list and ask the user to type their choice number. This is required for non-the agent runtimes (OpenAI Codex, Gemini CLI, etc.) where `AskUserQuestion` is not available.
 Use AskUserQuestion:
 - Question: "Proceed with update?"
 - Options:
@@ -453,7 +464,7 @@ Check for gsd-local-patches/backup-meta.json in the config directory.
 
 ```
 Local patches were backed up before the update.
-Run /gsd-reapply-patches to merge your modifications into the new version.
+Run $gsd-reapply-patches to merge your modifications into the new version.
 ```
 
 **If no patches:** Continue normally.

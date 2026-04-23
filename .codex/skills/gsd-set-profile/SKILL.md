@@ -47,4 +47,4 @@ Result parsing:
 
 Show the following output to the user verbatim, with no extra commentary:
 
-!`node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" config-set-model-profile {{GSD_ARGS}} --raw`
+!`node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" config-set-model-profile {{GSD_ARGS}} --raw`

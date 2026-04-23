@@ -11,9 +11,9 @@ Generate a structured SESSION_REPORT.md document capturing session outcomes, wor
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.claude/get-shit-done/workflows/session-report.md
+@D:/project/git-utils.sh/.claude/get-shit-done/workflows/session-report.md
 </execution_context>
 
 <process>
-Execute the session-report workflow from @E:/project/self.project/git-utils.sh/.claude/get-shit-done/workflows/session-report.md end-to-end.
+Execute the session-report workflow from @D:/project/git-utils.sh/.claude/get-shit-done/workflows/session-report.md end-to-end.
 </process>

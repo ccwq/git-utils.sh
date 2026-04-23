@@ -32,7 +32,7 @@ Parse `{{GSD_ARGS}}` to determine the execution mode:
 - If neither flag is found: display usage and exit:
 
 ```
-Usage: /gsd-import --from <path>
+Usage: $gsd-import --from <path>
 
   --from <path>   Import an external plan file into GSD format
 ```
@@ -164,6 +164,8 @@ Exit WITHOUT writing any files. This is the safety gate — no PLAN.md is writte
 
 **If only WARNINGS and/or INFO (no blockers):**
 
+
+**Text mode (`workflow.text_mode: true` in config or `--text` flag):** Set `TEXT_MODE=true` if `--text` is present in `{{GSD_ARGS}}` OR `text_mode` from init JSON is `true`. When TEXT_MODE is active, replace every `AskUserQuestion` call with a plain-text numbered list and ask the user to type their choice number. This is required for non-the agent runtimes (OpenAI Codex, Gemini CLI, etc.) where `AskUserQuestion` is not available.
 Ask via AskUserQuestion using the approve-revise-abort pattern:
 - question: "Review the warnings above. Proceed with import?"
 - header: "Approve?"
@@ -246,7 +248,7 @@ Update `.planning/STATE.md` if appropriate (e.g., increment total plan count).
 
 Commit the imported plan and updated files:
 ```bash
-node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" commit "docs({phase}): import plan from {basename FILEPATH}" --files .planning/phases/{phase}/{plan}-PLAN.md .planning/ROADMAP.md
+node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" commit "docs({phase}): import plan from {basename FILEPATH}" --files .planning/phases/{phase}/{plan}-PLAN.md .planning/ROADMAP.md
 ```
 
 Display completion:

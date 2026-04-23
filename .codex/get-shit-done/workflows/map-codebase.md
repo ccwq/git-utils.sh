@@ -31,9 +31,9 @@ Documents are reference material for the agent when planning/executing. Always i
 Load codebase mapping context:
 
 ```bash
-INIT=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" init map-codebase)
+INIT=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" init map-codebase)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
-AGENT_SKILLS_MAPPER=$(node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" agent-skills gsd-codebase-mapper 2>/dev/null)
+AGENT_SKILLS_MAPPER=$(node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" agent-skills gsd-codebase-mapper 2>/dev/null)
 ```
 
 Extract from init JSON: `mapper_model`, `commit_docs`, `codebase_dir`, `existing_maps`, `has_maps`, `codebase_dir_exists`, `subagent_timeout`.
@@ -314,7 +314,7 @@ Continue to commit_codebase_map.
 Commit the codebase map:
 
 ```bash
-node "E:/project/self.project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" commit "docs: map existing codebase" --files .planning/codebase/*.md
+node "D:/project/git-utils.sh/.codex/get-shit-done/bin/gsd-tools.cjs" commit "docs: map existing codebase" --files .planning/codebase/*.md
 ```
 
 Continue to offer_next.
@@ -349,14 +349,12 @@ Created .planning/codebase/:
 
 **Initialize project** — use codebase context for planning
 
-`/clear` then:
-
-`/gsd-new-project`
+`$gsd-new-project`
 
 ---
 
 **Also available:**
-- Re-run mapping: `/gsd-map-codebase`
+- Re-run mapping: `$gsd-map-codebase`
 - Review specific file: `cat .planning/codebase/STACK.md`
 - Edit any document before proceeding
 

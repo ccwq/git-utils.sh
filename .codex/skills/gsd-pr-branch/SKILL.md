@@ -54,9 +54,9 @@ changes that are irrelevant to code review.
 </objective>
 
 <execution_context>
-@E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/pr-branch.md
+@D:/project/git-utils.sh/.codex/get-shit-done/workflows/pr-branch.md
 </execution_context>
 
 <process>
-Execute the pr-branch workflow from @E:/project/self.project/git-utils.sh/.codex/get-shit-done/workflows/pr-branch.md end-to-end.
+Execute the pr-branch workflow from @D:/project/git-utils.sh/.codex/get-shit-done/workflows/pr-branch.md end-to-end.
 </process>
