@@ -1,22 +1,22 @@
 # 测试报告: wsha.test.sh
 
-- **测试时间**: 2026-04-22 17:42:28
+- **测试时间**: 2026-04-23 16:48:08
 - **执行环境**: Windows_NT (Git Bash)
 
 ## 测试用例详情
 
 | 测试用例 | 结果 | 耗时 | 备注 |
 | :--- | :--- | :--- | :--- |
-| test_expand_ab | PASS | 2.334s |  |
-| test_expand_foo_append | FAIL | 1.544s | output=[foobar open], code=0 |
-| test_expand_bar_placeholder | FAIL | 2.250s | output=[barbar 40 --name ccwq], code=0 |
-| test_unknown_alias_passthrough_with_args | PASS | 2.264s |  |
-| test_unknown_alias_ping_passthrough | PASS | 4.836s |  |
-| test_quoted_alias_expand | PASS | 1.537s |  |
-| test_quoted_complex_command_passthrough | PASS | 1.547s |  |
-| test_quoted_and_chain_passthrough | PASS | 1.603s |  |
-| test_unknown_command_passthrough_error_code | PASS | 1.618s |  |
-| test_list_long_flag | FAIL | 1.586s | output=[[自定义] /e/project/self.project/git-utils.sh/test_playground_wsha
+| test_expand_ab | PASS | 1.874s |  |
+| test_expand_foo_append | FAIL | 1.694s | output=[foobar open], code=0 |
+| test_expand_bar_placeholder | FAIL | 1.753s | output=[barbar 40 --name ccwq], code=0 |
+| test_unknown_alias_passthrough_with_args | PASS | 1.654s |  |
+| test_unknown_alias_ping_passthrough | PASS | 4.786s |  |
+| test_quoted_alias_expand | PASS | 1.659s |  |
+| test_quoted_complex_command_passthrough | PASS | 1.862s |  |
+| test_quoted_and_chain_passthrough | PASS | 1.636s |  |
+| test_unknown_command_passthrough_error_code | PASS | 1.649s |  |
+| test_list_long_flag | FAIL | 1.443s | output=[[自定义] /e/project/self.project/git-utils.sh/test_playground_wsha
   alias-normal.txt
 
 别名  命令                    
@@ -24,7 +24,7 @@
 ab   echo agent-browser        
 foo  echo foobar open          
 bar  echo barbar -- --name ccwq], code=0 |
-| test_list_short_flag | FAIL | 1.770s | output=[[自定义] /e/project/self.project/git-utils.sh/test_playground_wsha
+| test_list_short_flag | FAIL | 1.517s | output=[[自定义] /e/project/self.project/git-utils.sh/test_playground_wsha
   alias-normal.txt
 
 别名  命令                    
@@ -32,7 +32,7 @@ bar  echo barbar -- --name ccwq], code=0 |
 ab   echo agent-browser        
 foo  echo foobar open          
 bar  echo barbar -- --name ccwq], code=0 |
-| test_list_view_flag | FAIL | 1.476s | output=[[自定义] /e/project/self.project/git-utils.sh/test_playground_wsha
+| test_list_view_flag | FAIL | 1.523s | output=[[自定义] /e/project/self.project/git-utils.sh/test_playground_wsha
   alias-normal.txt
 
 别名  命令                    
@@ -40,11 +40,18 @@ bar  echo barbar -- --name ccwq], code=0 |
 ab   echo agent-browser        
 foo  echo foobar open          
 bar  echo barbar -- --name ccwq], code=0 |
-| test_duplicate_alias | PASS | 1.258s |  |
-| test_invalid_mapping | PASS | 0.874s |  |
-| test_default_merge_priority | FAIL | 20.710s | foo 覆盖失败 output=[/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1057: foo: command not found], code=127 |
-| test_default_missing_optional_configs_ignored | PASS | 12.240s |  |
-| test_default_list_merged_aliases | FAIL | 14.772s | output=[[内置] /e/project/self.project/git-utils.sh/config/wsh-alias
+| test_duplicate_alias | PASS | 1.070s |  |
+| test_invalid_mapping | PASS | 0.903s |  |
+| test_default_merge_priority | FAIL | 17.687s | ab 覆盖失败 output=[(node:90764) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +1
++
+Progress: resolved 1, reused 1, downloaded 0, added 0
+Progress: resolved 1, reused 1, downloaded 0, added 1, done
+Unknown command: run], code=1 |
+| test_default_missing_optional_configs_ignored | PASS | 11.983s |  |
+| test_default_list_merged_aliases | FAIL | 12.617s | output=[[内置] /e/project/self.project/git-utils.sh/config/wsh-alias
   app-in.txt
 
 别名              命令                                  
@@ -129,12 +136,12 @@ bar  echo local-bar
 别名  命令       
 --   --           
 foo  echo user-foo], code=0 |
-| test_quoted_alias_with_space | PASS | 3.129s |  |
-| test_wildcard_single_token_alias | FAIL | 2.001s | output=[pnpx $1], code=0 |
-| test_wildcard_multi_token_alias | FAIL | 1.989s | output=[pnpx $1 http-server], code=0 |
-| test_quoted_content_equivalence | FAIL | 2.075s | q1 执行失败 output=[/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1057: q1: command not found], code=127 |
-| test_wildcard_multi_capture | FAIL | 3.422s | output=[/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1057: tool: command not found], code=127 |
-| test_double_star_capture | FAIL | 2079.745s | output=[/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1060: [内置]: command not found
+| test_quoted_alias_with_space | PASS | 3.025s |  |
+| test_wildcard_single_token_alias | FAIL | 2.147s | output=[pnpx $1], code=0 |
+| test_wildcard_multi_token_alias | FAIL | 2.266s | output=[pnpx $1 http-server], code=0 |
+| test_quoted_content_equivalence | FAIL | 2.095s | q1 执行失败 output=[/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1057: q1: command not found], code=127 |
+| test_wildcard_multi_capture | FAIL | 2.207s | output=[/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1057: tool: command not found], code=127 |
+| test_double_star_capture | FAIL | 229.600s | output=[/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1060: [内置]: command not found
 /e/project/self.project/git-utils.sh/sh/wsha.sh: line 1061: app-in.txt: command not found
 /e/project/self.project/git-utils.sh/sh/wsha.sh: line 1063: --update: command not found
 /e/project/self.project/git-utils.sh/sh/wsha.sh: line 1064: -u: command not found
@@ -171,22 +178,23 @@ FINDSTR: Bad command line
 /e/project/self.project/git-utils.sh/sh/wsha.sh: line 1088: docker: command not found
 /e/project/self.project/git-utils.sh/sh/wsha.sh: line 1089: dc: command not found
 /e/project/self.project/git-utils.sh/sh/wsha.sh: line 1090: pc: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1091: abc: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1092: abcc: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1093: ab-p: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1094: ab-p-l: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1091: ab: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1092: abc: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1093: abcc: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1094: ab-p: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1095: ab-p-l: command not found
 error: unexpected argument '@openai/codex@0.115.0' found
 
 Usage: codex [OPTIONS] [PROMPT]
        codex [OPTIONS] <COMMAND> [ARGS]
 
 For more information, try '--help'.
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1096: codex-p: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1097: codex-l: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1098: codex-mmx: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1099: codex-mini: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1100: codex-yo: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1101: gem: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1097: codex-p: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1098: codex-l: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1099: codex-mmx: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1100: codex-mini: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1101: codex-yo: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1102: gem: command not found
 node:internal/modules/run_main:107
     triggerUncaughtException(
     ^
@@ -205,28 +213,29 @@ Did you mean to import "chalk/source/index.js"?
 }
 
 Node.js v24.11.0
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1103: gemini-p: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1104: gemini-l: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1105: gemini-yo: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1104: gemini-p: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1105: gemini-l: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1106: gemini-yo: command not found
+**wsha** 是这个项目的核心工具 — 一个命令别名展开器。
 
+主要功能：
+- 从 `config/wsh-alias/*.txt` 读取别名定义
+- 支持通配符匹配 (`*` 捕获单个 token, `**` 捕获所有剩余输入)
+- 模板展开，如 `"px *" pnpx $1` 表示 `w px http-server` → `pnpx http-server`
+- 环境变量展开：`%APP_HOME%`, `%USERPROFILE%` 等
+- 执行前缀：`&` 顺序执行, `|` 或执行
 
-**wsha** 是一个跨平台 Windows Git Bash 实用工具，实现智能命令行别名展开（通配符匹配、参数捕获、模板展开）。
+示例别名（来自 default.txt）：
+```
+fox firefox        # w fox → firefox
+gsd npx -y gsd-pi   # w gsd → npx -y gsd-pi
+"bu **" uvx browser-use  $$   # w bu foo → uvx browser-use foo
+```
 
-**当前状态：**
-- Python 实现：`py/wsha/` (主)
-- Shell 版本：`sh/wsha.sh` (核心), `sh/wsha-core.py` (Python 核心)
-- 配置：`config/wsh-alias.txt`
-
-**最近修改的文件：**
-- `py/wsha/expand.py`
-- `sh/wsha-core.py`
-- `sh/wsha.sh`
-- `__test__/report/wsha.test.md`
-
-你是想运行 wsha、查看帮助，还是有其他需求？
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1107: claude-p: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1108: claude-l: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1109: claude-yo: command not found
+你想运行 `w <alias>` 还是需要其他帮助？
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1108: claude-p: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1109: claude-l: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1110: claude-yo: command not found
 
 ▄
 █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
@@ -279,38 +288,34 @@ Options:
       --fork         fork the session when continuing (use with --continue or --session)   [boolean]
       --prompt       prompt to use                                                          [string]
       --agent        agent to use                                                           [string]
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1111: opencode-l: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1112: git.sync: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1113: git.auto-pull: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1114: git.auto-commit: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1115: lz: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1116: lgit: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1117: lzgit: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1118: tping: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1112: opencode-l: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1113: git.sync: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1114: git.auto-pull: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1115: git.auto-commit: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1116: lz: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1117: lgit: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1118: lzgit: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1119: tping: command not found
 Invalid port number: tping
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1120: scripts: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1121: ws: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1121: scripts: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1122: ws: command not found
 ls: cannot access 'wsh.bat': No such file or directory
 ls: cannot access 'ls': No such file or directory
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1123: ll: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1124: ll: command not found
 /e/project/self.project/git-utils.sh/sh/wsh.bat: line 1: @echo: command not found
 /e/project/self.project/git-utils.sh/sh/wsh.bat: line 2: setlocal: command not found
 /e/project/self.project/git-utils.sh/sh/wsh.bat: wsh.bat: line 11: syntax error near unexpected token `newline'
 /e/project/self.project/git-utils.sh/sh/wsh.bat: wsh.bat: line 11: `if "%WANT_HELP%"=="1" ('
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1125: show: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1127: [项目]: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1128: default.txt: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1130: ab: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1131: bar: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1133: [用户]: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1134: custom.txt: command not found
-/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1136: code-protable: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1126: show: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1128: [用户]: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1129: custom.txt: command not found
+/e/project/self.project/git-utils.sh/sh/wsha.sh: line 1131: code-protable: command not found
 
-[main 2026-04-22T09:09:20.496Z] update#setState idle
-[main 2026-04-22T09:09:50.504Z] update#setState checking for updates
-[main 2026-04-22T09:09:50.950Z] update#setState available for download
-[main 2026-04-22T09:42:20.889Z] Extension host with pid 65684 exited with code: 0, signal: unknown.], code=0 |
-| test_builtin_env_vars | FAIL | 3.886s | APP_HOME 注入失败 output=[E:/project/self.project/git-utils.sh], expected=[/e/project/self.project/git-utils.sh], code=0 |
+[main 2026-04-23T08:45:22.338Z] update#setState idle
+[main 2026-04-23T08:45:52.350Z] update#setState checking for updates
+[main 2026-04-23T08:45:53.088Z] update#setState available for download
+[main 2026-04-23T08:48:05.752Z] Extension host with pid 46036 exited with code: 0, signal: unknown.], code=0 |
+| test_builtin_env_vars | FAIL | 1.782s | APP_HOME 注入失败 output=[E:/project/self.project/git-utils.sh], expected=[/e/project/self.project/git-utils.sh], code=0 |
 
 ## 统计汇总
 - **总计**: 24
