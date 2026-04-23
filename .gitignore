@@ -6,3 +6,4 @@
 /patch-files
 /tmp-*
 *.pyc
+/.idea
