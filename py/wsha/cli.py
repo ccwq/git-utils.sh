@@ -11,7 +11,7 @@ import click
 from .cache import CacheManager
 from .config import AliasEntry, ensure_user_config, get_app_env, load_config
 from .errors import ConfigParseError
-from .expand import expand_template, invoke_cmd, print_alias_hit
+from .expand import expand_template, invoke_cmd, print_alias_hit, print_exec_cmd
 from .matcher import AliasMatcher
 from .matching import get_tokens
 
@@ -263,6 +263,7 @@ def main(argv: Tuple[str, ...]) -> None:
 
     match_result = matcher.find_best_match(input_tokens)
     if match_result is None:
+        print_exec_cmd(input_text)
         result = sp.run(input_text, shell=True)
         raise SystemExit(result.returncode)
 
@@ -276,6 +277,7 @@ def main(argv: Tuple[str, ...]) -> None:
 
     entry_name = _get_entry_name()
     print_alias_hit(entry_name, input_text, final_cmd)
+    print_exec_cmd(final_cmd)
 
     previous_entry = os.environ.get("WSHA_ENTRY")
     os.environ["WSHA_ENTRY"] = entry_name

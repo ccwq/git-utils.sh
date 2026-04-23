@@ -89,6 +89,24 @@ invoke_via_core() {
     uv run python "$APP_SH/wsha-core.py" -e "$entry" "$@"
 }
 
+should_print_exec() {
+    [[ "${WSHA_PRINT_EXEC:-1}" != "0" ]]
+}
+
+print_exec_cmd() {
+    local cmd_text="$1"
+    if should_print_exec; then
+        echo "[wsha] exec: $cmd_text" >&2
+    fi
+}
+
+print_alias_hit() {
+    local entry="$1"
+    local raw_input="$2"
+    local final_cmd="$3"
+    echo "[wsha] alias hit: $entry $raw_input -> $final_cmd" >&2
+}
+
 normalize_runtime_tokens() {
     local -a tokens=("$@")
     _CMD_TOKENS=("${tokens[@]}")
@@ -1139,6 +1157,7 @@ main() {
     if [[ -n "$result" ]]; then
         # 判断是否为透传（原样返回）还是展开结果
         if [[ "$result" == "$*" ]]; then
+            print_exec_cmd "$result"
             # 透传，直接执行原始命令
             if is_complex_shell_command "$result"; then
                 eval -- "$result"
@@ -1147,6 +1166,8 @@ main() {
             fi
         else
             # 展开后的命令，执行它
+            print_alias_hit "${WSHA_ENTRY:-wsha}" "$*" "$result"
+            print_exec_cmd "$result"
             invoke_cmd "$result"
         fi
     fi

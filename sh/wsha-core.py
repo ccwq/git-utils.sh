@@ -8,7 +8,6 @@ wsha-core.py - wsha alias command launcher core
 import sys
 import os
 import re
-import argparse
 import hashlib
 import time
 from typing import List, Dict, Optional, Tuple
@@ -400,6 +399,58 @@ def clear_cache():
     return 0
 
 
+def parse_cli_args(argv: List[str]) -> Tuple[bool, bool, bool, str, Optional[str], List[str]]:
+    """Parse top-level options while preserving alias runtime arguments verbatim."""
+    show_help_flag = False
+    list_flag = False
+    clear_flag = False
+    entry = WSHA_ENTRY
+    alias = None
+    args: List[str] = []
+
+    i = 0
+    while i < len(argv):
+        token = argv[i]
+
+        if alias is not None:
+            args = argv[i:]
+            break
+
+        if token in ("-e", "--entry"):
+            if i + 1 >= len(argv):
+                print("[wsha] missing value for --entry.", file=sys.stderr)
+                return False, False, False, entry, None, []
+            entry = argv[i + 1]
+            i += 2
+            continue
+
+        if token.startswith("--entry="):
+            entry = token.split("=", 1)[1]
+            i += 1
+            continue
+
+        if token in ("-h", "--help"):
+            show_help_flag = True
+            i += 1
+            continue
+
+        if token in ("-l", "--list"):
+            list_flag = True
+            i += 1
+            continue
+
+        if token == "--clear":
+            clear_flag = True
+            i += 1
+            continue
+
+        alias = token
+        args = argv[i + 1 :]
+        break
+
+    return show_help_flag, list_flag, clear_flag, entry, alias, args
+
+
 def match_token_pattern(pattern: str, token: str) -> Tuple[bool, List[str], int]:
     """
     单 token 通配符匹配
@@ -664,28 +715,20 @@ def list_aliases():
 
 def main():
     """主入口函数"""
-    parser = argparse.ArgumentParser(prog="wsha-core", add_help=False)
-    parser.add_argument("alias", nargs="?", help="alias name")
-    parser.add_argument("args", nargs="*", help="additional arguments")
-    parser.add_argument("--help", action="store_true")
-    parser.add_argument("-l", "--list", action="store_true")
-    parser.add_argument("--clear", action="store_true")
-    parser.add_argument("-e", "--entry", default=WSHA_ENTRY)
+    show_help_flag, list_flag, clear_flag, _entry, alias, args = parse_cli_args(sys.argv[1:])
 
-    parsed, unknown = parser.parse_known_args()
-
-    if parsed.help:
+    if show_help_flag:
         print_help()
         return 0
 
-    if parsed.clear:
+    if clear_flag:
         return clear_cache()
 
-    if parsed.list:
+    if list_flag:
         load_config()
         return list_aliases()
 
-    if not parsed.alias:
+    if not alias:
         print("[wsha] missing alias.", file=sys.stderr)
         return 1
 
@@ -697,7 +740,7 @@ def main():
         load_config()
 
     # 构建输入 token
-    input_tokens = [parsed.alias] + parsed.args
+    input_tokens = [alias] + args
 
     # 如果只有一个 token 且包含空格，拆分
     if len(input_tokens) == 1 and ' ' in input_tokens[0]:

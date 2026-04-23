@@ -151,6 +151,21 @@ def print_alias_hit(entry: str, raw_input: str, final_cmd: str) -> None:
     print(f"[wsha] alias hit: {entry} {raw_input} -> {final_cmd}", file=sys.stderr)
 
 
+def should_print_exec() -> bool:
+    """Whether command preview logging is enabled."""
+    return os.environ.get("WSHA_PRINT_EXEC", "1") != "0"
+
+
+def print_exec_cmd(final_cmd: str) -> None:
+    """Print the final command that is about to run to stderr."""
+    if not should_print_exec():
+        return
+
+    import sys
+
+    print(f"[wsha] exec: {final_cmd}", file=sys.stderr)
+
+
 def invoke_cmd(cmd_text: str) -> int:
     """
     Execute the expanded command and return exit code.

@@ -13,7 +13,15 @@ from .cache import CacheManager
 from .config import load_config, AliasEntry, get_default_config_paths, detect_duplicates
 from .matching import get_tokens, match_token_pattern, match_double_star_remainder
 from .matcher import AliasMetadata, AliasMatcher, build_alias_metadata
-from .expand import expand_template, invoke_cmd, is_complex_shell_command, expand_env_vars, print_alias_hit
+from .expand import (
+    expand_template,
+    invoke_cmd,
+    is_complex_shell_command,
+    expand_env_vars,
+    print_alias_hit,
+    print_exec_cmd,
+    should_print_exec,
+)
 
 VERSION = "0.1.0"
 
@@ -48,4 +56,6 @@ __all__ = [
     "is_complex_shell_command",
     "expand_env_vars",
     "print_alias_hit",
+    "print_exec_cmd",
+    "should_print_exec",
 ]

@@ -133,6 +133,14 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 
 ### 3. 复杂命令别名展开 (`sh/w.bat` / `sh/wsha.bat` / `sh/w.sh` / `sh/wsha.sh`)
 
+详细说明见 [docs/WSHA.md](./docs/WSHA.md)。
+
+默认会在真正执行最终命令前向 `stderr` 打印预览日志：
+
+- alias 命中：打印 `alias hit` 和 `exec`
+- alias 未命中：打印 `exec`
+- 可通过 `WSHA_PRINT_EXEC=0` 关闭
+
 用于通过配置文件将简短别名展开为完整命令，支持默认参数与运行时参数合并。
 
 核心逻辑由 `wsha.sh` 实现，跨平台支持：
