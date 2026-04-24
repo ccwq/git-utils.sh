@@ -2,7 +2,7 @@
 安装 hook 用于 normal 安装时预热配置缓存。
 
 当执行 `pip install .` (非 -e) 时：
-1. 复制项目 config/wsh-alias/*.txt 到 ~/.cache/wsha/
+1. 复制项目 sh/config/wsh-alias/*.txt 到 ~/.cache/wsha/
 2. 清除旧缓存触发重新生成
 
 Editable 安装 (`pip install -e .`) 不执行此操作。
@@ -31,7 +31,7 @@ def _copy_config_to_cache(project_root: Path, cache_dir: Path):
     """
     复制项目配置到缓存目录。
     """
-    src_config = project_root / "config" / "wsh-alias"
+    src_config = project_root / "sh" / "config" / "wsh-alias"
     if not src_config.exists():
         return
 

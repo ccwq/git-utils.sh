@@ -3,7 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 set "SCRIPT_DIR=%~dp0"
 set "TCPING_EXE=%SCRIPT_DIR%..\bin\tcping.exe"
-set "CONFIG_FILE=%SCRIPT_DIR%..\config\wsh-ping.txt"
+set "CONFIG_FILE=%SCRIPT_DIR%config\wsh-ping.txt"
 
 if /i "%~1"=="-h" goto show_help
 if /i "%~1"=="--help" goto show_help
@@ -91,7 +91,7 @@ echo   wsh-ping
 echo   wsh-ping ^<tcping args...^>
 echo.
 echo Behavior:
-echo   - No args: show preset menu loaded from config\wsh-ping.txt.
+echo   - No args: show preset menu loaded from sh\config\wsh-ping.txt.
 echo   - With args: forward all args to tcping.
 echo.
 echo Presets:

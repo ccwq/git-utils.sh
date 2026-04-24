@@ -14,7 +14,7 @@ Usage:
   w --list-view | -lv
 
 Config priority:
-  1. config/wsh-alias/*.txt  (APP_HOME)
+  1. sh/config/wsh-alias/*.txt  (APP_HOME)
   2. $HOME/.config/wsh-alias/*.txt
   3. $PWD/.config/wsh-alias/*.txt
 
@@ -49,12 +49,26 @@ Example:
 EOF
 }
 
+resolve_app_config_dir() {
+    local app_home="$1"
+    local app_sh="$2"
+    local new_dir="$app_sh/config"
+    local old_dir="$app_home/config"
+
+    # 新布局优先，旧布局仅作为兼容 fallback。
+    if [[ -d "$new_dir" || ! -d "$old_dir" ]]; then
+        printf '%s' "$new_dir"
+    else
+        printf '%s' "$old_dir"
+    fi
+}
+
 # 设置应用环境变量（精简版：不再遍历 sh 目录生成 wrapper）
 set_app_env() {
     local script_dir="$1"
     APP_HOME=$(cd "$script_dir/.." && pwd)
     APP_SH=$(cd "$script_dir" && pwd)
-    APP_CONFIG=$(cd "$APP_HOME/config" 2>/dev/null && pwd || echo "$APP_HOME/config")
+    APP_CONFIG=$(resolve_app_config_dir "$APP_HOME" "$APP_SH")
     export APP_HOME APP_SH APP_CONFIG
     export PATH="$APP_SH:$PATH"
     wsha() { bash "$APP_SH/wsha.sh" "$@"; }
@@ -731,7 +745,7 @@ show_list_table() {
         display_dir=$(dirname "$display_path")
         display_file=$(basename "$display_path")
         if [[ "$display_dir" == "." ]]; then
-            display_dir="$APP_HOME/config/wsh-alias"
+            display_dir="$APP_CONFIG/wsh-alias"
         fi
 
         if [[ -z "$source_name" ]]; then
@@ -1107,7 +1121,7 @@ main() {
     log_test_time "set_app_env" "$step_start"
 
     # 配置目录路径（支持目录 glob 加载）
-    local builtin_config_dir="$APP_HOME/config/wsh-alias"
+    local builtin_config_dir="$APP_CONFIG/wsh-alias"
     local user_config_dir="$HOME/.config/wsh-alias"
     local local_config_dir="$(pwd)/.config/wsh-alias"
 

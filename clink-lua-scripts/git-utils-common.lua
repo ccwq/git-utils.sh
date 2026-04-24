@@ -30,6 +30,17 @@ local function file_exists(path)
     return false
 end
 
+local function dir_exists(path)
+    local command = string.format('if exist "%s\\." (echo 1)', path)
+    local pipe = io.popen(command)
+    if not pipe then
+        return false
+    end
+    local result = (pipe:read("*a") or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    pipe:close()
+    return result == "1"
+end
+
 local function trim(text)
     return (text:gsub("^%s+", ""):gsub("%s+$", ""))
 end
@@ -99,14 +110,39 @@ local function parse_alias_line(line)
     return nil
 end
 
-local function get_w_alias_config_paths()
+local function list_txt_files(dir_path)
+    local files = {}
+    if not dir_exists(dir_path) then
+        return files
+    end
+
+    local command = string.format('dir /b /a-d "%s\\*.txt" 2>nul', dir_path)
+    local pipe = io.popen(command)
+    if not pipe then
+        return files
+    end
+
+    for line in pipe:lines() do
+        local file_name = trim((line or ""):gsub("\r$", ""))
+        if file_name ~= "" and file_name:sub(1, 1) ~= "_" then
+            files[#files + 1] = join_path(dir_path, file_name)
+        end
+    end
+
+    pipe:close()
+    table.sort(files)
+    return files
+end
+
+local function get_w_alias_config_dirs()
     local cwd = os.getcwd()
     local user_profile = os.getenv("USERPROFILE") or ""
 
     return {
-        join_path(ROOT_DIR, "config", "wsh-alias.txt"),
-        user_profile ~= "" and join_path(user_profile, ".config", "wsh-alias.txt") or nil,
-        cwd and join_path(cwd, ".config", "wsh-alias.txt") or nil,
+        join_path(ROOT_DIR, "sh", "config", "wsh-alias"),
+        join_path(ROOT_DIR, "config", "wsh-alias"),
+        user_profile ~= "" and join_path(user_profile, ".config", "wsh-alias") or nil,
+        cwd and join_path(cwd, ".config", "wsh-alias") or nil,
     }
 end
 
@@ -114,8 +150,8 @@ function M.load_w_aliases()
     local alias_order = {}
     local alias_map = {}
 
-    for _, path in ipairs(get_w_alias_config_paths()) do
-        if path and file_exists(path) then
+    for _, dir_path in ipairs(get_w_alias_config_dirs()) do
+        for _, path in ipairs(list_txt_files(dir_path or "")) do
             each_line(path, function(line)
                 local alias_name, template = parse_alias_line(line)
                 if not alias_name then
@@ -310,7 +346,10 @@ function M.make_w_alias_arg_callback(position)
 end
 
 function M.load_ping_presets()
-    local path = join_path(ROOT_DIR, "config", "wsh-ping.txt")
+    local path = join_path(ROOT_DIR, "sh", "config", "wsh-ping.txt")
+    if not file_exists(path) then
+        path = join_path(ROOT_DIR, "config", "wsh-ping.txt")
+    end
     local presets = {}
     if not file_exists(path) then
         return presets

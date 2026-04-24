@@ -560,15 +560,15 @@ test_default_list_merged_aliases() {
     work_dir="$TEST_DIR/list-work"
     mkdir -p "$user_home_dir" "$work_dir"
     write_default_merge_configs "$user_home_dir" "$work_dir"
-    builtin_win=$(cygpath -u "$PROJECT_ROOT/config/wsh-alias")
+    builtin_win=$(cygpath -u "$PROJECT_ROOT/sh/config/wsh-alias")
     user_win=$(cygpath -u "$user_home_dir/.config/wsh-alias")
     local_win=$(cygpath -u "$work_dir/.config/wsh-alias")
 
     run_wsha_default "$work_dir" "$user_home_dir" --list
     if [[ $run_code -eq 0 ]] \
         && [[ "$output" == *"[内置] $builtin_win"* ]] \
-        && [[ "$output" == *"[用户级] $user_win"* ]] \
-        && [[ "$output" == *"[项目级] $local_win"* ]] \
+        && [[ "$output" == *"[用户] $user_win"* ]] \
+        && [[ "$output" == *"[项目] $local_win"* ]] \
         && [[ "$output" == *"ab"* ]] \
         && [[ "$output" == *"echo local-ab"* ]] \
         && [[ "$output" == *"foo"* ]] \
@@ -761,7 +761,7 @@ test_builtin_env_vars() {
     write_config "$config_file" "env_vars"
     expected_home=$(cygpath -u "$PROJECT_ROOT")
     expected_sh=$(cygpath -u "$PROJECT_ROOT/sh")
-    expected_config=$(cygpath -u "$PROJECT_ROOT/config")
+    expected_config=$(cygpath -u "$PROJECT_ROOT/sh/config")
 
     run_wsha "$config_file" show-home
     local clean_output

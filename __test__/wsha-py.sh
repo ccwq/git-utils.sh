@@ -8,7 +8,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # 设置应用环境变量（与 sh/wsha.sh 的 set_app_env 行为对齐）
 export APP_HOME="$PROJECT_ROOT"
 export APP_SH="$PROJECT_ROOT/sh"
-export APP_CONFIG="$PROJECT_ROOT/config"
+export APP_CONFIG="$PROJECT_ROOT/sh/config"
 
 # 将 Python 源码目录加入 PYTHONPATH，确保可直接导入 wsha 包
 export PYTHONPATH="$PROJECT_ROOT/py${PYTHONPATH:+:$PYTHONPATH}"

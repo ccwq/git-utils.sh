@@ -35,6 +35,19 @@
 
 ## 安装方式
 
+### 方式零：远程安装运行时（推荐）
+
+```bash
+curl -fsSL "$INSTALL_URL" | bash
+```
+
+默认安装位置：
+
+- 运行时主体：`~/.local/share/git-utils.sh`
+- launcher：`~/.local/bin/`
+
+安装结束后会输出 `install-report.json`，说明写入了哪些文件、launcher、是否检测到旧布局，以及下一步是否需要手动补 PATH。
+
 ### 方式一：Git 克隆（推荐）
 
 ```bash
@@ -80,7 +93,7 @@ bash sh\wsha.sh --list
 
 wsha 默认会按目录加载配置文件，扫描以下 `*.txt` 文件目录：
 
-- 内置配置: `APP_HOME/config/wsh-alias/`
+- 内置配置: `APP_HOME/sh/config/wsh-alias/`
 - 用户级配置: `$HOME/.config/wsh-alias/`
 - 项目级配置: `$PWD/.config/wsh-alias/`
 

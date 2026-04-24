@@ -28,17 +28,30 @@ def _detect_package_root() -> Optional[Path]:
     Used when wsha is installed via pip install -e . or pip install.
     """
     try:
-        # wsha package is at py/wsha/, so parent.parent gives project root
         import wsha as wsha_pkg
         pkg_file = Path(wsha_pkg.__file__).resolve()
-        # py/wsha/__init__.py -> py/wsha -> project root
-        package_dir = pkg_file.parent  # py/wsha/
-        project_root = package_dir.parent  # py/
-        if project_root.name == 'py' and (project_root.parent / 'config').exists():
-            return project_root.parent
+        package_dir = pkg_file.parent
+        project_root = package_dir.parent.parent
+        if (project_root / "sh" / "config").exists():
+            return project_root
     except (ImportError, ValueError, TypeError):
         pass
     return None
+
+
+def resolve_app_config_dir(app_home: str, app_sh: Optional[str] = None) -> Path:
+    """Resolve config root, preferring sh/config and falling back to legacy config/."""
+    home_path = Path(app_home)
+    sh_path = Path(app_sh) if app_sh else home_path / "sh"
+    new_dir = sh_path / "config"
+    if new_dir.is_dir() or not (home_path / "config").is_dir():
+        return new_dir
+    return home_path / "config"
+
+
+def _resolve_builtin_alias_dir(app_home: str) -> Path:
+    """Resolve the builtin alias directory for the active runtime."""
+    return resolve_app_config_dir(app_home) / "wsh-alias"
 
 
 def is_editable_install() -> bool:
@@ -92,7 +105,7 @@ def ensure_user_config() -> Path:
         if detected:
             app_home = str(detected)
     if app_home:
-        src_default = Path(app_home) / "config" / "wsh-alias" / "default.txt"
+        src_default = _resolve_builtin_alias_dir(app_home) / "default.txt"
         if src_default.exists():
             shutil.copy2(src_default, user_file)
 
@@ -120,9 +133,8 @@ def get_app_env() -> Dict[str, str]:
     else:
         env['APP_SH'] = ''
 
-    # APP_CONFIG: config directory relative to APP_HOME
     if app_home:
-        env['APP_CONFIG'] = str(Path(app_home) / 'config')
+        env['APP_CONFIG'] = str(resolve_app_config_dir(app_home, env['APP_SH']))
     else:
         env['APP_CONFIG'] = ''
 
@@ -135,7 +147,7 @@ def get_default_config_paths() -> Dict[str, str]:
     Returns dict of source_name -> config_directory_path
 
     根据安装模式决定配置源：
-    - Editable 安装：使用项目源码 config/wsh-alias/
+    - Editable 安装：使用项目源码 sh/config/wsh-alias/
     - Normal 安装：使用 ~/.cache/wsha/ 预热缓存
     """
     home_override = os.environ.get('WSHA_OVERRIDE_HOME') or os.environ.get('HOME')
@@ -151,14 +163,14 @@ def get_default_config_paths() -> Dict[str, str]:
     if is_editable_install():
         # Editable 安装：使用项目源码配置
         if app_home:
-            builtin_dir = Path(app_home) / "config" / "wsh-alias"
+            builtin_dir = _resolve_builtin_alias_dir(app_home)
             if builtin_dir.is_dir():
                 configs['builtin'] = str(builtin_dir)
         else:
             # APP_HOME 未设置时自动检测
             detected_root = _detect_package_root()
             if detected_root:
-                builtin_dir = detected_root / "config" / "wsh-alias"
+                builtin_dir = detected_root / "sh" / "config" / "wsh-alias"
                 if builtin_dir.is_dir():
                     configs['builtin'] = str(builtin_dir)
     else:
@@ -169,13 +181,13 @@ def get_default_config_paths() -> Dict[str, str]:
         else:
             # 缓存不存在时回退到检测项目源码
             if app_home:
-                builtin_dir = Path(app_home) / "config" / "wsh-alias"
+                builtin_dir = _resolve_builtin_alias_dir(app_home)
                 if builtin_dir.is_dir():
                     configs['builtin'] = str(builtin_dir)
             else:
                 detected_root = _detect_package_root()
                 if detected_root:
-                    builtin_dir = detected_root / "config" / "wsh-alias"
+                    builtin_dir = detected_root / "sh" / "config" / "wsh-alias"
                     if builtin_dir.is_dir():
                         configs['builtin'] = str(builtin_dir)
 
@@ -260,6 +272,8 @@ def load_config(
                 project_root = _detect_package_root()
                 if project_root:
                     src_config = project_root / "config" / "wsh-alias"
+                    if not src_config.exists():
+                        src_config = project_root / "sh" / "config" / "wsh-alias"
                     if src_config.exists():
                         for txt_file in src_config.glob("*.txt"):
                             if not txt_file.name.startswith("_"):
