@@ -6,6 +6,9 @@
 
 项目地址: [https://github.com/ccwq/git-utils.sh](https://github.com/ccwq/git-utils.sh)
 
+`w` / `wsha` 的功能介绍、安装/删除和 cookbook 已整理到独立文档：
+[docs/W-WSHA.md](./docs/W-WSHA.md)
+
 ## 简介
 
 本项目旨在提供一些便捷的 Shell 脚本，帮助开发者更高效地处理日常的 Git 操作。特别优化了在 Windows 环境下使用 Git Bash 的体验。
@@ -133,7 +136,7 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 
 ### 3. 复杂命令别名展开 (`sh/w.bat` / `sh/wsha.bat` / `sh/w.sh` / `sh/wsha.sh`)
 
-详细说明见 [docs/WSHA.md](./docs/WSHA.md)。
+详细说明见 [docs/W-WSHA.md](./docs/W-WSHA.md)。
 
 默认会在真正执行最终命令前向 `stderr` 打印预览日志：
 
