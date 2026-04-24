@@ -17,7 +17,10 @@
 
 - `w` 是面向日常使用的简写入口
 - `wsha` 是完整入口名
-- Windows 下统一通过 `sh\exec-git-bash.bat` 进入 Git Bash，再执行 `wsha.sh`
+- Windows 下：
+  - `sh\w.bat` 是语法糖入口，内部转发到 `sh\wsha.bat`
+  - `sh\wsha.bat` 会直接调用 `sh\wsha-core.py` 完成解析，并通过 `cmd /c` 执行结果
+- Linux / macOS 仍由 `w.sh` / `wsha.sh` 负责
 
 ## 基本用法
 
@@ -43,7 +46,7 @@ w "echo foo | findstr foo"
 
 按优先级从低到高加载，后者覆盖前者同名 alias：
 
-1. `config/wsh-alias/*.txt`
+1. `sh/config/wsh-alias/*.txt`
 2. `$HOME/.config/wsh-alias/*.txt`
 3. `$PWD/.config/wsh-alias/*.txt`
 
@@ -142,6 +145,8 @@ export WSHA_PRINT_EXEC=0
 
 - `WSHA_CONFIG_FILE`: 指定单个 alias 配置文件，设置后只加载该文件
 - `WSHA_PRINT_EXEC`: 是否打印执行前日志，默认 `1`，设置为 `0` 时关闭
+- `WSHA_PYTHON`: Windows 下显式指定 `wsha.bat` 使用的 Python 解释器路径
+- `APP_CONFIG`: 运行时配置目录，默认解析为 `$APP_HOME/sh/config`，旧版 `$APP_HOME/config` 仅作为 fallback
 
 ## Clink 自动补全
 

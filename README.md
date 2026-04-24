@@ -83,12 +83,12 @@ wsh "ls -l | grep foo"
 
 用于在 Windows 下调用 `bin/tcping.exe`，支持两种模式：
 
-- 无参数：读取 `config/wsh-ping.txt` 并显示候选菜单（回车默认选第 1 项）。
+- 无参数：读取 `sh/config/wsh-ping.txt` 并显示候选菜单（回车默认选第 1 项）。
 - 有参数：将参数原样透传给 `tcping.exe`。
 
 #### 预设配置文件
 
-预设地址从 `config/wsh-ping.txt` 读取，格式为每行一条：
+预设地址从 `sh/config/wsh-ping.txt` 读取，格式为每行一条：
 
 ```txt
 <name> <host> <port>
@@ -144,14 +144,17 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 用于通过配置文件将简短别名展开为完整命令，支持默认参数与运行时参数合并。
 
 核心逻辑由 `wsha.sh` 实现，跨平台支持：
-- **Windows**: 通过 `w.bat` / `wsha.bat` 调用 `sh/exec-git-bash.bat`，并优先由 `bin/win-helper/win-helper.exe` 启动 `wsha.sh`
+- **Windows**:
+  - `w.bat` 是 `wsha.bat` 的语法糖入口
+  - `wsha.bat` 直接调用 `sh/wsha-core.py` 完成解析，并通过 `cmd /c` 执行最终命令
+  - 如需显式指定 Python，可设置 `WSHA_PYTHON`
 - **Linux / macOS**: 直接运行 `w.sh` / `wsha.sh`
 
 #### 配置文件
 
 支持按优先级读取并融合多个配置文件（同名 alias 高优先级覆盖低优先级）：
 
-1. 内置配置：`config/wsh-alias/`（包含 default.txt 等文件）
+1. 内置配置：`sh/config/wsh-alias/`（包含 default.txt 等文件）
 2. 用户配置：`$HOME/.config/wsh-alias/`（Linux）或 `%USERPROFILE%\.config\wsh-alias\`（Windows）
 3. 工作目录配置：`$PWD/.config/wsh-alias/`（Linux）或 `%CD%\.config\wsh-alias\`（Windows）
 
@@ -254,6 +257,7 @@ bash sh/wsha.sh -l
 可选环境变量：
 
 - `WSHA_CONFIG_FILE`：自定义别名配置文件路径（设置后仅加载该文件）。
+- `WSHA_PYTHON`：Windows 下显式指定 `wsha.bat` 使用的 Python 解释器。
 
 #### Clink 自动补全
 
@@ -268,9 +272,30 @@ bash sh/wsha.sh -l
 
 其中：
 
-- `w` / `wsha` 会从 `config/wsh-alias/`、`%USERPROFILE%\.config\wsh-alias\`、`%CD%\.config\wsh-alias\` 读取 alias 候选。
+- `w` / `wsha` 会从 `sh/config/wsh-alias/`、`%USERPROFILE%\.config\wsh-alias\`、`%CD%\.config\wsh-alias\` 读取 alias 候选。
 - `w` 只是 `wsha` 的薄转发入口，不额外设置入口标识。
-- `wsh-ping` 会从 `config/wsh-ping.txt` 读取预设主机与端口候选。
+- `wsh-ping` 会从 `sh/config/wsh-ping.txt` 读取预设主机与端口候选。
+
+## 一键安装
+
+推荐通过远程安装入口安装运行时：
+
+```bash
+curl -fsSL "$INSTALL_URL" | bash
+```
+
+默认安装位置：
+
+- 运行时主体：`~/.local/share/git-utils.sh`
+- launcher：`~/.local/bin/w`、`~/.local/bin/wsha`、`~/.local/bin/wsh`
+
+安装结束后会输出 report，列出写入文件、launcher、旧布局检测和后续动作。Windows 下安装脚本只支持在 Git Bash 中执行，运行行为也以 Git Bash 为准。
+
+如需卸载：
+
+```bash
+bash ~/.local/share/git-utils.sh/sh/uninstall.sh --yes
+```
 - `wsh-fpatch` 会补全常见选项以及本仓库当前可见的 Git branch/tag。
 
 Clink 使用方式示例：
