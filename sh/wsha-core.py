@@ -75,6 +75,13 @@ _alias_buckets: Dict[str, List[int]] = {}  # literal first token -> index list
 _alias_wildcard_first: List[int] = []  # wildcard first token indexes
 
 
+def resolve_app_config_dir(app_home: str, app_sh: str) -> str:
+    """Resolve config root, preferring sh/config and falling back to legacy config/."""
+    new_dir = os.path.join(app_sh, "config")
+    old_dir = os.path.join(app_home, "config")
+    return new_dir if os.path.isdir(new_dir) or not os.path.isdir(old_dir) else old_dir
+
+
 def tokenize(text: str) -> List[str]:
     """将文本按空白分割为 token 数组"""
     if not text:
@@ -221,13 +228,13 @@ def get_app_env():
     app_home = os.environ.get('APP_HOME', '')
     if app_home:
         app_sh = os.environ.get('APP_SH', os.path.join(app_home, 'sh'))
-        app_config = os.environ.get('APP_CONFIG', os.path.join(app_home, 'config'))
+        app_config = os.environ.get('APP_CONFIG', resolve_app_config_dir(app_home, app_sh))
     else:
         # 回退到基于脚本路径计算
         script_dir = os.path.dirname(os.path.abspath(__file__))
         app_home = os.path.dirname(script_dir)
         app_sh = script_dir
-        app_config = os.path.join(app_home, 'config')
+        app_config = resolve_app_config_dir(app_home, app_sh)
     return app_home, app_sh, app_config
 
 
@@ -239,8 +246,8 @@ def get_cache_file_path() -> str:
 
 def get_config_mtime_size() -> str:
     """获取配置目录的 mtime+size 用于缓存验证"""
-    app_home, _, _ = get_app_env()
-    builtin_dir = os.path.join(app_home, 'config', 'wsh-alias')
+    _, _, app_config = get_app_env()
+    builtin_dir = os.path.join(app_config, 'wsh-alias')
 
     mtimes = []
     if os.path.isdir(builtin_dir):
@@ -322,9 +329,8 @@ def load_config() -> bool:
     _alias_buckets = {}
     _alias_wildcard_first = []
 
-    app_home, app_sh, app_config = get_app_env()
-
-    builtin_dir = os.path.join(app_home, 'config', 'wsh-alias')
+    _, _, app_config = get_app_env()
+    builtin_dir = os.path.join(app_config, 'wsh-alias')
     user_dir = os.path.expanduser('~/.config/wsh-alias')
     local_dir = os.path.join(os.getcwd(), '.config', 'wsh-alias')
 
@@ -365,7 +371,7 @@ Usage:
   wsha-core --clear
 
 Config priority:
-  1. config/wsh-alias/*.txt  (APP_HOME)
+  1. sh/config/wsh-alias/*.txt  (APP_HOME)
   2. $HOME/.config/wsh-alias/*.txt
   3. $PWD/.config/wsh-alias/*.txt
 
@@ -665,18 +671,28 @@ def normalize_runtime_tokens(tokens: List[str]) -> List[str]:
 
     result = list(tokens)
     first_lower = token_basename_lower(tokens[0])
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    is_windows = os.name == 'nt'
 
     # 处理 w.bat, wsha.bat, wsh.bat 等
     if first_lower in ['wsha.bat', 'w.bat', 'wsh.bat']:
-        if first_lower == 'wsha.bat':
-            result = ['bash', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wsha.sh')] + result[1:]
-        elif first_lower == 'w.bat':
-            result = ['env', f'WSHA_ENTRY=w', 'bash', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wsha.sh')] + result[1:]
-        elif first_lower == 'wsh.bat':
-            if len(result) >= 2 and result[1] == '.':
-                result = ['/usr/bin/bash', '-i']
-            else:
-                result = result[1:]
+        if is_windows:
+            if first_lower == 'wsha.bat':
+                result = [os.path.join(script_dir, 'wsha.bat')] + result[1:]
+            elif first_lower == 'w.bat':
+                result = [os.path.join(script_dir, 'w.bat')] + result[1:]
+            elif first_lower == 'wsh.bat':
+                result = [os.path.join(script_dir, 'wsh.bat')] + result[1:]
+        else:
+            if first_lower == 'wsha.bat':
+                result = ['bash', os.path.join(script_dir, 'wsha.sh')] + result[1:]
+            elif first_lower == 'w.bat':
+                result = ['env', f'WSHA_ENTRY=w', 'bash', os.path.join(script_dir, 'wsha.sh')] + result[1:]
+            elif first_lower == 'wsh.bat':
+                if len(result) >= 2 and result[1] == '.':
+                    result = ['/usr/bin/bash', '-i']
+                else:
+                    result = result[1:]
 
     # 处理 Docker/Podman
     first_lower = token_basename_lower(result[0])
