@@ -20,6 +20,9 @@ pp ping t.cn
 t-ps "tasklist | findstr "
 t-kill "taskkill /f /im"
 
+## 重启explor
+restart-exp taskkill /f /im explorer.exe && start explorer
+
 
 # gsd2
 gsd npx -y gsd-pi
