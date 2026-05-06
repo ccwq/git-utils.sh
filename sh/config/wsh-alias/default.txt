@@ -17,8 +17,33 @@ pp ping t.cn
 # windows
 
 ## 搜索
-t-ps "tasklist | findstr "
-t-kill "taskkill /f /im"
+ps "tasklist | findstr "
+kill "taskkill /f /im"
+
+
+## 复制
+
+# /s：复制子目录，除非是空的。
+# /e：复制所有子目录，包括空目录。
+# /mir：镜像目录，删除目标中不存在于源中的文件。
+# /r:<n>：设置重试次数（默认是1百万次）。
+# /w:<n>：设置重试等待时间（默认是30秒）。
+# /mt:<n>：设置并发线程数（最大为128，默认是1）。
+# /log:<file>：将日志输出到文件。
+
+
+
+"cp2 (?src) (?dst)" robocopy $src $dst /s /e /r:3 /w:3 /mt:8
+# 调用: w cp1 .\fack-chrome-dir .\aaa
+# 预期: robocopy .\fack-chrome-dir .\aaa /s /e /r:3 /w:3 /mt:8
+# 说明: 具名参数替换
+
+"cp3 (?src) ***" /yes robocopy $src $$$ /s /e /r:3 /w:3 /mt:8
+# 调用: w cp1 .\fack-chrome-dir .\aaa .\ccc /foobar
+# 预期: robocopy .\fack-chrome-dir .\aaa .\ccc /foobar /s /e /r:3 /w:3 /mt:8
+# 说明, ***将替换所有参数
+# 可以匹配到带空格的参数
+
 
 ## 重启explor
 restart-exp taskkill /f /im explorer.exe && start explorer
