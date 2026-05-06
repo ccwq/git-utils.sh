@@ -649,6 +649,40 @@ def expand_env_vars(text: str) -> str:
     return result
 
 
+def normalize_windows_set_chain(text: str) -> str:
+    """Normalize leading `set VAR=value && cmd` chains for cmd.exe.
+
+    In cmd, `set VAR=value && next` keeps the space before `&&` inside the
+    variable value. We rewrite leading assignments to `set "VAR=value" && next`
+    so Windows callers get the expected environment value.
+    """
+    if os.name != 'nt':
+        return text
+
+    rest = text.lstrip()
+    normalized_parts: List[str] = []
+
+    while True:
+        match = re.match(
+            r'^set\s+([A-Za-z_][A-Za-z0-9_]*)=(.*?)\s*&&\s*(.*)$',
+            rest,
+            re.IGNORECASE,
+        )
+        if not match:
+            break
+
+        env_name, env_value, next_rest = match.groups()
+        normalized_parts.append(f'set "{env_name}={env_value.rstrip()}"')
+        rest = next_rest.lstrip()
+
+    if not normalized_parts:
+        return text
+
+    if rest:
+        normalized_parts.append(rest)
+    return " && ".join(normalized_parts)
+
+
 def token_basename_lower(token: str) -> str:
     """获取 token 的 basename（忽略大小写）"""
     basename = token.replace('\\', '/').split('/')[-1]
@@ -779,6 +813,7 @@ def main():
 
     # 展开环境变量
     final_cmd = expand_env_vars(final_cmd)
+    final_cmd = normalize_windows_set_chain(final_cmd)
 
     # 如果是复杂命令，不做 token 规范化
     if is_complex_shell_command(final_cmd):

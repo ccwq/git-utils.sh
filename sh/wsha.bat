@@ -58,14 +58,20 @@ if not defined FINAL_CMD (
     goto cleanup_and_exit
 )
 
-if /i "%FINAL_CMD%"=="%*" (
-    call :print_exec "%FINAL_CMD%"
+set "RAW_INPUT=%*"
+setlocal EnableDelayedExpansion
+if /i "#!FINAL_CMD!"=="#!RAW_INPUT!" (
+    endlocal
+    call :print_exec
 ) else (
-    call :print_alias_hit "%WSHA_ENTRY%" "%*" "%FINAL_CMD%"
-    call :print_exec "%FINAL_CMD%"
+    endlocal
+    set "LOG_ENTRY=%WSHA_ENTRY%"
+    set "LOG_INPUT=%*"
+    call :print_alias_hit
+    call :print_exec
 )
 
-call :exec_final_cmd "%FINAL_CMD%"
+call :exec_final_cmd
 set "CORE_EXIT=%errorlevel%"
 goto cleanup_and_exit
 
@@ -80,18 +86,22 @@ exit /b %errorlevel%
 :cleanup_and_exit
 if defined CORE_STDOUT del /q "%CORE_STDOUT%" >nul 2>nul
 if defined CORE_STDERR del /q "%CORE_STDERR%" >nul 2>nul
+set "LOG_ENTRY="
+set "LOG_INPUT="
+set "RAW_INPUT="
 exit /b %CORE_EXIT%
 
 :exec_final_cmd
-setlocal EnableExtensions EnableDelayedExpansion
-set "CMDLINE=%~1"
+setlocal EnableExtensions DisableDelayedExpansion
+set "CMDLINE=%FINAL_CMD%"
 
-if /i not "!CMDLINE:~0,4!"=="env " (
+if /i not "%CMDLINE:~0,4%"=="env " (
     endlocal
-    cmd /c "%~1"
+    cmd /c "%FINAL_CMD%"
     exit /b %errorlevel%
 )
 
+setlocal EnableDelayedExpansion
 set "REMAINDER=!CMDLINE:~4!"
 set "TMP_ENV_CMD=%TEMP%\wsha-env-%RANDOM%-%RANDOM%.cmd"
 set "ENV_COMMAND="
@@ -140,9 +150,13 @@ endlocal & exit /b %EXEC_EXIT%
 
 :print_exec
 if "%WSHA_PRINT_EXEC%"=="0" exit /b 0
-echo [wsha] exec: %~1 1>&2
+setlocal EnableDelayedExpansion
+echo([wsha] exec: !FINAL_CMD! 1>&2
+endlocal
 exit /b 0
 
 :print_alias_hit
-echo [wsha] alias hit: %~1 %~2 -^> %~3 1>&2
+setlocal EnableDelayedExpansion
+echo([wsha] alias hit: !LOG_ENTRY! !LOG_INPUT! -^> !FINAL_CMD! 1>&2
+endlocal
 exit /b 0

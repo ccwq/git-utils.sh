@@ -73,6 +73,35 @@ def expand_env_vars(text: str) -> str:
     return re.sub(pattern, replacer, text)
 
 
+def normalize_windows_set_chain(text: str) -> str:
+    """Normalize leading `set VAR=value && cmd` chains for cmd.exe callers."""
+    if os.name != "nt":
+        return text
+
+    rest = text.lstrip()
+    normalized_parts: list[str] = []
+
+    while True:
+        match = re.match(
+            r"^set\s+([A-Za-z_][A-Za-z0-9_]*)=(.*?)\s*&&\s*(.*)$",
+            rest,
+            re.IGNORECASE,
+        )
+        if not match:
+            break
+
+        env_name, env_value, next_rest = match.groups()
+        normalized_parts.append(f'set "{env_name}={env_value.rstrip()}"')
+        rest = next_rest.lstrip()
+
+    if not normalized_parts:
+        return text
+
+    if rest:
+        normalized_parts.append(rest)
+    return " && ".join(normalized_parts)
+
+
 def expand_template(
     template: str, captures: list[str], rest_capture: str, runtime_args: list[str]
 ) -> Tuple[str, int]:
@@ -184,6 +213,7 @@ def invoke_cmd(cmd_text: str) -> int:
     """
     # Step 1: Expand environment variables
     cmd_text = expand_env_vars(cmd_text)
+    cmd_text = normalize_windows_set_chain(cmd_text)
 
     # Step 2: Check if it's a complex shell command
     # Use Popen instead of run() to avoid blocking - wsha exits immediately
