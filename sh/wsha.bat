@@ -10,6 +10,7 @@ set "APP_CONFIG=%APP_SH%\config"
 set "PY_ENTRY=%SCRIPT_DIR%wsha-core.py"
 set "FIRST_ARG=%~1"
 set "PYTHON_EXE="
+set "WSHA_CMDLINE_OUTPUT=cmd"
 
 if /i "%FIRST_ARG%"=="-lv" set "FIRST_ARG=--list"
 if /i "%FIRST_ARG%"=="--list-view" set "FIRST_ARG=--list"

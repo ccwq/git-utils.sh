@@ -12,3 +12,7 @@
 # 编辑用户配置文件
 --edit-config-user code %USERPROFILE%/.config/wsh-alias.txt
 -ecu wsha --edit-config-user
+
+
+# git遗忘文件
+git-omit wsh wsh-real-ignore.sh

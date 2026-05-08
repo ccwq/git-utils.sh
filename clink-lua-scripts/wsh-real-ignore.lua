@@ -4,4 +4,4 @@ local matcher = clink.argmatcher("wsh-real-ignore")
 
 -- 允许重复加载脚本时直接覆盖旧内容。
 matcher:reset()
-matcher:addflags("-h", "--help")
+matcher:addflags("-h", "--help", "-y", "--yes", "--cached-only")

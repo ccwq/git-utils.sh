@@ -15,6 +15,7 @@ from typing import List, Dict, Optional, Tuple
 WSHA_ENTRY = os.environ.get("WSHA_ENTRY", "wsha")
 CACHE_DIR = os.path.expanduser("~/.cache/wsha")
 CACHE_MAX_AGE = 300  # 5 minutes
+CMDLINE_OUTPUT = os.environ.get("WSHA_CMDLINE_OUTPUT", "")
 
 # 配置优先级
 CONFIG_PRIORITY = ["内置", "用户", "项目"]
@@ -606,6 +607,11 @@ def find_best_match(input_tokens: List[str]) -> Tuple[str, str, List[str], str, 
 
 def expand_template(template: str, captures: List[str], rest_capture: str, runtime_args: List[str]) -> str:
     """展开模板中的变量"""
+    return " ".join(expand_template_tokens(template, captures, rest_capture, runtime_args))
+
+
+def expand_template_tokens(template: str, captures: List[str], rest_capture: str, runtime_args: List[str]) -> List[str]:
+    """展开模板并保留运行时参数边界，避免带空格参数被重新拆分。"""
     result = template
 
     for i in range(len(captures) - 1, -1, -1):
@@ -627,7 +633,7 @@ def expand_template(template: str, captures: List[str], rest_capture: str, runti
     if not placeholder_used and runtime_args:
         final_tokens.extend(runtime_args)
 
-    return " ".join(final_tokens)
+    return [expand_env_vars(t) for t in final_tokens]
 
 
 def expand_env_vars(text: str) -> str:
@@ -683,6 +689,26 @@ def normalize_windows_set_chain(text: str) -> str:
     return " && ".join(normalized_parts)
 
 
+def quote_cmd_token(token: str, always: bool = False) -> str:
+    """Quote one token for cmd.exe while preserving ordinary shell-looking args."""
+    if token == "":
+        return '""'
+
+    needs_quote = always or bool(re.search(r'[\s&()^|<>"]', token))
+    if not needs_quote:
+        return token
+
+    # cmd.exe consumes doubled quotes inside a quoted argument.
+    return '"' + token.replace('"', '""') + '"'
+
+
+def join_output_tokens(tokens: List[str]) -> str:
+    """Join command tokens for the current launcher."""
+    if CMDLINE_OUTPUT == "cmd":
+        return " ".join(quote_cmd_token(t) for t in tokens)
+    return " ".join(tokens)
+
+
 def token_basename_lower(token: str) -> str:
     """获取 token 的 basename（忽略大小写）"""
     basename = token.replace('\\', '/').split('/')[-1]
@@ -709,21 +735,34 @@ def normalize_runtime_tokens(tokens: List[str]) -> List[str]:
     is_windows = os.name == 'nt'
 
     # 处理 w.bat, wsha.bat, wsh.bat 等
-    if first_lower in ['wsha.bat', 'w.bat', 'wsh.bat']:
+    if first_lower in ['wsha', 'wsha.bat', 'w', 'w.bat', 'wsh', 'wsh.bat']:
         if is_windows:
-            if first_lower == 'wsha.bat':
+            if first_lower in ['wsha', 'wsha.bat']:
                 result = [os.path.join(script_dir, 'wsha.bat')] + result[1:]
-            elif first_lower == 'w.bat':
+            elif first_lower in ['w', 'w.bat']:
                 result = [os.path.join(script_dir, 'w.bat')] + result[1:]
-            elif first_lower == 'wsh.bat':
-                result = [os.path.join(script_dir, 'wsh.bat')] + result[1:]
+            elif first_lower in ['wsh', 'wsh.bat']:
+                if len(result) >= 2 and token_basename_lower(result[1]).endswith('.sh'):
+                    script_token = result[1]
+                    script_path = script_token
+                    if not os.path.isabs(script_path) and not re.search(r'[\\/]', script_path):
+                        script_path = os.path.join(script_dir, script_path)
+                    result = [os.path.join(script_dir, 'exec-git-bash.bat'), script_path] + result[2:]
+                else:
+                    result = [os.path.join(script_dir, 'wsh.bat')] + result[1:]
         else:
-            if first_lower == 'wsha.bat':
+            if first_lower in ['wsha', 'wsha.bat']:
                 result = ['bash', os.path.join(script_dir, 'wsha.sh')] + result[1:]
-            elif first_lower == 'w.bat':
+            elif first_lower in ['w', 'w.bat']:
                 result = ['env', f'WSHA_ENTRY=w', 'bash', os.path.join(script_dir, 'wsha.sh')] + result[1:]
-            elif first_lower == 'wsh.bat':
-                if len(result) >= 2 and result[1] == '.':
+            elif first_lower in ['wsh', 'wsh.bat']:
+                if len(result) >= 2 and token_basename_lower(result[1]).endswith('.sh'):
+                    script_token = result[1]
+                    script_path = script_token
+                    if not os.path.isabs(script_path) and not re.search(r'[\\/]', script_path):
+                        script_path = os.path.join(script_dir, script_path)
+                    result = ['bash', script_path] + result[2:]
+                elif len(result) >= 2 and result[1] == '.':
                     result = ['/usr/bin/bash', '-i']
                 else:
                     result = result[1:]
@@ -808,11 +847,9 @@ def main():
     # 收集运行时参数
     runtime_args = input_tokens[args_start:] if args_start < len(input_tokens) else []
 
-    # 展开模板
-    final_cmd = expand_template(template, captures, rest_capture, runtime_args)
-
-    # 展开环境变量
-    final_cmd = expand_env_vars(final_cmd)
+    # 展开模板。这里必须保留 runtime_args 的 token 边界，否则 bat 入口下带空格路径会被拆散。
+    final_tokens = expand_template_tokens(template, captures, rest_capture, runtime_args)
+    final_cmd = " ".join(final_tokens)
     final_cmd = normalize_windows_set_chain(final_cmd)
 
     # 如果是复杂命令，不做 token 规范化
@@ -820,9 +857,8 @@ def main():
         print(final_cmd)
     else:
         # token 规范化
-        tokens = tokenize(final_cmd)
-        normalized = normalize_runtime_tokens(tokens)
-        print(" ".join(normalized))
+        normalized = normalize_runtime_tokens(final_tokens)
+        print(join_output_tokens(normalized))
 
     return 0
 

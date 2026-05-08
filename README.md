@@ -314,11 +314,13 @@ set CLINK_PATH path\to\dir\git-utils.sh\clink-lua-scripts
 # 直接在系统环境变量中增加
 ```
 
-### 4. 忽略工作区文件 (`sh/wsh-real-ignore.sh`)
+### 4. 彻底忽略工作区文件 (`sh/wsh-real-ignore.sh`)
 
-用于停止 Git 对指定文件或文件夹的追踪（从 Git 索引中移除），并自动将其添加到 `.gitignore` 中，**同时保留本地文件内容不被删除**。
+用于从当前索引和 Git 历史中彻底移除指定文件或文件夹，并自动将其添加到 `.gitignore` 中。默认会改写 Git 历史、清理 `reflog/gc` 以释放本地 `.git` 空间，同时尽量保留本地工作区文件内容。
 
-这在处理如 IDE 配置文件（`.vscode`, `.idea`）、临时日志文件或误提交的敏感配置文件时非常有用。
+这在处理如 IDE 配置文件（`.vscode`, `.idea`）、临时日志文件、误提交的大文件或敏感配置文件时非常有用。
+
+> 注意：默认行为会改写历史。如果仓库存在远端，后续同步通常需要 `git push --force-with-lease`，其他克隆也需要重新同步，避免旧历史把大对象再次带回来。
 
 #### 用法
 
@@ -327,17 +329,28 @@ set CLINK_PATH path\to\dir\git-utils.sh\clink-lua-scripts
 ./sh/wsh-real-ignore.sh [选项] <文件路径或Glob模式>
 ```
 
+#### 选项
+
+- `-y, --yes`: 跳过历史改写确认提示
+- `--cached-only`: 使用旧行为，仅从当前索引移除并写入 `.gitignore`，不改写历史，也不会释放历史对象占用的 `.git` 空间
+
 #### Windows 调用示例
 
 ```bash
-# 忽略单个文件
+# 彻底忽略单个文件，并从历史中移除
 sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh .obsidian\workspace.json
 
-# 忽略文件夹
+# 彻底忽略文件夹，并从历史中移除
 sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh .vscode
+
+# 文件名包含空格时必须加引号，确保路径作为单个参数传入
+sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh "cpa\bin\CLIProxyAPI - copy"
 
 # 使用通配符 (注意需要加引号以避免Shell展开)
 sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh "*.log"
+
+# 仅停止当前索引追踪，不改写历史
+sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh --cached-only .env.local
 ```
 
 ### 5. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
