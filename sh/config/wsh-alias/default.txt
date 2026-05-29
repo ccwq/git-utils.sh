@@ -105,6 +105,8 @@ claude wsha claude-p
 claude-p pnpx @anthropic-ai/claude-code
 claude-l pnpx @anthropic-ai/claude-code@latest
 claude-yo wsha claude-l --dangerously-skip-permissions
+cc wsha claude-l
+ccyo wsha claude-yo
 
 # opnencode
 opencode pnpx opencode-ai@1.2.24
