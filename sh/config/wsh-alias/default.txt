@@ -6,6 +6,9 @@
 # 可以使用windows系统内置的环境变量
 # %USERPROFILE% -> 用户目录绝对路径
 
+# proxy
+## 使用代理 :7897 执行命令
+proxy "set http_proxy=http://localhost:7897 && set https_proxy=http://localhost:7897 &&"
 
 # 测试
 fox firefox
