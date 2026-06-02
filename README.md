@@ -9,6 +9,9 @@
 `w` / `wsha` 的功能介绍、安装/删除和 cookbook 已整理到独立文档：
 [docs/W-WSHA.md](./docs/W-WSHA.md)
 
+`squash merge + ignore` 的脚本使用说明见：
+[docs/WSH-BARRY-PICK.md](./docs/WSH-BARRY-PICK.md)
+
 ## 简介
 
 本项目旨在提供一些便捷的 Shell 脚本，帮助开发者更高效地处理日常的 Git 操作。特别优化了在 Windows 环境下使用 Git Bash 的体验。
@@ -410,6 +413,46 @@ sh\exec-git-bash.bat .\sh\wsh-fpatch.sh HEAD~1 -i .\notes,src -e .\notes\tmp
 # 对比两个提交，导出变更文件到指定目录
 sh\exec-git-bash.bat .\sh\wsh-fpatch.sh <commit_hash_A> <commit_hash_B> -o .\my-patch
 ```
+
+### 7. Squash merge 后按配置排除路径 (`sh/wsh-barry-pick.sh`)
+
+用于对目标分支执行 `git merge --squash`，并根据来源分支中的 `.squash-exclude` 配置，把不希望带入当前分支的路径恢复为当前分支 `HEAD` 状态。
+
+适用于希望保留主要变更、但排除敏感文件、临时文件或分支专属配置的场景。
+
+#### 用法
+
+```bash
+# 查看帮助
+./sh/wsh-barry-pick.sh --help
+
+# 基本用法
+./sh/wsh-barry-pick.sh <target-branch>
+```
+
+参数说明：
+
+- `target-branch`：要执行 squash merge 的来源分支名称
+
+说明：
+
+- 无参数执行时会显示完整帮助信息
+- 支持 `-h` / `--help` 查看帮助说明
+- 需要在干净的工作区与暂存区中执行
+- 如果目标分支中没有 `.squash-exclude`，则保留全部 squash 结果
+- 脚本不会自动提交，需要你自行检查暂存区并执行 `git commit`
+
+#### 示例
+
+```bash
+# 保留 feature-no-exclude 的全部 squash 结果
+./sh/wsh-barry-pick.sh feature-no-exclude
+
+# 按目标分支中的 .squash-exclude 排除指定路径
+./sh/wsh-barry-pick.sh feature-with-exclude
+```
+
+详细说明见 [docs/WSH-BARRY-PICK.md](./docs/WSH-BARRY-PICK.md)。
 
 ---
 
