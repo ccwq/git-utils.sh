@@ -376,8 +376,8 @@ assert_file_content_equals() {
 
 # Given：脚本存在且用户未传入任何参数。
 # When：直接执行 barry-pick 脚本。
-# Then：脚本应返回成功退出码，并显示完整帮助信息与关键参数说明。
-# 防回归：避免无参数调用被当作错误处理，导致用户无法通过默认入口查看用法。
+# Then：脚本应返回成功退出码，并显示完整帮助信息与关键参数说明，且不应泄漏项目绝对路径。
+# 防回归：避免无参数调用被当作错误处理，或帮助文案使用 `$0` 直接输出绝对路径。
 test_show_help_without_arguments() {
     echo "---------------------------------------------------"
     log_info "Running Test: 无参数时显示帮助信息"
@@ -391,7 +391,8 @@ test_show_help_without_arguments() {
         && [[ "$output" == *"使用方法:"* ]] \
         && [[ "$output" == *"wsh-barry-pick.sh"* ]] \
         && [[ "$output" == *"target-branch"* ]] \
-        && [[ "$output" == *"-h, --help"* ]]; then
+        && [[ "$output" == *"-h, --help"* ]] \
+        && [[ "$output" != *"E:\\project\\self.project\\git-utils.sh\\sh\\wsh-barry-pick.sh"* ]]; then
         result="PASS"
         log_success "无参数帮助信息测试通过"
     else
@@ -406,8 +407,8 @@ test_show_help_without_arguments() {
 
 # Given：脚本存在且用户通过短参数请求帮助。
 # When：使用 -h 执行 barry-pick 脚本。
-# Then：脚本应返回成功退出码，并显示完整帮助信息。
-# 防回归：避免仅支持无参数帮助而遗漏短参数帮助入口。
+# Then：脚本应返回成功退出码，并显示完整帮助信息，且不应泄漏项目绝对路径。
+# 防回归：避免仅支持无参数帮助而遗漏短参数帮助入口，或帮助输出继续暴露绝对路径。
 test_show_help_with_short_option() {
     echo "---------------------------------------------------"
     log_info "Running Test: -h 时显示帮助信息"
@@ -420,7 +421,8 @@ test_show_help_with_short_option() {
     if [ "$run_code" -eq 0 ] \
         && [[ "$output" == *"使用方法:"* ]] \
         && [[ "$output" == *"target-branch"* ]] \
-        && [[ "$output" == *"-h, --help"* ]]; then
+        && [[ "$output" == *"-h, --help"* ]] \
+        && [[ "$output" != *"E:\\project\\self.project\\git-utils.sh\\sh\\wsh-barry-pick.sh"* ]]; then
         result="PASS"
         log_success "短参数帮助信息测试通过"
     else
@@ -435,8 +437,8 @@ test_show_help_with_short_option() {
 
 # Given：脚本存在且用户通过长参数请求帮助。
 # When：使用 --help 执行 barry-pick 脚本。
-# Then：脚本应返回成功退出码，并显示完整帮助信息。
-# 防回归：避免长参数帮助入口失效，影响命令行工具的一致性。
+# Then：脚本应返回成功退出码，并显示完整帮助信息，且不应泄漏项目绝对路径。
+# 防回归：避免长参数帮助入口失效，或帮助输出继续暴露绝对路径，影响命令行工具的一致性。
 test_show_help_with_long_option() {
     echo "---------------------------------------------------"
     log_info "Running Test: --help 时显示帮助信息"
@@ -449,7 +451,8 @@ test_show_help_with_long_option() {
     if [ "$run_code" -eq 0 ] \
         && [[ "$output" == *"使用方法:"* ]] \
         && [[ "$output" == *"target-branch"* ]] \
-        && [[ "$output" == *"-h, --help"* ]]; then
+        && [[ "$output" == *"-h, --help"* ]] \
+        && [[ "$output" != *"E:\\project\\self.project\\git-utils.sh\\sh\\wsh-barry-pick.sh"* ]]; then
         result="PASS"
         log_success "长参数帮助信息测试通过"
     else

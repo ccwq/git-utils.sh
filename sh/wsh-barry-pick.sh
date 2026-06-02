@@ -7,9 +7,10 @@
 
 set -e
 EXCLUDE_CONFIG=".squash-exclude"   # 约定来源分支中的配置文件名
+SCRIPT_NAME=$(basename "$0")
 
 show_help() {
-  echo "使用方法: $0 <target-branch>"
+  echo "使用方法: $SCRIPT_NAME <target-branch>"
   echo ""
   echo "该脚本用于对目标分支执行 git merge --squash，并根据来源分支中的 .squash-exclude"
   echo "排除指定路径；命中排除规则的路径会恢复为当前分支 HEAD 状态。"
@@ -25,8 +26,8 @@ show_help() {
   echo "  2. 工作区与暂存区必须保持干净。"
   echo ""
   echo "示例:"
-  echo "  $0 feature-no-exclude"
-  echo "  $0 feature-with-exclude"
+  echo "  $SCRIPT_NAME feature-no-exclude"
+  echo "  $SCRIPT_NAME feature-with-exclude"
 }
 
 if [ $# -eq 0 ]; then
