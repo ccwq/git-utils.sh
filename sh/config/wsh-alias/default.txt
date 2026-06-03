@@ -92,6 +92,8 @@ codex-l wsh pnpx @openai/codex@latest
 codex-mmx wsha codex-l --model codex-MiniMax-M2.7
 codex-mini wsha codex-l --model codex-MiniMax-M2.7
 codex-yo wsha codex-l -- --yolo
+co wsha codex-l
+coyo wsha codex-yo
 
 
 # gemini
