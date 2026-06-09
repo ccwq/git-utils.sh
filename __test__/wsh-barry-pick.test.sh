@@ -122,6 +122,23 @@ EOF
     git checkout -q master
 }
 
+# 创建一个排除配置包含无效路径，但实际只有业务文件和配置文件被跟踪的来源分支
+create_source_branch_with_invalid_exclude_paths() {
+    git checkout -q -b feature-invalid-exclude-paths
+    echo "keep me" > keep.txt
+    cat > .squash-exclude <<'EOF'
+docs
+findings.md
+test-results
+progress.md
+task_plan.md
+.squash-exclude
+EOF
+    git add keep.txt .squash-exclude
+    git commit -m "Add invalid exclude paths config" -q
+    git checkout -q master
+}
+
 # 创建一个包含注释行与空白行排除规则的来源分支
 create_source_branch_with_comment_and_whitespace_exclude() {
     git checkout -q -b feature-comment-whitespace-exclude
@@ -628,6 +645,38 @@ test_apply_gitignore_like_exclude_config() {
     record_test_result "test_apply_gitignore_like_exclude_config" "$result" "$duration" "$note"
 }
 
+# Given：来源分支的 .squash-exclude 含有多个未被 Git 跟踪、也不会进入 squash 结果的路径，同时有一个正常业务文件需要保留。
+# When：执行 barry-pick 脚本并应用排除规则。
+# Then：脚本应忽略这些无效排除项，不报 pathspec 错误，并仅保留正常业务文件进入暂存区。
+# 防回归：避免真实仓库中只有 .squash-exclude 被跟踪时，git restore 因无效 pathspec 中断整个 squash 流程。
+test_invalid_exclude_paths_are_ignored() {
+    echo "---------------------------------------------------"
+    log_info "Running Test: 无效排除路径不会中断 squash merge"
+    local start_time=$(current_time)
+    local result="FAIL"
+    local note=""
+
+    create_source_branch_with_invalid_exclude_paths
+    run_script feature-invalid-exclude-paths
+
+    if [ "$run_code" -eq 0 ] \
+        && [[ "$output" == *"Found exclude config in feature-invalid-exclude-paths:.squash-exclude"* ]] \
+        && [[ "$output" == *"Applying exclusions..."* ]] \
+        && [[ "$output" != *"pathspec"* ]] \
+        && assert_staged_contains "keep.txt" \
+        && assert_staged_not_contains ".squash-exclude"; then
+        result="PASS"
+        log_success "无效排除路径忽略测试通过"
+    else
+        note="output=[$output], code=$run_code, staged=[$(git diff --cached --name-only | tr '\n' ',')]"
+        log_fail "$note"
+    fi
+
+    local end_time=$(current_time)
+    local duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_invalid_exclude_paths_are_ignored" "$result" "$duration" "$note"
+}
+
 # Given：来源分支中的 .squash-exclude 含有注释行、空行和真实规则。
 # When：执行 barry-pick 脚本应用排除规则。
 # Then：脚本应忽略注释与空行，只对真实路径生效，并保留未命中的业务文件进入暂存区。
@@ -945,6 +994,10 @@ main() {
     setup
 
     test_apply_gitignore_like_exclude_config
+    cleanup || exit 1
+    setup
+
+    test_invalid_exclude_paths_are_ignored
     cleanup || exit 1
     setup
 

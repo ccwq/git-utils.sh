@@ -51,7 +51,7 @@ esac
 TARGET_BRANCH="$1"
 
 cleanup_temp_files() {
-  rm -f "$EXCLUDE_FILE" "$NORMALIZED_EXCLUDE_FILE" "$EXCLUDED_UNMERGED_FILE"
+  rm -f "$EXCLUDE_FILE" "$NORMALIZED_EXCLUDE_FILE" "$EXCLUDED_UNMERGED_FILE" "$MATCHED_EXCLUDE_RULES_FILE"
 }
 
 normalize_exclude_rules() {
@@ -129,13 +129,33 @@ resolve_excluded_unmerged_paths() {
   done < "$EXCLUDED_UNMERGED_FILE"
 }
 
+collect_matched_exclude_rules() {
+  local rule=""
+
+  : > "$MATCHED_EXCLUDE_RULES_FILE"
+
+  while IFS= read -r rule || [ -n "$rule" ]; do
+    [ -n "$rule" ] || continue
+
+    if git diff --cached --quiet -- "$rule" 2>/dev/null; then
+      continue
+    fi
+
+    printf "%s\n" "$rule" >> "$MATCHED_EXCLUDE_RULES_FILE"
+  done < "$NORMALIZED_EXCLUDE_FILE"
+}
+
 apply_exclusions() {
   echo "Applying exclusions..."
   normalize_exclude_rules "$EXCLUDE_FILE" "$NORMALIZED_EXCLUDE_FILE"
 
   # 先消化命中 exclude 的 unmerged 冲突，再统一把这些路径恢复到当前分支 HEAD。
   resolve_excluded_unmerged_paths
-  git restore --source=HEAD --staged --worktree --pathspec-from-file="$NORMALIZED_EXCLUDE_FILE"
+  collect_matched_exclude_rules
+
+  if [ -s "$MATCHED_EXCLUDE_RULES_FILE" ]; then
+    git restore --source=HEAD --staged --worktree --pathspec-from-file="$MATCHED_EXCLUDE_RULES_FILE"
+  fi
 }
 
 if [ -z "$TARGET_BRANCH" ]; then
@@ -154,6 +174,7 @@ fi
 EXCLUDE_FILE=$(mktemp)
 NORMALIZED_EXCLUDE_FILE=$(mktemp)
 EXCLUDED_UNMERGED_FILE=$(mktemp)
+MATCHED_EXCLUDE_RULES_FILE=$(mktemp)
 trap cleanup_temp_files EXIT
 
 if git show "${TARGET_BRANCH}:${EXCLUDE_CONFIG}" > "$EXCLUDE_FILE" 2>/dev/null; then
