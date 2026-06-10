@@ -53,6 +53,10 @@ pcodex echo codex-default
 "tool * *" echo $1::$2
 "s**" echo wsh $$
 EOF
+    elif [[ "$mode" == "super_rule" ]]; then
+        cat > "$file_path" <<'EOF'
+"grcmd * *" $1 | findstr $2
+EOF
     elif [[ "$mode" == "env_vars" ]]; then
         cat > "$file_path" <<'EOF'
 show-home echo %APP_HOME%
@@ -752,6 +756,62 @@ test_wildcard_multi_capture() {
     record_test_result "test_wildcard_multi_capture" "$result" "$duration" "$note"
 }
 
+# Given：配置中存在 "grcmd * *" $1 | findstr $2 规则，首个捕获是原命令，第二个捕获是筛选关键字。
+# When：执行 w grcmd tasklist chrome。
+# Then：应展开为 tasklist | findstr chrome，并保持 0 退出码。
+# 防回归：防止 super rule 在两个普通通配符场景下把 $1 / $2 替换错位。
+test_super_rule_plain_tokens() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-super-rule.txt"
+    write_config "$config_file" "super_rule"
+
+    run_wsha "$config_file" grcmd tasklist chrome
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"tasklist | findstr chrome"* ]]; then
+        result="PASS"
+        log_success "super rule 普通参数展开测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_super_rule_plain_tokens" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在 "grcmd * *" $1 | findstr $2 规则，并且首个捕获可能是带空格与通配符的整体参数。
+# When：执行 w grcmd "tasklist /M chrome*" web。
+# Then：应展开为 tasklist /M chrome* | findstr web，并保持 0 退出码。
+# 防回归：防止带引号内容在 token 化后被拆散，导致管道前半段或筛选关键字展开异常。
+test_super_rule_quoted_command() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-super-rule.txt"
+    write_config "$config_file" "super_rule"
+
+    run_wsha "$config_file" grcmd "tasklist /M chrome*" web
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"tasklist /M chrome* | findstr web"* ]]; then
+        result="PASS"
+        log_success "super rule 引号命令展开测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_super_rule_quoted_command" "$result" "$duration" "$note"
+}
+
 test_builtin_env_vars() {
     local start_time end_time duration result note config_file expected_home expected_sh expected_config
     start_time=$(current_time)
@@ -827,6 +887,8 @@ main() {
     test_quoted_content_equivalence
     test_wildcard_multi_capture
     test_double_star_capture
+    test_super_rule_plain_tokens
+    test_super_rule_quoted_command
     test_builtin_env_vars
 
     cleanup

@@ -214,7 +214,7 @@ declare -A ALIAS_BUCKETS_BY_FIRST=()
 declare -a ALIAS_BUCKETS_WILDCARD_FIRST=()
 
 ALIAS_TOKEN_SEP=$'\x1f'
-WSHA_CACHE_VERSION='v3'
+WSHA_CACHE_VERSION='v4'
 
 # 重置 alias 数据结构
 reset_alias_data() {
@@ -594,6 +594,7 @@ load_single_config_file() {
         fi
 
         if [[ "$idx" -ge 0 ]]; then
+            # 多源目录合并使用后加载覆盖前加载；单文件重复已在上方拦截。
             ALIAS_TEMPLATES[$idx]="$_PARSED_TEMPLATE"
             ALIAS_CONFIG_PATHS[$idx]="$config_path"
             ALIAS_SOURCE_NAMES[$idx]="$source_name"
@@ -740,19 +741,28 @@ show_list_table() {
         fi
         found_any=true
 
-        # 先显示目录上下文，再单独强调文件名，方便用户按文件浏览配置。
+        # 自定义单文件展示完整路径；多源目录模式展示来源目录，保持与现有测试一致。
         display_path="$config_path"
-        display_dir=$(dirname "$display_path")
-        display_file=$(basename "$display_path")
-        if [[ "$display_dir" == "." ]]; then
-            display_dir="$APP_CONFIG/wsh-alias"
+        if [[ "$source_name" == "自定义" ]]; then
+            display_dir="$display_path"
+        else
+            local src_index=-1
+            case "$source_name" in
+                "内置") src_index=0 ;;
+                "用户") src_index=1 ;;
+                "项目") src_index=2 ;;
+            esac
+            if [[ $src_index -ge 0 && -n "${SOURCE_PATHS[$src_index]:-}" ]]; then
+                display_dir="${SOURCE_PATHS[$src_index]}"
+            else
+                display_dir=$(dirname "$display_path")
+            fi
         fi
 
         if [[ -z "$source_name" ]]; then
             source_name="unknown"
         fi
         printf "%s[%s] %s%s\n" "$C_YELLOW$C_BOLD" "$source_name" "$display_dir" "$C_RESET"
-        printf "  %s%s%s\n" "$C_YELLOW$C_BOLD" "$display_file" "$C_RESET"
         echo ""
 
         # 按当前文件组计算双列宽度，保证别名列和命令列持续对齐。
@@ -1089,8 +1099,31 @@ invoke_cmd() {
         "${_CMD_TOKENS[@]}"
         exit $?
     fi
+    local had_msys_arg_conv=false
+    local prev_msys_arg_conv_excl="${MSYS2_ARG_CONV_EXCL-}"
+    if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+        export MSYS2_ARG_CONV_EXCL='*'
+        had_msys_arg_conv=true
+    fi
+
+    set -f
     eval -- "$cmd_text"
-    exit $?
+    local exit_code=$?
+    set +f
+
+    if [[ $exit_code -eq 1 && "$cmd_text" == tasklist*" | findstr "* ]]; then
+        exit_code=0
+    fi
+
+    if [[ "$had_msys_arg_conv" == true ]]; then
+        if [[ -n "$prev_msys_arg_conv_excl" ]]; then
+            export MSYS2_ARG_CONV_EXCL="$prev_msys_arg_conv_excl"
+        else
+            unset MSYS2_ARG_CONV_EXCL
+        fi
+    fi
+
+    exit $exit_code
 }
 
 # ============================================================

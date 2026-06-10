@@ -6,6 +6,13 @@
 # 可以使用windows系统内置的环境变量
 # %USERPROFILE% -> 用户目录绝对路径
 
+# ----
+# 模拟grep的规则
+# w grcmd tasklist chrome          =>  tasklist | findstr chrome
+# w grcmd "tasklist /M ch*" chrome =>  tasklist /M ch* | findstr chrome
+"grcmd * *" $1 | findstr $2
+
+
 # proxy
 ## 使用代理 :7897 执行命令
 proxy "set http_proxy=http://localhost:7897 && set https_proxy=http://localhost:7897 &&"

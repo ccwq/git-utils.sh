@@ -157,6 +157,10 @@ def get_default_config_paths() -> Dict[str, str]:
         home = Path.home()
 
     app_home = os.environ.get('APP_HOME', '')
+    if not app_home:
+        detected_root = _detect_package_root()
+        if detected_root:
+            app_home = str(detected_root)
     configs = {}
 
     # 检测安装模式

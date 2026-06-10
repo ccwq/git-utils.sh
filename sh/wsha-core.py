@@ -13,8 +13,8 @@ import time
 from typing import List, Dict, Optional, Tuple
 
 WSHA_ENTRY = os.environ.get("WSHA_ENTRY", "wsha")
-CACHE_DIR = os.path.expanduser("~/.cache/wsha")
 CACHE_MAX_AGE = 300  # 5 minutes
+CACHE_VERSION = "v3"
 CMDLINE_OUTPUT = os.environ.get("WSHA_CMDLINE_OUTPUT", "")
 
 # 配置优先级
@@ -74,6 +74,11 @@ class Alias:
 _aliases: List[Alias] = []
 _alias_buckets: Dict[str, List[int]] = {}  # literal first token -> index list
 _alias_wildcard_first: List[int] = []  # wildcard first token indexes
+
+
+def get_home_dir() -> str:
+    """Use Git Bash HOME before Windows profile expansion."""
+    return os.environ.get('HOME') or os.path.expanduser('~')
 
 
 def resolve_app_config_dir(app_home: str, app_sh: str) -> str:
@@ -145,7 +150,7 @@ def parse_config_line(line: str, config_path: str, line_no: int) -> Optional[Tup
     return (alias_name, template, prefix_type)
 
 
-def load_config_dir(dir_path: str, source_name: str) -> bool:
+def load_config_dir(dir_path: str, source_name: str, fail_on_duplicate: bool = False) -> bool:
     """加载目录中的所有 *.txt 文件"""
     if not os.path.isdir(dir_path):
         return True  # 目录不存在不算错误
@@ -160,13 +165,13 @@ def load_config_dir(dir_path: str, source_name: str) -> bool:
 
     for filename in txt_files:
         config_path = os.path.join(dir_path, filename)
-        if not load_single_config_file(config_path, source_name):
+        if not load_single_config_file(config_path, source_name, fail_on_duplicate):
             return False
 
     return True
 
 
-def load_single_config_file(config_path: str, source_name: str) -> bool:
+def load_single_config_file(config_path: str, source_name: str, fail_on_duplicate: bool = False) -> bool:
     """加载单个配置文件"""
     if not os.path.isfile(config_path):
         return True
@@ -185,11 +190,19 @@ def load_single_config_file(config_path: str, source_name: str) -> bool:
 
                 # 检查是否已存在
                 existing_idx = find_alias_index(alias_name)
+                if fail_on_duplicate and existing_idx >= 0:
+                    print(
+                        f"[wsha] duplicate alias \"{alias_name}\" at line {line_no} in \"{config_path}\"",
+                        file=sys.stderr,
+                    )
+                    return False
+
                 alias = Alias(alias_name, template, config_path, source_name)
                 alias.prefix_type = prefix_type
                 alias.build_metadata()
 
                 if existing_idx >= 0:
+                    # core 只负责最终展开，多源模式保持后加载覆盖前加载。
                     _aliases[existing_idx] = alias
                     update_buckets(existing_idx, alias)
                 else:
@@ -241,32 +254,38 @@ def get_app_env():
 
 def get_cache_file_path() -> str:
     """获取缓存文件路径"""
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    return os.path.join(CACHE_DIR, "wsha.cache")
+    cache_dir = os.path.join(get_home_dir(), ".cache", "wsha")
+    os.makedirs(cache_dir, exist_ok=True)
+    return os.path.join(cache_dir, "wsha.cache")
 
 
-def get_config_mtime_size() -> str:
-    """获取配置目录的 mtime+size 用于缓存验证"""
+def get_config_cache_key() -> str:
+    """Build a cache key from every effective config source."""
     _, _, app_config = get_app_env()
     builtin_dir = os.path.join(app_config, 'wsh-alias')
+    user_dir = os.path.join(get_home_dir(), '.config', 'wsh-alias')
+    local_dir = os.path.join(os.getcwd(), '.config', 'wsh-alias')
 
-    mtimes = []
-    if os.path.isdir(builtin_dir):
-        for f in os.listdir(builtin_dir):
+    stamps = [f"cwd={os.getcwd()}", f"home={get_home_dir()}"]
+    for dir_path in (builtin_dir, user_dir, local_dir):
+        stamps.append(f"dir={dir_path}")
+        if not os.path.isdir(dir_path):
+            stamps.append("missing")
+            continue
+        for f in sorted(os.listdir(dir_path)):
             if f.endswith('.txt') and not f.startswith('_'):
-                path = os.path.join(builtin_dir, f)
+                path = os.path.join(dir_path, f)
                 try:
                     stat = os.stat(path)
-                    mtimes.append(f"{path}:{stat.st_mtime}:{stat.st_size}")
+                    stamps.append(f"{path}:{stat.st_mtime_ns}:{stat.st_size}")
                 except OSError:
-                    pass
+                    stamps.append(f"{path}:missing")
 
-    mtimes.sort()
-    content = ";".join(mtimes)
+    content = "\n".join(stamps)
     return hashlib.md5(content.encode()).hexdigest()
 
 
-def load_alias_cache() -> bool:
+def load_alias_cache(expected_key: str) -> bool:
     """从缓存加载别名配置"""
     cache_file = get_cache_file_path()
     if not os.path.exists(cache_file):
@@ -287,6 +306,14 @@ def load_alias_cache() -> bool:
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
+            if line.startswith('VERSION\t'):
+                if line.split('\t', 1)[1] != CACHE_VERSION:
+                    return False
+                continue
+            if line.startswith('KEY\t'):
+                if line.split('\t', 1)[1] != expected_key:
+                    return False
+                continue
             parts = line.split('\t')
             if len(parts) < 5:
                 continue
@@ -304,13 +331,15 @@ def load_alias_cache() -> bool:
         return False
 
 
-def save_alias_cache():
+def save_alias_cache(cache_key: str):
     """保存别名配置到缓存"""
     cache_file = get_cache_file_path()
 
     try:
         with open(cache_file, 'w', encoding='utf-8') as f:
             f.write("# wsha cache\n")
+            f.write(f"VERSION\t{CACHE_VERSION}\n")
+            f.write(f"KEY\t{cache_key}\n")
             for alias in _aliases:
                 f.write(f"{alias.key}\t{alias.template}\t{alias.config_path}\t{alias.source_name}\t{alias.prefix_type}\n")
     except IOError:
@@ -321,8 +350,10 @@ def load_config() -> bool:
     """加载所有配置（使用缓存）"""
     global _aliases, _alias_buckets, _alias_wildcard_first
 
+    cache_key = get_config_cache_key()
+
     # 尝试从缓存加载
-    if load_alias_cache():
+    if load_alias_cache(cache_key):
         return True
 
     # 缓存不存在或过期，重新加载
@@ -332,7 +363,7 @@ def load_config() -> bool:
 
     _, _, app_config = get_app_env()
     builtin_dir = os.path.join(app_config, 'wsh-alias')
-    user_dir = os.path.expanduser('~/.config/wsh-alias')
+    user_dir = os.path.join(get_home_dir(), '.config', 'wsh-alias')
     local_dir = os.path.join(os.getcwd(), '.config', 'wsh-alias')
 
     if not load_config_dir(builtin_dir, "内置"):
@@ -343,7 +374,7 @@ def load_config() -> bool:
         return False
 
     # 保存缓存
-    save_alias_cache()
+    save_alias_cache(cache_key)
 
     return True
 
@@ -356,7 +387,7 @@ def load_config_single(config_path: str) -> bool:
     _alias_buckets = {}
     _alias_wildcard_first = []
 
-    if not load_single_config_file(config_path, "自定义"):
+    if not load_single_config_file(config_path, "自定义", True):
         return False
 
     return True
@@ -389,15 +420,16 @@ Rules:
 
 def clear_cache():
     """清理缓存目录中的缓存文件"""
-    if not os.path.exists(CACHE_DIR):
+    cache_dir = os.path.join(get_home_dir(), ".cache", "wsha")
+    if not os.path.exists(cache_dir):
         print("[wsha-core] cache directory does not exist")
         return 0
 
     removed = 0
-    for f in os.listdir(CACHE_DIR):
+    for f in os.listdir(cache_dir):
         if f.endswith(".cache"):
             try:
-                os.remove(os.path.join(CACHE_DIR, f))
+                os.remove(os.path.join(cache_dir, f))
                 removed += 1
             except OSError:
                 pass
@@ -470,25 +502,20 @@ def match_token_pattern(pattern: str, token: str) -> Tuple[bool, List[str], int]
         return (False, [], 0)
 
     # 含通配符，构建正则
-    regex = "^"
-    remaining = pattern
+    parts = pattern.split('*')
+    regex_parts: List[str] = []
     wildcard_count = 0
 
-    while '*' in remaining:
-        idx = remaining.index('*')
-        before = remaining[:idx]
-        escaped_before = re.escape(before)
-        regex += escaped_before
-        if escaped_before:
-            regex += ".*"
-        remaining = remaining[idx + 1:]
-        wildcard_count += 1
+    for i, part in enumerate(parts):
+        if part:
+            regex_parts.append(re.escape(part))
+        if i < len(parts) - 1:
+            regex_parts.append('(.*)')
+            wildcard_count += 1
 
-    regex += re.escape(remaining) + "$"
-    regex = regex.replace('.*.*', '.*')
+    regex = '^' + ''.join(regex_parts) + '$'
 
-    token_lower = token.lower()
-    match = re.match(regex, token_lower, re.IGNORECASE)
+    match = re.match(regex, token, re.IGNORECASE)
     if match:
         return (True, list(match.groups()), wildcard_count)
     return (False, [], wildcard_count)
@@ -506,15 +533,19 @@ def match_double_star_remainder(pattern: str, input_text: str) -> Tuple[bool, Li
     head = pattern[:idx]
     tail = pattern[idx + 2:]
 
-    head_regex = re.escape(head).replace('\\*', '.*')
-    tail_regex = re.escape(tail).replace('\\*', '.*')
+    def build_glob_regex(part: str) -> str:
+        return re.escape(part).replace(r'\*', '(.*)') if part else ''
 
-    full_regex = f"^{head_regex}(.*?){tail_regex}$"
-    full_regex = full_regex.replace('.*.*', '.*')
+    head_regex = build_glob_regex(head)
+    tail_regex = build_glob_regex(tail)
+
+    full_regex = f"^{head_regex}(.*){tail_regex}$"
 
     match = re.match(full_regex, input_text, re.IGNORECASE)
     if match:
-        return (True, list(match.groups()[:-1]), match.groups()[-1])
+        groups = list(match.groups())
+        if groups:
+            return (True, groups[:-1], groups[-1])
     return (False, [], "")
 
 
@@ -633,7 +664,8 @@ def expand_template_tokens(template: str, captures: List[str], rest_capture: str
     if not placeholder_used and runtime_args:
         final_tokens.extend(runtime_args)
 
-    return [expand_env_vars(t) for t in final_tokens]
+    # 保留 %VAR% 到 shell 层展开，避免 Git Bash 下被 Windows 路径格式污染。
+    return final_tokens
 
 
 def expand_env_vars(text: str) -> str:
@@ -792,8 +824,8 @@ def list_aliases():
         groups[alias.config_path]["aliases"].append((alias.key, alias.template))
 
     for config_path, group in groups.items():
-        print(f"[{group['source']}] {os.path.dirname(config_path)}")
-        print(f"  {os.path.basename(config_path)}")
+        display_path = config_path if group['source'] == '自定义' else os.path.dirname(config_path)
+        print(f"[{group['source']}] {display_path}")
         print()
         for key, template in group["aliases"]:
             print(f"  {key}  {template}")

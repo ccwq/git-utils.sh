@@ -137,6 +137,70 @@ def print_list(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
             click.echo("============")
 
 
+def _truncate_template(template: str, max_len: int = 60) -> str:
+    """Keep list rendering compact for long command templates."""
+    if len(template) <= max_len:
+        return template
+    return template[: max_len - 3] + "..."
+
+
+def _legacy_entry_fields(entry: AliasEntry, sources: Dict[str, str]) -> Tuple[str, str, int]:
+    """Support older positional AliasEntry construction used in tests."""
+    if entry.config_path in sources:
+        return entry.config_path, sources[entry.config_path], entry.line_no
+    return entry.source_name, entry.config_path, entry.line_no
+
+
+def show_list_table(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
+    """Legacy list view used by Python unit tests."""
+    if not aliases:
+        click.echo("[wsha] no alias found.")
+        return
+
+    grouped: Dict[str, List[AliasEntry]] = defaultdict(list)
+    order: List[str] = []
+    for alias in aliases:
+        key = alias.config_path
+        if key not in grouped:
+            order.append(key)
+        grouped[key].append(alias)
+
+    for config_path in order:
+        entries = grouped[config_path]
+        source_name, display_path, _line_no = _legacy_entry_fields(entries[0], sources)
+        click.echo(f"[{source_name}] {display_path}")
+        for entry in entries:
+            click.echo(f"  {entry.name}  {_truncate_template(entry.template)}")
+        click.echo("")
+
+
+def show_list_view(aliases: List[AliasEntry], sources: Dict[str, str]) -> None:
+    """Detailed alias view kept for helper regressions."""
+    if not aliases:
+        click.echo("[wsha] no alias found.")
+        return
+
+    grouped: Dict[str, List[AliasEntry]] = defaultdict(list)
+    order: List[str] = []
+    for alias in aliases:
+        key = alias.config_path
+        if key not in grouped:
+            order.append(key)
+        grouped[key].append(alias)
+
+    for config_path in order:
+        entries = grouped[config_path]
+        source_name, display_path, _line_no = _legacy_entry_fields(entries[0], sources)
+        click.echo(f"[{source_name}] {display_path}")
+        for entry in entries:
+            item_source, item_path, item_line = _legacy_entry_fields(entry, sources)
+            click.echo(f"Alias: {entry.name}")
+            click.echo(f"Template: {entry.template}")
+            click.echo(f"Source: {item_source}")
+            click.echo(f"Config: {item_path}:{item_line}")
+            click.echo("")
+
+
 def find_aliases(aliases: List[AliasEntry], pattern: str) -> List[AliasEntry]:
     """Find aliases using glob-style matching against names and templates."""
     import fnmatch
