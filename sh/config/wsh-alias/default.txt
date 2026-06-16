@@ -11,11 +11,29 @@
 # w grcmd tasklist chrome          =>  tasklist | findstr chrome
 # w grcmd "tasklist /M ch*" chrome =>  tasklist /M ch* | findstr chrome
 "grcmd * *" $1 | findstr $2
+grep wsha grcmd
 
 
+# ---
+# 把命令输出结果写入剪切板
+# w clip echo "foobar" => foobar最后被写入剪切板
+"clip **"   $$ | clip
+
+# ---
 # proxy
 ## 使用代理 :7897 执行命令
 proxy "set http_proxy=http://localhost:7897 && set https_proxy=http://localhost:7897 &&"
+pxy wsha proxy
+
+# 自定义代理端口
+proxy:* "set http_proxy=http://localhost:$1 && set https_proxy=http://localhost:$1 &&"
+pxy:* wsha proxy $$
+
+# 自定义代理地址
+proxy:* "set http_proxy=http://localhost:$1 && set https_proxy=http://localhost:$1 &&"
+pxy:* wsha proxy $$
+
+
 
 # 测试
 fox firefox
@@ -30,6 +48,33 @@ pp ping t.cn
 ## 搜索
 ps "tasklist | findstr "
 kill "taskkill /f /im"
+
+"win.port *" netstat -ano | findstr ":$1"
+wp wsha win.port
+
+win.ip ipconfig
+wip ipconfig
+
+win.env set
+wenv set
+
+win.path echo %PATH%
+wpath echo %PATH%
+
+win.temp start %TEMP%
+wtmp start %TEMP%
+
+win.home start %USERPROFILE%
+whome start %USERPROFILE%
+
+"win.find-proc *" tasklist | findstr "$1"
+wfp wsha win.find-proc
+
+win.explorer restart-exp
+wre wsha win.explorer
+
+"win.kill-port *" wsh-kill-port.bat $1
+wkp wsha win.kill-port
 
 
 ## 复制
@@ -86,11 +131,11 @@ pc podman compose
 
 
 # agent-browser
-ab pnpx agent-browser
-abc wsha ab --cdp 9222
+ab npx -y agent-browser
+abc wsha ab --cdp 9696
 abcc wsha ab --cdp %CDPORT%
-ab-p pnpx agent-browser@0.16.3
-ab-p-l pnpx agent-browser@latest
+ab-p npx -y agent-browser@0.16.3
+ab-p-l npx -y agent-browser@latest
 
 # codex
 codex pnpx @openai/codex@0.115.0
