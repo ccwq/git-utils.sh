@@ -13,6 +13,12 @@
 "grcmd * *" $1 | findstr $2
 grep wsha grcmd
 
+# wsl
+# 关于wsl的一些操作
+"wsl ps" wsl -l -v
+"wsl down" wsl --shutdown
+"wsl down-full" podman machine stop && wsl --shutdown
+
 
 # ---
 # 把命令输出结果写入剪切板
