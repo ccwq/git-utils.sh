@@ -1,0 +1,7 @@
+# 强制跨平台一致的行尾，避免 CRLF/LF 在不同平台检出时被自动改写
+# Shell 脚本走 bash（Linux/macOS/Git Bash），必须 LF
+*.sh    text eol=lf
+# Windows batch 由 CMD 解析，必须 CRLF
+*.bat   text eol=crlf
+# 其余文本文件由 Git 自动处理，工作区保持各平台原生行尾
+*       text=auto
