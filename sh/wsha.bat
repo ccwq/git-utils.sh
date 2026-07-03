@@ -96,13 +96,15 @@ exit /b %CORE_EXIT%
 setlocal EnableExtensions DisableDelayedExpansion
 set "CMDLINE=%FINAL_CMD%"
 
-if /i not "%CMDLINE:~0,4%"=="env " (
-    endlocal
-    cmd /c "%FINAL_CMD%"
-    exit /b %errorlevel%
-)
-
 setlocal EnableDelayedExpansion
+set "CMD_PREFIX=!CMDLINE:~0,4!"
+if /i "!CMD_PREFIX!"=="env " goto exec_env_cmd
+endlocal
+endlocal
+cmd /c "%FINAL_CMD%"
+exit /b %errorlevel%
+
+:exec_env_cmd
 set "REMAINDER=!CMDLINE:~4!"
 set "TMP_ENV_CMD=%TEMP%\wsha-env-%RANDOM%-%RANDOM%.cmd"
 set "ENV_COMMAND="

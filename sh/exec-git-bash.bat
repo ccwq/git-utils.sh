@@ -38,6 +38,7 @@ echo   exec-git-bash -lc "cd /d/path; exec /usr/bin/bash -i"
 exit /b 0
 
 :resolve_git_bash
+set "SHOULD_CACHE_GIT_BASH=0"
 REM 1) Prefer inherited process env when valid.
 if defined GIT_BASH if exist "%GIT_BASH%" goto :cache_ok
 set "GIT_BASH="
@@ -50,6 +51,7 @@ for /f "skip=2 tokens=1,2,*" %%A in ('reg query HKCU\Environment /v GIT_BASH 2^>
 )
 if defined GIT_BASH if exist "%GIT_BASH%" goto :cache_ok
 set "GIT_BASH="
+set "SHOULD_CACHE_GIT_BASH=1"
 
 REM 3) Discover from git.exe location first.
 for /f "delims=" %%G in ('where git 2^>nul') do (
@@ -72,5 +74,5 @@ if not defined GIT_BASH (
 
 :cache_ok
 set "GIT_BASH=%GIT_BASH:"=%"
-setx GIT_BASH "%GIT_BASH%" >nul 2>nul
+if "%SHOULD_CACHE_GIT_BASH%"=="1" setx GIT_BASH "%GIT_BASH%" >nul 2>nul
 exit /b 0

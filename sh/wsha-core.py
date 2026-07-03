@@ -643,7 +643,7 @@ def expand_template(template: str, captures: List[str], rest_capture: str, runti
 
 def expand_template_tokens(template: str, captures: List[str], rest_capture: str, runtime_args: List[str]) -> List[str]:
     """展开模板并保留运行时参数边界，避免带空格参数被重新拆分。"""
-    result = template
+    result = expand_env_vars(template)
 
     for i in range(len(captures) - 1, -1, -1):
         result = result.replace(f"${i + 1}", captures[i])
@@ -664,7 +664,6 @@ def expand_template_tokens(template: str, captures: List[str], rest_capture: str
     if not placeholder_used and runtime_args:
         final_tokens.extend(runtime_args)
 
-    # 保留 %VAR% 到 shell 层展开，避免 Git Bash 下被 Windows 路径格式污染。
     return final_tokens
 
 
@@ -747,6 +746,34 @@ def token_basename_lower(token: str) -> str:
     return basename.lower()
 
 
+def resolve_git_bash() -> str:
+    """Resolve Git for Windows bash.exe without using Windows' WSL bash shim."""
+    candidates = []
+    env_bash = os.environ.get('GIT_BASH', '').strip('"')
+    if env_bash:
+        candidates.append(env_bash)
+
+    path_env = os.environ.get('PATH', '')
+    for path_dir in path_env.split(os.pathsep):
+        if not path_dir:
+            continue
+        candidate = os.path.join(path_dir.strip('"'), 'bash.exe')
+        normalized = candidate.replace('\\', '/').lower()
+        if '/git/' in normalized:
+            candidates.append(candidate)
+
+    program_files = os.environ.get('ProgramFiles', r'C:\Program Files')
+    candidates.extend([
+        os.path.join(program_files, 'Git', 'bin', 'bash.exe'),
+        os.path.join(program_files, 'Git', 'usr', 'bin', 'bash.exe'),
+    ])
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return ''
+
+
 def is_complex_shell_command(text: str) -> bool:
     """判断是否为复杂 shell 命令"""
     complex_chars = ['&&', '||', '|', ';', '>', '<', '$(']
@@ -779,7 +806,11 @@ def normalize_runtime_tokens(tokens: List[str]) -> List[str]:
                     script_path = script_token
                     if not os.path.isabs(script_path) and not re.search(r'[\\/]', script_path):
                         script_path = os.path.join(script_dir, script_path)
-                    result = [os.path.join(script_dir, 'exec-git-bash.bat'), script_path] + result[2:]
+                    git_bash = resolve_git_bash()
+                    if git_bash:
+                        result = [git_bash, script_path] + result[2:]
+                    else:
+                        result = [os.path.join(script_dir, 'exec-git-bash.bat'), script_path] + result[2:]
                 else:
                     result = [os.path.join(script_dir, 'wsh.bat')] + result[1:]
         else:

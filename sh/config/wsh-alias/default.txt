@@ -147,7 +147,7 @@ ab-p-l npx -y agent-browser@latest
 codex npx -y @openai/codex@0.115.0
 codex-p npx -y @openai/codex@0.115.0
 # codex-l wsh npx -y @openai/codex@latest
-codex-l npx -y @openai/codex@latest
+codex-l wsh npx -y @openai/codex@latest
 codex-mmx wsha codex-l --model codex-MiniMax-M2.7
 codex-mini wsha codex-l --model codex-MiniMax-M2.7
 codex-yo wsha codex-l -- --yolo
@@ -190,8 +190,12 @@ lgit lazygit
 lzgit lazygit
 
 # 内部功能缩写 bash
-tping wsh-ping.bat
+
+tping wsh %APP_SH%/tping.sh
 tcping wsha tping
+"tping -qq" wsh %APP_SH%/tping.sh qq.com 443
+"tping -baidu" wsh %APP_SH%/tping.sh baidu.com 443
+
 # 为wsh增加缩写
 "s**" wsh $$
 "ws" wsh
