@@ -144,10 +144,10 @@ ab-p npx -y agent-browser@0.16.3
 ab-p-l npx -y agent-browser@latest
 
 # codex
-codex pnpx @openai/codex@0.115.0
-codex-p pnpx @openai/codex@0.115.0
-# codex-l wsh pnpx @openai/codex@latest
-codex-l pnpx @openai/codex@latest
+codex npx -y @openai/codex@0.115.0
+codex-p npx -y @openai/codex@0.115.0
+# codex-l wsh npx -y @openai/codex@latest
+codex-l npx -y @openai/codex@latest
 codex-mmx wsha codex-l --model codex-MiniMax-M2.7
 codex-mini wsha codex-l --model codex-MiniMax-M2.7
 codex-yo wsha codex-l -- --yolo
@@ -157,9 +157,9 @@ coyo wsha codex-yo
 
 # gemini
 gem gemini
-gemini pnpx @google/gemini-cli
-gemini-p pnpx @google/gemini-cli@0.33.1
-gemini-l pnpx @google/gemini-cli@latest
+gemini npx -y @google/gemini-cli
+gemini-p npx -y @google/gemini-cli@0.33.1
+gemini-l npx -y @google/gemini-cli@latest
 
 gemini-yo wsha gemini --approval-mode yolo
 
@@ -167,15 +167,15 @@ gemini-yo wsha gemini --approval-mode yolo
 # claude
 
 claude wsha claude-p
-claude-p pnpx @anthropic-ai/claude-code
-claude-l pnpx @anthropic-ai/claude-code@latest
+claude-p npx -y @anthropic-ai/claude-code
+claude-l npx -y @anthropic-ai/claude-code@latest
 claude-yo wsha claude-l --dangerously-skip-permissions
 cc wsha claude-l
 ccyo wsha claude-yo
 
 # opnencode
-opencode pnpx opencode-ai@1.2.24
-opencode-l pnpx opencode-ai@latest
+opencode npx -y opencode-ai@1.2.24
+opencode-l npx -y opencode-ai@latest
 
 # git相关
 git.sync git pull && git push
@@ -209,13 +209,13 @@ bash wsh.bat .
 # 特性演示部分
 # ----------------------------------
 # 举例
-# pxhttp-server,实际执行 pnpx http-server
-# "px*" pnpx $1
+# pxhttp-server,实际执行 npx -y http-server
+# "px*" npx -y $1
 
 # 举例
-# px http-server,实际执行 pnpx http-server
-# "px *" pnpx $1
+# px http-server,实际执行 npx -y http-server
+# "px *" npx -y $1
 
 # alias的content也支持引号包裹, 下面两种写法等价
-# "px *" "pnpx $1"
-# "px *" pnpx $1
+# "px *" "npx -y $1"
+# "px *" npx -y $1
