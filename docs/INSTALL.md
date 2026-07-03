@@ -38,8 +38,10 @@
 ### 方式零：远程安装运行时（推荐）
 
 ```bash
-curl -fsSL "$INSTALL_URL" | bash
+curl -fsSL https://raw.githubusercontent.com/ccwq/git-utils.sh/master/scripts/remote-install.sh | bash
 ```
+
+源码仓库中的本地安装入口位于 `scripts/install.sh`，远程安装入口会下载源码包后转调它。
 
 默认安装位置：
 
