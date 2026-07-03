@@ -45,12 +45,12 @@ main() {
     local source_root
     source_root=$(find "$tmp_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)
 
-    if [[ -z "$source_root" || ! -f "$source_root/sh/install.sh" ]]; then
-        echo "[remote-install] 解压后未找到 sh/install.sh" >&2
+    if [[ -z "$source_root" || ! -f "$source_root/scripts/install.sh" ]]; then
+        echo "[remote-install] 解压后未找到 scripts/install.sh" >&2
         exit 1
     fi
 
-    bash "$source_root/sh/install.sh" --source "$source_root" "$@"
+    bash "$source_root/scripts/install.sh" --source "$source_root" "$@"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
