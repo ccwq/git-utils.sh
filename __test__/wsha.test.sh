@@ -31,7 +31,7 @@ ab echo agent-browser
 foo echo foobar open
 
 # 注释行会被忽略
-bar echo barbar -- --name ccwq
+bar echo barbar $@ --name ccwq
 EOF
     elif [[ "$mode" == "duplicate" ]]; then
         cat > "$file_path" <<'EOF'
@@ -56,6 +56,40 @@ EOF
     elif [[ "$mode" == "super_rule" ]]; then
         cat > "$file_path" <<'EOF'
 "grcmd * *" $1 | findstr $2
+EOF
+    elif [[ "$mode" == "argv_quote" ]]; then
+        cat > "$file_path" <<'EOF'
+codex-l echo codex $@
+codex-yo wsha codex-l --yolo $@
+coyo wsha codex-yo
+EOF
+    elif [[ "$mode" == "block_bash" ]]; then
+        cat > "$file_path" <<'EOF'
+"bhello * *" """bash
+echo block-[[1]]-[[2]]
+"""
+
+"shello *" """sh
+echo sh-block-[[1]]
+"""
+
+"bbase" """bash
+echo block-base
+"""
+
+"brest **" """bash
+echo rest-[[...]]
+"""
+
+"bempty" """bash
+
+"""
+EOF
+    elif [[ "$mode" == "block_invalid_runner" ]]; then
+        cat > "$file_path" <<'EOF'
+"bad" """python
+echo bad
+"""
 EOF
     elif [[ "$mode" == "env_vars" ]]; then
         cat > "$file_path" <<'EOF'
@@ -363,13 +397,14 @@ test_list_long_flag() {
     if [[ $run_code -eq 0 ]] \
         && [[ "$clean_output" == *"别名"* ]] \
         && [[ "$clean_output" == *"命令"* ]] \
-        && [[ "$clean_output" == *"[自定义] $config_file"* ]] \
+        && [[ "$clean_output" == *"[自定义]"* ]] \
+        && [[ "$clean_output" == *"alias-normal.txt"* ]] \
         && [[ "$clean_output" == *"ab"* ]] \
         && [[ "$clean_output" == *"echo agent-browser"* ]] \
         && [[ "$clean_output" == *"foo"* ]] \
         && [[ "$clean_output" == *"echo foobar open"* ]] \
         && [[ "$clean_output" == *"bar"* ]] \
-        && [[ "$clean_output" == *"echo barbar -- --name ccwq"* ]]; then
+        && [[ "$clean_output" == *"echo barbar \$@ --name ccwq"* ]]; then
         result="PASS"
         log_success "--list 表格输出测试通过"
     else
@@ -394,7 +429,8 @@ test_list_short_flag() {
     local clean_output
     clean_output=$(strip_time_logs "$output")
     if [[ $run_code -eq 0 ]] \
-        && [[ "$clean_output" == *"[自定义] $config_file"* ]] \
+        && [[ "$clean_output" == *"[自定义]"* ]] \
+        && [[ "$clean_output" == *"alias-normal.txt"* ]] \
         && [[ "$clean_output" == *"ab"* ]] \
         && [[ "$clean_output" == *"echo agent-browser"* ]] \
         && [[ "$clean_output" == *"bar"* ]]; then
@@ -423,7 +459,8 @@ test_list_view_flag() {
     local clean_output
     clean_output=$(strip_time_logs "$output")
     if [[ $run_code -eq 0 ]] \
-        && [[ "$clean_output" == *"[自定义] $config_win"* ]] \
+        && [[ "$clean_output" == *"[自定义]"* ]] \
+        && [[ "$clean_output" == *"alias-normal.txt"* ]] \
         && [[ "$clean_output" == *"ab"* ]] \
         && [[ "$clean_output" == *"echo agent-browser"* ]]; then
         result="PASS"
@@ -756,6 +793,65 @@ test_wildcard_multi_capture() {
     record_test_result "test_wildcard_multi_capture" "$result" "$duration" "$note"
 }
 
+# Given：配置中存在 coyo -> codex-yo -> codex-l 的递归 alias 链，codex-yo 使用 $@ 插入运行时参数。
+# When：执行 w coyo --model gpt-5.4 "git-up -p"。
+# Then：应在 core 内递归展开，保留带空格 prompt，并把 --yolo 放在 $@ 所在位置。
+# 防回归：防止带空格 prompt 经多层 wsha/batch 重入后触发 quote 崩溃或参数顺序错乱。
+test_recursive_alias_quoted_prompt_with_dollar_at() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-argv-quote.txt"
+    write_config "$config_file" "argv_quote"
+
+    run_wsha "$config_file" coyo --model gpt-5.4 "git-up -p"
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$clean_output" == *"codex --yolo --model gpt-5.4 'git-up -p'"* ]]; then
+        result="PASS"
+        log_success "递归 alias 带空格 prompt 展开测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_recursive_alias_quoted_prompt_with_dollar_at" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在同一条递归 alias 链，用户 prompt 文本自身以 $ 开头。
+# When：执行 w coyo --model gpt-5.4 '$git-up -p'。
+# Then：应把 $git-up -p 当作普通目标参数保留，不在 wsha 模板层展开变量。
+# 防回归：防止用户想传给 Codex/Claude 的渐进式选项式提示被 wsha 当 shell 变量吞掉。
+test_recursive_alias_dollar_prompt_is_literal() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-argv-quote.txt"
+    write_config "$config_file" "argv_quote"
+
+    run_wsha "$config_file" coyo --model gpt-5.4 '$git-up -p'
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    local expected_fragment="codex --yolo --model gpt-5.4 '\$git-up -p'"
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$clean_output" == *"$expected_fragment"* ]]; then
+        result="PASS"
+        log_success "递归 alias dollar prompt 字面量测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_recursive_alias_dollar_prompt_is_literal" "$result" "$duration" "$note"
+}
+
 # Given：配置中存在 "grcmd * *" $1 | findstr $2 规则，首个捕获是原命令，第二个捕获是筛选关键字。
 # When：执行 w grcmd tasklist chrome。
 # Then：应展开为 tasklist | findstr chrome，并保持 0 退出码。
@@ -799,7 +895,7 @@ test_super_rule_quoted_command() {
     run_wsha "$config_file" grcmd "tasklist /M chrome*" web
     local clean_output
     clean_output=$(strip_time_logs "$output")
-    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"tasklist /M chrome* | findstr web"* ]]; then
+    if [[ "$clean_output" == *"tasklist /M chrome* | findstr web"* ]]; then
         result="PASS"
         log_success "super rule 引号命令展开测试通过"
     else
@@ -810,6 +906,336 @@ test_super_rule_quoted_command() {
     end_time=$(current_time)
     duration=$(calc_duration "$start_time" "$end_time")
     record_test_result "test_super_rule_quoted_command" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在 bash block alias，并使用 [[1]] 捕获用户参数。
+# When：执行 w bhello Alice。
+# Then：应生成并执行 bash block，输出 block-Alice。
+# 防回归：防止 block 模板被单行 token 化破坏换行和捕获替换。
+test_block_bash_capture_placeholder() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-bash.txt"
+    write_config "$config_file" "block_bash"
+
+    run_wsha "$config_file" bhello Alice Bob
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"block-Alice-Bob"* ]]; then
+        result="PASS"
+        log_success "bash block 捕获占位符测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_bash_capture_placeholder" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在 sh block alias，并使用 [[1]] 捕获用户参数。
+# When：执行 w shello World。
+# Then：应生成并执行 sh block，输出 sh-block-World。
+# 防回归：防止 runner sh 没有纳入 block 执行矩阵。
+test_block_sh_runner() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-bash.txt"
+    write_config "$config_file" "block_bash"
+
+    run_wsha "$config_file" shello World
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"sh-block-World"* ]]; then
+        result="PASS"
+        log_success "sh block runner 测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_sh_runner" "$result" "$duration" "$note"
+}
+
+# Given：core 以 sh 输出协议展开 cmd/bat/pwsh/powershell block。
+# When：分别请求四种 runner 的 alias 展开。
+# Then：输出命令应包含对应 runner 和脚本路径，不应丢失反斜杠导致 Bash 吞路径。
+# 防回归：防止非 bash block 在 Git Bash wrapper 下生成不可执行命令。
+test_block_windows_runner_command_generation() {
+    local start_time end_time duration result note config_file core_path out_cmd out_bat out_pwsh out_powershell
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-windows-runners.txt"
+    core_path="$PROJECT_ROOT/sh/core/wsha_core.py"
+    cat > "$config_file" <<'EOF'
+"bcmd" """cmd
+echo cmd-ok
+"""
+"bbat" """bat
+echo bat-ok
+"""
+"bpwsh" """pwsh
+Write-Output pwsh-ok
+"""
+"bpowershell" """powershell
+Write-Output powershell-ok
+"""
+EOF
+
+    out_cmd=$(WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$core_path" bcmd 2>&1)
+    out_bat=$(WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$core_path" bbat 2>&1)
+    out_pwsh=$(WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$core_path" bpwsh 2>&1 || true)
+    out_powershell=$(WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$core_path" bpowershell 2>&1 || true)
+
+    if [[ "$out_cmd" == *"/c"* ]] \
+        && [[ "$out_cmd" == *".cmd"* ]] \
+        && [[ "$out_bat" == *"/c"* ]] \
+        && [[ "$out_bat" == *".cmd"* ]] \
+        && { [[ "$out_pwsh" == *"-File"* && "$out_pwsh" == *".ps1"* ]] || [[ "$out_pwsh" == *"runner \"pwsh\" not found"* ]]; } \
+        && { [[ "$out_powershell" == *"-File"* && "$out_powershell" == *".ps1"* ]] || [[ "$out_powershell" == *"runner \"powershell\" not found"* ]]; }; then
+        result="PASS"
+        log_success "Windows block runner 命令生成测试通过"
+    else
+        note="cmd=[$out_cmd], bat=[$out_bat], pwsh=[$out_pwsh], powershell=[$out_powershell]"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_windows_runner_command_generation" "$result" "$duration" "$note"
+}
+
+# Given：配置中只存在 token 内嵌 ** 的 alias，且 ** 捕获要求非空。
+# When：执行 w b 且 b** 的剩余捕获为空。
+# Then：应在最终无 alias 命中时提示 ** 需要非空捕获。
+# 防回归：防止 b** / prefix**suffix 这类内嵌 ** 空捕获静默透传。
+test_block_embedded_double_star_empty_warn() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-embedded-dstar.txt"
+    cat > "$config_file" <<'EOF'
+"b**" """bash
+echo rest-[[...]]
+"""
+EOF
+
+    run_wsha "$config_file" b
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ "$clean_output" == *"warning: alias \"b**\" requires non-empty ** capture"* ]]; then
+        result="PASS"
+        log_success "内嵌双星号空捕获 warning 测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_embedded_double_star_empty_warn" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在不消费额外参数的 bash block alias。
+# When：执行 w bbase ignored-arg。
+# Then：应输出橙色 warning 的纯文本内容并忽略额外参数，仍执行原 block。
+# 防回归：防止 block alias 像单行 alias 一样自动追加 runtime args。
+test_block_extra_args_warn_and_ignore() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-bash.txt"
+    write_config "$config_file" "block_bash"
+
+    run_wsha "$config_file" bbase ignored-arg
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$clean_output" == *"warning: block alias \"bbase\" ignores extra args: ignored-arg"* ]] \
+        && [[ "$clean_output" == *"block-base"* ]] \
+        && [[ "$clean_output" != *"block-base ignored-arg"* ]]; then
+        result="PASS"
+        log_success "bash block 额外参数 warning 并忽略测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_extra_args_warn_and_ignore" "$result" "$duration" "$note"
+}
+
+# Given：配置中只存在 ** block alias，且 ** 捕获要求非空。
+# When：执行 w onlyrest 且没有提供剩余参数。
+# Then：应在最终无 alias 命中时提示 ** 需要非空捕获。
+# 防回归：防止 ** 空捕获静默匹配导致生成无效脚本。
+test_block_double_star_requires_non_empty_warn() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-bash.txt"
+    cat > "$config_file" <<'EOF'
+"onlyrest **" """bash
+echo rest-[[...]]
+"""
+EOF
+
+    run_wsha "$config_file" onlyrest
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ "$clean_output" == *"warning: alias \"onlyrest **\" requires non-empty ** capture"* ]]; then
+        result="PASS"
+        log_success "双星号空捕获 warning 测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_double_star_requires_non_empty_warn" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在空 bash block alias。
+# When：执行 w bempty。
+# Then：应 warning 并以 no-op 成功返回。
+# 防回归：允许默认配置中的占位 block 渐进编辑而不破坏加载。
+test_block_empty_warn_noop() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-bash.txt"
+    write_config "$config_file" "block_bash"
+
+    run_wsha "$config_file" bempty
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"warning: block alias \"bempty\" is empty; nothing to execute"* ]]; then
+        result="PASS"
+        log_success "空 block warning no-op 测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_empty_warn_noop" "$result" "$duration" "$note"
+}
+
+# Given：列表中包含 bash block alias。
+# When：执行 w --list。
+# Then：命令列只显示 <bash block: N lines> 摘要，不展开完整脚本内容。
+# 防回归：防止多行 block 撑坏列表表格。
+test_block_list_summary() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-bash.txt"
+    write_config "$config_file" "block_bash"
+
+    run_wsha "$config_file" --list
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$clean_output" == *"<bash block: 1 line>"* ]] \
+        && [[ "$clean_output" == *"<bash block: empty>"* ]] \
+        && [[ "$clean_output" != *"echo block-[[1]]"* ]]; then
+        result="PASS"
+        log_success "block list 摘要测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_list_summary" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在未知 runner 的 block alias。
+# When：加载配置并执行该 alias。
+# Then：应配置加载失败并报告 invalid block runner。
+# 防回归：防止拼错 runner 后降级为不可预期的普通命令。
+test_block_invalid_runner_fails() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-invalid-runner.txt"
+    write_config "$config_file" "block_invalid_runner"
+
+    run_wsha "$config_file" bad
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] && [[ "$clean_output" == *"invalid block runner \"python\""* ]]; then
+        result="PASS"
+        log_success "非法 block runner 失败测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_invalid_runner_fails" "$result" "$duration" "$note"
+}
+
+# Given：block alias 执行后会在 ~/.cache/wsha/blocks 生成脚本缓存。
+# When：执行 w --cache-clear。
+# Then：应清理 alias cache 和 block cache。
+# 防回归：防止 block cache 在清理命令后残留。
+test_block_cache_clear() {
+    local start_time end_time duration result note config_file cache_home
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-bash.txt"
+    cache_home="$TEST_DIR/block-cache-home"
+    write_config "$config_file" "block_bash"
+
+    raw_output=$(HOME="$cache_home" WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" bhello Cache Hit 2>&1)
+    run_code=$?
+    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
+    output=$(strip_time_logs "$raw_output")
+    if [[ $run_code -ne 0 ]] || [[ ! -d "$cache_home/.cache/wsha/blocks" ]]; then
+        note="block cache 未生成 output=[$output], code=$run_code"
+        log_fail "$note"
+        end_time=$(current_time)
+        duration=$(calc_duration "$start_time" "$end_time")
+        record_test_result "test_block_cache_clear" "$result" "$duration" "$note"
+        return
+    fi
+
+    raw_output=$(HOME="$cache_home" WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" --cache-clear 2>&1)
+    run_code=$?
+    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
+    output=$(strip_time_logs "$raw_output")
+    if [[ $run_code -eq 0 ]] && [[ ! -d "$cache_home/.cache/wsha/blocks" || -z "$(ls -A "$cache_home/.cache/wsha/blocks" 2>/dev/null)" ]]; then
+        result="PASS"
+        log_success "block cache 清理测试通过"
+    else
+        note="output=[$output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_cache_clear" "$result" "$duration" "$note"
 }
 
 test_builtin_env_vars() {
@@ -887,8 +1313,20 @@ main() {
     test_quoted_content_equivalence
     test_wildcard_multi_capture
     test_double_star_capture
+    test_recursive_alias_quoted_prompt_with_dollar_at
+    test_recursive_alias_dollar_prompt_is_literal
     test_super_rule_plain_tokens
     test_super_rule_quoted_command
+    test_block_bash_capture_placeholder
+    test_block_sh_runner
+    test_block_windows_runner_command_generation
+    test_block_embedded_double_star_empty_warn
+    test_block_extra_args_warn_and_ignore
+    test_block_double_star_requires_non_empty_warn
+    test_block_empty_warn_noop
+    test_block_list_summary
+    test_block_invalid_runner_fails
+    test_block_cache_clear
     test_builtin_env_vars
 
     cleanup

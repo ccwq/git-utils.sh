@@ -31,6 +31,9 @@ test_install_writes_runtime_and_report() {
 
     if [[ -f "$install_root/install-report.json" ]] \
         && [[ -f "$install_root/sh/config/wsh-alias/default.txt" ]] \
+        && [[ -f "$install_root/sh/core/wsha_core.py" ]] \
+        && [[ -f "$install_root/sh/core/exec-git-bash.bat" ]] \
+        && [[ -f "$install_root/sh/core/tping.sh" ]] \
         && [[ -f "$bin_dir/w" ]] \
         && grep -q '"launchers_created"' "$install_root/install-report.json"; then
         log_success "安装脚本会写入运行时与 report"
@@ -80,10 +83,29 @@ test_uninstall_removes_launchers_but_keeps_user_config() {
     fi
 }
 
+test_install_windows_launchers_use_core_exec_git_bash() {
+    # Given：安装脚本已经生成 Windows bin wrapper。
+    # When：检查生成的 w/wsha/wsh.bat 内容。
+    # Then：wrapper 应引用 APP_SH\core\exec-git-bash.bat，不再引用旧 APP_SH\exec-git-bash.bat。
+    # 防回归：防止 exec-git-bash.bat 迁入 sh/core 后安装产物仍调用旧路径。
+    local install_root="$TEST_DIR/home/.local/share/git-utils-d"
+    local bin_dir="$TEST_DIR/bin-d"
+    HOME="$TEST_DIR/home" bash "$PROJECT_ROOT/scripts/install.sh" --source "$PROJECT_ROOT" --install-root "$install_root" --bin-dir "$bin_dir" >/tmp/install-test-core-launcher.log 2>&1
+
+    if [[ -f "$install_root/bin/w.bat" ]] \
+        && grep -Fq '%APP_SH%\core\exec-git-bash.bat' "$install_root/bin/w.bat" \
+        && ! grep -Fq '%APP_SH%\exec-git-bash.bat' "$install_root/bin/w.bat"; then
+        log_success "Windows 安装 wrapper 使用 core exec-git-bash"
+    else
+        log_fail "Windows 安装 wrapper 仍引用旧 exec-git-bash 路径"
+    fi
+}
+
 main() {
     setup
     test_install_writes_runtime_and_report
     test_install_report_records_legacy_paths
+    test_install_windows_launchers_use_core_exec_git_bash
     test_uninstall_removes_launchers_but_keeps_user_config
     echo "PASS=$PASS_COUNT FAIL=$FAIL_COUNT"
     [[ $FAIL_COUNT -eq 0 ]]

@@ -54,7 +54,9 @@ EOF
     local output
     output=$(cd "$TEST_DIR/work" && HOME="$TEST_DIR/home" bash "$PROJECT_ROOT/sh/wsha.sh" --list 2>&1)
     output=$(strip_ansi "$output")
-    if [[ "$output" == *"$PROJECT_ROOT/sh/config/wsh-alias"* ]] && [[ "$output" == *"default.txt"* ]]; then
+    local builtin_dir
+    builtin_dir=$(cygpath -u "$PROJECT_ROOT/sh/config/wsh-alias")
+    if [[ "$output" == *"$builtin_dir"* ]] && [[ "$output" == *"[内置]"* ]]; then
         log_success "默认列表优先展示 sh/config 内置目录"
     else
         log_fail "默认列表未展示 sh/config 内置目录: $output"

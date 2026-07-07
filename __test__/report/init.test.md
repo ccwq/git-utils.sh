@@ -1,16 +1,16 @@
 # 测试报告: init.test.sh
 
-- **测试时间**: 2026-07-03 11:25:54
+- **测试时间**: 2026-07-06 14:17:56
 - **执行环境**: Windows_NT (Git Bash)
 
 ## 测试用例详情
 
 | 测试用例 | 结果 | 耗时 | 备注 |
 | :--- | :--- | :--- | :--- |
-| test_adds_path_and_clink_when_missing | PASS | 1.115s |  |
-| test_keeps_existing_values_without_duplicates | PASS | 0.581s |  |
-| test_skips_clink_overwrite_when_user_rejects | PASS | 0.985s |  |
-| test_overwrites_clink_when_user_confirms | PASS | 1.086s |  |
+| test_adds_path_and_clink_when_missing | PASS | 1.142s |  |
+| test_keeps_existing_values_without_duplicates | PASS | 0.632s |  |
+| test_skips_clink_overwrite_when_user_rejects | PASS | 1.046s |  |
+| test_overwrites_clink_when_user_confirms | PASS | 1.102s |  |
 
 ## 统计汇总
 - **总计**: 4

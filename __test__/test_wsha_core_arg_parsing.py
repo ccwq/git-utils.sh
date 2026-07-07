@@ -1,22 +1,26 @@
-"""Tests for sh/wsha-core.py top-level argument parsing."""
+"""Tests for sh/core/wsha_core top-level argument parsing."""
 
-from importlib.util import module_from_spec, spec_from_file_location
+from importlib import import_module
 from pathlib import Path
+import sys
 
 
 ROOT = Path(__file__).resolve().parent.parent
-CORE_PATH = ROOT / "sh" / "wsha-core.py"
+CORE_PARENT = ROOT / "sh" / "core"
 
 
 def load_wsha_core():
-    """Load the script module directly from sh/wsha-core.py."""
-    spec = spec_from_file_location("wsha_core", CORE_PATH)
-    module = module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    return module
+    """Load the wsha_core package from sh/core."""
+    core_parent = str(CORE_PARENT)
+    if core_parent not in sys.path:
+        sys.path.insert(0, core_parent)
+    return import_module("wsha_core")
 
 
+# Given：用户通过 w 调用目标 alias，并在 alias 后传入 dash-prefixed 参数。
+# When：解析 -e w codex-l --model gpt-5.4-mini。
+# Then：--model 应保留为 alias 的运行时参数，而不是被 core 当成顶层选项。
+# 防回归：防止 CLI 参数解析误吞目标命令自己的 flag。
 def test_parse_cli_args_keeps_dash_prefixed_runtime_args():
     """Alias runtime flags should be preserved verbatim after the alias."""
     mod = load_wsha_core()
@@ -26,6 +30,10 @@ def test_parse_cli_args_keeps_dash_prefixed_runtime_args():
     assert result == (False, False, False, "w", "codex-l", ["--model", "gpt-5.4-mini"])
 
 
+# Given：用户调用 alias 并把 --help 作为目标命令参数。
+# When：解析 codex-l --help。
+# Then：--help 应保留在 runtime args 中，不触发 wsha-core 自身帮助。
+# 防回归：防止 w alias --help 无法转发到目标命令。
 def test_parse_cli_args_keeps_alias_help_as_runtime_arg():
     """`w alias --help` should forward help to the target command, not wsha-core."""
     mod = load_wsha_core()
