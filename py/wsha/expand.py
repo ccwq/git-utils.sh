@@ -2,7 +2,7 @@
 
 This module provides the final stage of alias processing:
 1. Expand template variables ($1, $2, $$) with captured values
-2. Handle -- placeholder for runtime argument insertion
+2. Handle $@ placeholder for runtime argument insertion
 3. Expand %VAR% environment variables at runtime
 4. Execute the final command with proper exit codes
 """
@@ -109,12 +109,12 @@ def expand_template(
     Expand template variables with captured values and runtime arguments.
 
     Per D-19: 从后向前 scan 替换 $1, $2, $$
-    Per D-20: -- 占位符控制运行时参数插入位置
+    Per D-20: $@ 占位符控制运行时参数插入位置，-- 保留给目标 CLI
 
     Processing order:
     1. Replace $1, $2, ... from captures (end-to-start to avoid $10误匹配)
     2. Replace $$ with rest_capture (remainder from ** pattern)
-    3. Insert runtime_args at -- position or append to end
+    3. Insert runtime_args at $@ position or append to end
 
     Args:
         template: Template string with $1, $2, $$ placeholders
@@ -131,7 +131,7 @@ def expand_template(
         ('echo arg1 arg2', 0)
         >>> expand_template('run $$', [], 'rest args', [])
         ('run rest args', 0)
-        >>> expand_template('cmd -- extra', [], '', ['arg1', 'arg2'])
+        >>> expand_template('cmd $@ extra', [], '', ['arg1', 'arg2'])
         ('cmd arg1 arg2 extra', 0)
     """
     final_template = template
@@ -144,15 +144,14 @@ def expand_template(
     # Replace $$ with rest capture (remainder from ** pattern)
     final_template = final_template.replace("$$", rest_capture)
 
-    # Handle -- placeholder for runtime argument insertion.
-    # Only a standalone "--" token is a placeholder; flags like "--cdp"
-    # must behave like normal arguments and still keep appended runtime args.
+    # Handle $@ placeholder for runtime argument insertion.
+    # Standalone "--" is reserved for the target CLI's real option terminator.
     tokens = shlex.split(final_template)
     final_tokens = []
     placeholder_found = False
 
     for token in tokens:
-        if token == "--":
+        if token == "$@":
             placeholder_found = True
             if runtime_args:
                 final_tokens.extend(runtime_args)

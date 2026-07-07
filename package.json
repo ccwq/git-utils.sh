@@ -7,7 +7,7 @@
     "init": "scripts\\init.bat",
     "build:win-helper": ".\\bin\\win-helper\\build.bat",
     "pip-in": "pip install -e .",
-    "test": ".\\sh\\exec-git-bash.bat .\\test-all.sh"
+    "test": ".\\sh\\core\\exec-git-bash.bat .\\test-all.sh"
   },
   "keywords": [],
   "author": "",

@@ -7,7 +7,7 @@ if not defined WSHA_ENTRY set "WSHA_ENTRY=wsha"
 for %%I in ("%SCRIPT_DIR%..") do set "APP_HOME=%%~fI"
 for %%I in ("%SCRIPT_DIR%.") do set "APP_SH=%%~fI"
 set "APP_CONFIG=%APP_SH%\config"
-set "PY_ENTRY=%SCRIPT_DIR%wsha-core.py"
+set "PY_ENTRY=%SCRIPT_DIR%core\wsha_core.py"
 set "FIRST_ARG=%~1"
 set "PYTHON_EXE="
 set "WSHA_CMDLINE_OUTPUT=cmd"
@@ -33,6 +33,7 @@ if not defined PYTHON_EXE (
 if /i "%FIRST_ARG%"=="--list" goto run_core_passthrough
 if /i "%FIRST_ARG%"=="-l" goto run_core_passthrough
 if /i "%FIRST_ARG%"=="--clear" goto run_core_passthrough
+if /i "%FIRST_ARG%"=="--cache-clear" goto run_core_passthrough
 if /i "%FIRST_ARG%"=="--help" goto run_core_passthrough
 if /i "%FIRST_ARG%"=="-h" goto run_core_passthrough
 
@@ -50,11 +51,18 @@ set "CORE_EXIT=%errorlevel%"
 type "%CORE_STDERR%" 2>nul
 if not "%CORE_EXIT%"=="0" goto cleanup_and_exit
 
+rem 先在 core 输出文件上判断 no-op sentinel，避免把含双引号的 FINAL_CMD 展开进 IF 表达式。
+findstr /r /c:"^__WSHA_NOOP__$" "%CORE_STDOUT%" >nul 2>nul
+if not errorlevel 1 (
+    set "CORE_EXIT=0"
+    goto cleanup_and_exit
+)
+
 set "FINAL_CMD="
 set /p FINAL_CMD=<"%CORE_STDOUT%"
 
 if not defined FINAL_CMD (
-    echo [wsha] no command returned from wsha-core.py. 1>&2
+    echo [wsha] no command returned from wsha_core.py. 1>&2
     set "CORE_EXIT=1"
     goto cleanup_and_exit
 )

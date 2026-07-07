@@ -36,7 +36,7 @@ REM 2) Command with pipe (^) -> run as-is in Git Bash (example: sh "ls -l ^| gre
 REM 3) No args -> open interactive Git Bash session
 
 set "SCRIPT_DIR=%~dp0"
-set "EXEC_GIT_BASH=%SCRIPT_DIR%exec-git-bash.bat"
+set "EXEC_GIT_BASH=%SCRIPT_DIR%core\exec-git-bash.bat"
 
 if "%~1"=="." (
     set "CUR_DIR=%CD%"

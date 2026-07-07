@@ -115,11 +115,11 @@ set "APP_SH=%APP_HOME%\\sh"
 set "APP_CONFIG=%APP_SH%\\config"
 if /i "%~n0"=="w" (
   set "WSHA_ENTRY=w"
-  call "%APP_SH%\\exec-git-bash.bat" "%APP_SH%\\wsha.sh" %*
+  call "%APP_SH%\\core\\exec-git-bash.bat" "%APP_SH%\\wsha.sh" %*
 ) else if /i "%~n0"=="wsha" (
-  call "%APP_SH%\\exec-git-bash.bat" "%APP_SH%\\wsha.sh" %*
+  call "%APP_SH%\\core\\exec-git-bash.bat" "%APP_SH%\\wsha.sh" %*
 ) else (
-  call "%APP_SH%\\exec-git-bash.bat" %*
+  call "%APP_SH%\\core\\exec-git-bash.bat" %*
 )
 EOF
 }
