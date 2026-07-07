@@ -160,7 +160,7 @@ bash sh/wsha.sh --list
 Windows 下也可以：
 
 ```bat
-sh\exec-git-bash.bat sh\wsha.sh --list
+sh\core\exec-git-bash.bat sh\wsha.sh --list
 ```
 
 ### 卸载

@@ -83,7 +83,7 @@ scripts\init.bat
 
 ```bat
 # Windows 下使用 exec-git-bash.bat 启动
-sh\exec-git-bash.bat sh\wsha.sh --list
+sh\core\exec-git-bash.bat sh\wsha.sh --list
 
 # 或直接用 bash
 bash sh\wsha.sh --list
@@ -282,7 +282,7 @@ python --version
 Windows 下必须通过 Git Bash 执行 `.sh` 脚本：
 
 ```bat
-sh\exec-git-bash.bat sh\wsha.sh --list
+sh\core\exec-git-bash.bat sh\wsha.sh --list
 ```
 
 ### Q: 如何更新已安装的版本？

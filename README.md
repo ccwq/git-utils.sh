@@ -40,9 +40,9 @@ npm run init
 
 ### Windows Git Bash 入口
 
-Windows 下推荐统一通过 `sh\exec-git-bash.bat` 调用 Git Bash，而不是手写 `git bash -c ...`。
+Windows 下推荐统一通过 `sh\core\exec-git-bash.bat` 调用 Git Bash，而不是手写 `git bash -c ...`。
 
-- `sh\exec-git-bash.bat` 是稳定入口
+- `sh\core\exec-git-bash.bat` 是稳定入口
 - 底层优先使用项目内置的 `bin\win-helper\win-helper.exe` 见 [win-helper](/bin\win-helper\README.md)
 - 如果 `win-helper.exe` 不存在，会自动回退到批处理版路径发现逻辑
 - `win-helper` 仅面向 Windows 使用，是项目内置的 Windows Git Bash 运行时
@@ -152,7 +152,7 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 核心逻辑由 `wsha.sh` 实现，跨平台支持：
 - **Windows**:
   - `w.bat` 是 `wsha.bat` 的语法糖入口
-  - `wsha.bat` 直接调用 `sh/wsha-core.py` 完成解析，并通过 `cmd /c` 执行最终命令
+  - `wsha.bat` 直接调用 `sh/core/wsha_core.py` 完成解析，并通过 `cmd /c` 执行最终命令
   - 如需显式指定 Python，可设置 `WSHA_PYTHON`
 - **Linux / macOS**: 直接运行 `w.sh` / `wsha.sh`
 
@@ -343,19 +343,19 @@ set CLINK_PATH path\to\dir\git-utils.sh\clink-lua-scripts
 
 ```bash
 # 彻底忽略单个文件，并从历史中移除
-sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh .obsidian\workspace.json
+sh\core\exec-git-bash.bat .\sh\wsh-real-ignore.sh .obsidian\workspace.json
 
 # 彻底忽略文件夹，并从历史中移除
-sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh .vscode
+sh\core\exec-git-bash.bat .\sh\wsh-real-ignore.sh .vscode
 
 # 文件名包含空格时必须加引号，确保路径作为单个参数传入
-sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh "cpa\bin\CLIProxyAPI - copy"
+sh\core\exec-git-bash.bat .\sh\wsh-real-ignore.sh "cpa\bin\CLIProxyAPI - copy"
 
 # 使用通配符 (注意需要加引号以避免Shell展开)
-sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh "*.log"
+sh\core\exec-git-bash.bat .\sh\wsh-real-ignore.sh "*.log"
 
 # 仅停止当前索引追踪，不改写历史
-sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh --cached-only .env.local
+sh\core\exec-git-bash.bat .\sh\wsh-real-ignore.sh --cached-only .env.local
 ```
 
 ### 5. 中文标点替换 (`sh/wsh-replace-cn-punc.sh`)
@@ -375,10 +375,10 @@ sh\exec-git-bash.bat .\sh\wsh-real-ignore.sh --cached-only .env.local
 
 ```bash
 # 替换单个文件
-sh\exec-git-bash.bat .\sh\wsh-replace-cn-punc.sh README.md
+sh\core\exec-git-bash.bat .\sh\wsh-replace-cn-punc.sh README.md
 
 # 使用通配符批量替换
-sh\exec-git-bash.bat .\sh\wsh-replace-cn-punc.sh "docs/*.md"
+sh\core\exec-git-bash.bat .\sh\wsh-replace-cn-punc.sh "docs/*.md"
 ```
 
 ### 6. 基于提交提取变更文件 (`sh/wsh-fpatch.sh`)
@@ -407,13 +407,13 @@ sh\exec-git-bash.bat .\sh\wsh-replace-cn-punc.sh "docs/*.md"
 
 ```bash
 # 对比最近一次提交与当前工作区，导出变更文件
-sh\exec-git-bash.bat .\sh\wsh-fpatch.sh HEAD~1
+sh\core\exec-git-bash.bat .\sh\wsh-fpatch.sh HEAD~1
 
 # 仅导出 notes 与 src 目录，排除 notes/tmp
-sh\exec-git-bash.bat .\sh\wsh-fpatch.sh HEAD~1 -i .\notes,src -e .\notes\tmp
+sh\core\exec-git-bash.bat .\sh\wsh-fpatch.sh HEAD~1 -i .\notes,src -e .\notes\tmp
 
 # 对比两个提交，导出变更文件到指定目录
-sh\exec-git-bash.bat .\sh\wsh-fpatch.sh <commit_hash_A> <commit_hash_B> -o .\my-patch
+sh\core\exec-git-bash.bat .\sh\wsh-fpatch.sh <commit_hash_A> <commit_hash_B> -o .\my-patch
 ```
 
 ### 7. Squash merge 后按配置排除路径 (`sh/wsh-barry-pick.sh`)
@@ -470,7 +470,7 @@ sh\exec-git-bash.bat .\sh\wsh-fpatch.sh <commit_hash_A> <commit_hash_B> -o .\my-
 # 运行所有测试
 ./test-all.sh
 # 或者在 Windows 下
-sh\exec-git-bash.bat .\test-all.sh
+sh\core\exec-git-bash.bat .\test-all.sh
 # 或者直接使用 package.json
 npm test
 ```
@@ -481,13 +481,13 @@ npm test
 
 ```bash
 # 运行 ignore_workspace 的测试
-sh\exec-git-bash.bat .\__test__\wsh-real-ignore.test.sh
+sh\core\exec-git-bash.bat .\__test__\wsh-real-ignore.test.sh
 
 # 运行 replace_cn_punc_ 的测试
-sh\exec-git-bash.bat .\__test__\wsh-replace-cn-punc.test.sh
+sh\core\exec-git-bash.bat .\__test__\wsh-replace-cn-punc.test.sh
 
 # 运行 wsha 的测试
-sh\exec-git-bash.bat .\__test__\wsha.test.sh
+sh\core\exec-git-bash.bat .\__test__\wsha.test.sh
 ```
 
 ### 测试报告

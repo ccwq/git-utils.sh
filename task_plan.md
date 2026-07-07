@@ -1,52 +1,47 @@
-# 任务计划：git-utils Windows wrapper 延迟经验固化
+# 任务计划：修复 wsha argv quote 设计
 
 ## 目标
-固化 `w ll` 延迟排查、`exec-git-bash.bat` 缓存修复、以及 `w tping` 快路径保护的经验，避免后续 wrapper 改动重复踩坑。
+修复 `w coyo --model gpt-5.4 "git-up -p"` 等带空格 prompt 在 Windows wrapper 中崩溃的问题，并落实已确认的新设计：默认 argv、alias 链在 Python core 内递归展开、`$@` 作为用户 argv 插入点、`--` 回归目标 CLI terminator。
 
 ## 当前阶段
-阶段 4：已文档化并验证完成
+阶段 3：验证
 
 ## 阶段
 
-### Phase 1：定位命令延迟
-- [x] 对比 `w ll`、`wsh.bat ls -lah`、直接 Git Bash `ls -lah`、`exec-git-bash.bat` 的耗时。
-- [x] 仅为诊断临时加入时间戳输出。
+### Phase 1：实现核心语义修复
+- [x] 将模板运行时参数插入点从 `--` 改为 `$@`。
+- [x] 在 Python core 内递归展开 `wsha`/`w` alias 链，避免每层回到 `wsha.bat`。
+- [x] 修复 Windows batch wrapper 对含内层引号命令的安全比较/执行。
 - **Status:** complete
 
-### Phase 2：修复且不回退 `w tping`
-- [x] 从热路径移除重复 `setx`，同时保留首次发现 Git Bash 后写缓存的行为。
-- [x] 确认 `w tping -qq` 仍然展开到直接调用 Git Bash 的快路径。
+### Phase 2：迁移配置与测试
+- [x] 将默认配置中的旧 `--` 插入点迁移为 `$@`。
+- [x] 更新旧测试对 `--` placeholder 的预期。
+- [x] 新增 `w coyo --model gpt-5.4 "git-up -p"` 类回归测试，覆盖可用性与参数顺序。
 - **Status:** complete
 
-### Phase 3：验证行为
-- [x] 验证 `w ll` 不再等待约 30 秒。
-- [x] 验证临时时间戳调试标记已经删除。
+### Phase 3：验证
+- [x] 运行 Python 单测。
+- [x] 运行 wsha shell 测试。
+- [x] 如可行，运行 Windows wrapper 相关测试或直接命令验证。
 - **Status:** complete
-
-### Phase 4：持久化经验
-- [x] 将发现、决策、测试、错误记录写入 PWF 文件。
-- **Status:** complete
-
-## 关键问题
-1. 为什么 `w ll` 慢，而 `w tping` 快？
-   - `w ll` 走 `wsh.bat -> exec-git-bash.bat`，而 `exec-git-bash.bat` 原来每次都会运行 `setx`。`w tping` 已经改成直接展开到 Git Bash。
-2. `setx GIT_BASH` 是否应该存在？
-   - 应该存在，但只在继承环境和 HKCU 缓存都没有可用 `GIT_BASH`、脚本必须自行发现 Git Bash 后执行一次。
 
 ## 已做决策
 | 决策 | 理由 |
 |------|------|
-| `setx GIT_BASH` 只用于首次发现后的缓存写入 | 保留持久化缓存的原始意图，同时避免每次调用都付出约 30 秒成本。 |
-| 不把 `w tping` 重新路由回 `exec-git-bash.bat` | 直接 Git Bash 快路径是 `w tping` 响应快的原因，应该保持隔离。 |
-| 诊断完成后删除临时时间戳输出 | 时间戳对定位根因有用，但不应留在用户可见 wrapper 输出里。 |
+| 默认 argv，复杂命令才降级字符串 | 避免 prompt/路径中的空格、引号、`-p` 被 shell/cmd 误解析。 |
+| alias 链在 Python core 内递归展开 | 避免 `coyo -> codex-yo -> codex-l` 每层都经过 `wsha.bat/cmd` quote。 |
+| `wsh` 是最终执行适配器 | `wsh` 不再作为 alias 递归中间层参与语义展开。 |
+| `$@` 是用户 argv 插入点 | 让 `--` 回归目标 CLI 的真实 option terminator，避免语义混淆。 |
+| 旧 `--` 插入语义立即破坏 | 用户明确接受 breaking change，换取长期语义清晰。 |
 
 ## 遇到的错误
 | 错误 | 尝试 | 处理 |
 |------|------|------|
-| `w ll` 输出前等待约 31-32 秒 | 1 | 加入临时时间戳，确认 `setx GIT_BASH` 消耗约 30 秒。 |
-| 完全删除 `setx` 会丢失首次缓存写入语义 | 2 | 改为只有继承环境和 HKCU 缓存都未命中时才条件执行 `setx`。 |
-| 长时间 `tping` 验证留下后台进程 | 1 | 查询并停止匹配 `tping.sh` / `qq.com:443` 的进程。 |
+| `-p""=="__WSHA_NOOP__" was unexpected at this time.` | 1 | 初步定位为 `wsha.bat` 在 `if /i "%FINAL_CMD%"==...` 中直接展开含双引号的 `%FINAL_CMD%`，导致 CMD parser 崩溃。 |
+| `cmd /c`/`wsh.bat` 嵌套 `bash -lc` 时 `$git-up` 被当 shell 变量展开 | 2 | Windows `wsh` 适配改为 core 直接生成 `exec-git-bash.bat -lc "..."`，并用 shell quoting 把 `$git-up -p` 包在单引号中。 |
+| block alias 在 Git Bash 下把整条 block 命令二次 quote 成单参数 | 2 | core 对单 token 且含空白的 block 命令直接原样输出，避免再经 `join_plain_tokens()` 二次引用。 |
 
 ## 备注
-- 后续排查 Windows wrapper 性能时，优先按 `w.bat -> wsha.bat -> wsh.bat -> exec-git-bash.bat -> bash.exe` 分段测时。
-- 不要把慢速持久化环境变量写入放在每次命令调用的热路径上。
+- 新增/修改测试用例前保持中文 GWT 注释。
+- 需要同步 `sh/core/wsha_core.py` 与旧 Python 包 `py/wsha/expand.py` 中的 `$@` 插入语义，避免测试和文档漂移。

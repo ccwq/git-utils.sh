@@ -51,7 +51,9 @@
 - `py/cli.py` - Click CLI 入口
 - `pyproject.toml` - Python 项目配置（hatchling 构建）
 ## 项目结构
-- `sh/exec-git-bash.bat` - Windows Git Bash 启动器
+- `sh/core/wsha_core.py` - wsha alias 核心解析与展开实现
+- `sh/core/exec-git-bash.bat` - Windows Git Bash 启动器
+- `sh/core/tping.sh` - HTTP(S) 连通性持续探测脚本
 - `sh/w.bat` / `sh/wsha.bat` - Windows 别名包装器入口点
 - `sh/w.sh` / `sh/wsha.sh` - Linux/macOS 别名包装器入口点
 - `config/wsh-alias.txt` - 别名定义
@@ -136,7 +138,7 @@
 - 示例: `bin/win-helper/win-helper.exe`
 - 模式: 包装 Git Bash 调用的二进制文件，当 batch 不足时的回退方案
 - 用途: 在 Windows 上定位和调用 Git Bash 的 batch 脚本
-- 示例: `sh/exec-git-bash.bat`
+- 示例: `sh/core/exec-git-bash.bat`
 - 模式: 多策略 Git Bash 发现，带注册表缓存
 - 用途: 配置驱动的命令展开，带通配符匹配
 - 示例: `sh/wsha.sh`（核心）, `sh/w.bat`（Windows 入口）, `sh/w.sh`（Unix 入口）
@@ -145,7 +147,7 @@
 - 示例: `sh/wsh-real-ignore.sh`
 - 模式: `git rm --cached` + `.gitignore` 追加
 ## 入口点
-- 位置: `sh/exec-git-bash.bat`
+- 位置: `sh/core/exec-git-bash.bat`
 - 触发: 直接命令或通过 `wsh.bat`、`wsha.bat`、`w.bat` 间接调用
 - 职责: 解析 Git Bash 路径，设置环境，调用命令
 - 位置: `sh/wsha.sh`（核心）, `sh/w.bat`（Windows）, `sh/w.sh`（Unix 符号链接）

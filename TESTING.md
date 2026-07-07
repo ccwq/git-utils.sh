@@ -47,7 +47,7 @@ git submodule add https://github.com/shellspec/shellspec .vendor/shellspec
 **注意**: 如果你在 Windows 的 PowerShell 中尝试运行，优先使用项目提供的 Git Bash 入口：
 
 ```bash
-sh\exec-git-bash.bat ./.vendor/shellspec/shellspec
+sh\core\exec-git-bash.bat ./.vendor/shellspec/shellspec
 ```
 
 如果你已经处于 Git Bash / WSL 中，也可以继续直接运行 `bash ./.vendor/shellspec/shellspec`。
