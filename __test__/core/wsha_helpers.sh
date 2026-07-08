@@ -84,6 +84,16 @@ coyo wsha codex-yo
 EOF
 }
 
+write_wsha_git_up_alias_config() {
+    local file_path="$1"
+    cat > "$file_path" <<'EOF'
+codex-l echo codex $@
+codex-yo wsha codex-l --yolo $@
+coyo wsha codex-yo
+git-up-p wsha coyo --model gpt-5.4 "$git-up -p"
+EOF
+}
+
 write_wsha_block_bash_config() {
     local file_path="$1"
     cat > "$file_path" <<'EOF'

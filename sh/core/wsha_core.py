@@ -149,10 +149,13 @@ def get_app_env() -> Tuple[str, str, str]:
 
 
 def tokenize(text: str) -> List[str]:
-    """将文本按空白分割为 token 数组。"""
+    """将文本解析为 token 数组，保留配置中引号包裹的整体参数。"""
     if not text:
         return []
-    return [w for w in text.split() if w]
+    try:
+        return shlex.split(text, posix=True)
+    except ValueError:
+        return [w for w in text.split() if w]
 
 
 def strip_outer_template_quotes(template: str) -> str:

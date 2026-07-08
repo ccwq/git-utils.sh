@@ -760,6 +760,38 @@ test_recursive_alias_dollar_prompt_is_literal() {
     record_test_result "test_recursive_alias_dollar_prompt_is_literal" "$result" "$duration" "$note"
 }
 
+# Given：skills 配置存在 `git-up-p wsha coyo --model gpt-5.4 "$git-up -p"`，prompt 依赖引号保持为单个参数。
+# When：只通过 core 展开 git-up-p，不真正执行 npx/Codex。
+# Then：最终 codex 命令应包含单个 `'$git-up -p'` prompt，不能拆成 `'"$git-up'` 与 `'-p"'`。
+# 防回归：防止 w git-up-p 触发 Codex 把残留双引号误解析为 --profile 值。
+test_recursive_alias_git_up_p_keeps_prompt_argument() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-git-up-p.txt"
+    write_wsha_git_up_alias_config "$config_file"
+
+    run_wsha_core "$config_file" git-up-p
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    local expected_fragment="codex --yolo --model gpt-5.4 '\$git-up -p'"
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$clean_output" == *"$expected_fragment"* ]] \
+        && [[ "$clean_output" != *"'\"\\\$git-up'"* ]] \
+        && [[ "$clean_output" != *"'-p\"'"* ]]; then
+        result="PASS"
+        log_success "git-up-p prompt 参数保持整体测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_recursive_alias_git_up_p_keeps_prompt_argument" "$result" "$duration" "$note"
+}
+
 # Given：配置中存在 "grcmd * *" $1 | findstr $2 规则，首个捕获是原命令，第二个捕获是筛选关键字。
 # When：执行 w grcmd tasklist chrome。
 # Then：应展开为 tasklist | findstr chrome，并保持 0 退出码。
@@ -1225,6 +1257,7 @@ main() {
     test_double_star_capture
     test_recursive_alias_quoted_prompt_with_dollar_at
     test_recursive_alias_dollar_prompt_is_literal
+    test_recursive_alias_git_up_p_keeps_prompt_argument
     test_super_rule_plain_tokens
     test_super_rule_quoted_command
     test_recursive_alias_keeps_captured_w_command
