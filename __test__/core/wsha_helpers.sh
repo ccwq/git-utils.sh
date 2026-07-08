@@ -137,12 +137,35 @@ echo rest-[[...]]
 EOF
 }
 
+write_wsha_block_unclosed_config() {
+    local file_path="$1"
+    cat > "$file_path" <<'EOF'
+"broken" """bash
+echo never-closed
+EOF
+}
+
+write_wsha_multiple_double_star_config() {
+    local file_path="$1"
+    cat > "$file_path" <<'EOF'
+"multi ** **" echo should-not-match
+EOF
+}
+
 write_wsha_block_invalid_runner_config() {
     local file_path="$1"
     cat > "$file_path" <<'EOF'
 "bad" """python
 echo bad
 """
+EOF
+}
+
+write_wsha_prefix_alias_config() {
+    local file_path="$1"
+    cat > "$file_path" <<'EOF'
+&seq echo sequential-prefix
+|fallback echo or-prefix
 EOF
 }
 
@@ -185,6 +208,13 @@ show-config echo %APP_CONFIG%
 EOF
 }
 
+write_wsha_tping_config() {
+    local file_path="$1"
+    cat > "$file_path" <<'EOF'
+"tping -qq" wsh %APP_SH%/core/tping.sh qq.com 443
+EOF
+}
+
 # 调用 wsha 并回收输出与退出码
 run_wsha() {
     local config_file="$1"
@@ -212,7 +242,15 @@ capture_wsha_core_sh_output() {
     local config_file="$1"
     shift
 
-    WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$PROJECT_ROOT/sh/core/wsha_core.py" "$@" 2>&1
+    APP_HOME="$PROJECT_ROOT" APP_SH="$PROJECT_ROOT/sh" APP_CONFIG="$PROJECT_ROOT/sh/config" WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$PROJECT_ROOT/sh/core/wsha_core.py" "$@" 2>&1
+}
+
+# 以 cmd 输出协议调用 Python core，适合验证 Windows batch 入口执行字符串。
+capture_wsha_core_cmd_output() {
+    local config_file="$1"
+    shift
+
+    APP_HOME="$PROJECT_ROOT" APP_SH="$PROJECT_ROOT/sh" APP_CONFIG="$PROJECT_ROOT/sh/config" WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=cmd python "$PROJECT_ROOT/sh/core/wsha_core.py" -e w "$@" 2>&1
 }
 
 # 调用 wsha 的 -lv/--list-view，并在测试模式下将弹窗输出转为文本。
@@ -256,6 +294,18 @@ run_wsha_with_home() {
     shift 2
 
     raw_output=$(HOME="$home_dir" WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" "$@" 2>&1)
+    run_code=$?
+    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
+    output=$(strip_time_logs "$raw_output")
+}
+
+# 指定 HOME 并关闭 block cache 调用 wsha。
+run_wsha_with_home_no_block_cache() {
+    local home_dir="$1"
+    local config_file="$2"
+    shift 2
+
+    raw_output=$(HOME="$home_dir" WSHA_CONFIG_FILE="$config_file" WSHA_BLOCK_NO_CACHE="1" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" "$@" 2>&1)
     run_code=$?
     raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
     output=$(strip_time_logs "$raw_output")

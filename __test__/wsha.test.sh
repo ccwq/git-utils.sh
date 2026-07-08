@@ -218,6 +218,45 @@ test_unknown_command_passthrough_error_code() {
     record_test_result "test_unknown_command_passthrough_error_code" "$result" "$duration" "$note"
 }
 
+# Given：配置中存在带 & 和 | 前缀的 alias。
+# When：分别执行去掉前缀后的 seq 与 fallback。
+# Then：当前实现应解析前缀并按普通 alias 命中。
+# 防回归：防止 parse_alias_prefix 改动后把 &/| 留在 alias 名称里导致用户无法调用。
+test_prefix_aliases_match_without_prefix_marker() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-prefix.txt"
+    write_wsha_prefix_alias_config "$config_file"
+
+    run_wsha "$config_file" seq
+    local seq_output fallback_output
+    seq_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$seq_output" != *"sequential-prefix"* ]]; then
+        note="seq output=[$seq_output], code=$run_code"
+        log_fail "$note"
+        end_time=$(current_time)
+        duration=$(calc_duration "$start_time" "$end_time")
+        record_test_result "test_prefix_aliases_match_without_prefix_marker" "$result" "$duration" "$note"
+        return
+    fi
+
+    run_wsha "$config_file" fallback
+    fallback_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$fallback_output" == *"or-prefix"* ]]; then
+        result="PASS"
+        log_success "前缀 alias 去标记命中测试通过"
+    else
+        note="fallback output=[$fallback_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_prefix_aliases_match_without_prefix_marker" "$result" "$duration" "$note"
+}
+
 test_list_long_flag() {
     local start_time end_time duration result note config_file
     start_time=$(current_time)
@@ -876,6 +915,36 @@ test_recursive_alias_keeps_captured_w_command() {
     record_test_result "test_recursive_alias_keeps_captured_w_command" "$result" "$duration" "$note"
 }
 
+# Given：默认配置中 `tping -qq` 会展开到 `wsh %APP_SH%/core/tping.sh qq.com 443`。
+# When：以 Windows cmd 输出协议只通过 core 展开 `w tping -qq`。
+# Then：脚本路径应保留为 Git Bash 可读的 `/.../sh/core/tping.sh`，不能退化成 `E:project...`。
+# 防回归：防止 Windows 路径反斜杠在 shlex/cmd/bash 边界被吞掉，导致 tping.sh 找不到。
+test_tping_qq_keeps_script_path_separators() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-tping.txt"
+    write_wsha_tping_config "$config_file"
+
+    local expanded_cmd
+    expanded_cmd=$(capture_wsha_core_cmd_output "$config_file" tping -qq)
+    if [[ "$expanded_cmd" == *"/sh/core/tping.sh"* ]] \
+        && [[ "$expanded_cmd" == *"qq.com 443"* ]] \
+        && [[ "$expanded_cmd" != *"E:projectself"* ]] \
+        && [[ "$expanded_cmd" != *"git-utils.shsh/core"* ]]; then
+        result="PASS"
+        log_success "tping -qq 脚本路径分隔符保持测试通过"
+    else
+        note="expanded=[$expanded_cmd]"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_tping_qq_keeps_script_path_separators" "$result" "$duration" "$note"
+}
+
 # Given：配置中存在 bash block alias，并使用 [[1]] 捕获用户参数。
 # When：执行 w bhello Alice。
 # Then：应生成并执行 bash block，输出 block-Alice。
@@ -1054,6 +1123,62 @@ test_block_double_star_requires_non_empty_warn() {
     record_test_result "test_block_double_star_requires_non_empty_warn" "$result" "$duration" "$note"
 }
 
+# Given：配置中存在未关闭的 block alias。
+# When：加载配置并执行该 alias。
+# Then：应失败并报告 unclosed block。
+# 防回归：防止三引号配置错误被静默忽略后执行到错误 alias。
+test_block_unclosed_fails() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-unclosed.txt"
+    write_wsha_block_unclosed_config "$config_file"
+
+    run_wsha "$config_file" broken
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] && [[ "$clean_output" == *"unclosed block"* ]]; then
+        result="PASS"
+        log_success "未关闭 block 失败测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_unclosed_fails" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在包含多个 ** 的 alias。
+# When：只通过 core 展开可疑输入。
+# Then：该 alias 应被视为无效候选并保持原命令透传。
+# 防回归：防止多个 ** 被部分匹配后生成不可预期命令。
+test_multiple_double_star_alias_is_skipped() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-multiple-dstar.txt"
+    write_wsha_multiple_double_star_config "$config_file"
+
+    run_wsha_core "$config_file" multi alpha beta
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == "multi alpha beta" ]]; then
+        result="PASS"
+        log_success "多个双星号 alias 跳过测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_multiple_double_star_alias_is_skipped" "$result" "$duration" "$note"
+}
+
 # Given：配置中存在空 bash block alias。
 # When：执行 w bempty。
 # Then：应 warning 并以 no-op 成功返回。
@@ -1178,6 +1303,71 @@ test_block_cache_clear() {
     record_test_result "test_block_cache_clear" "$result" "$duration" "$note"
 }
 
+# Given：block cache 被环境变量关闭。
+# When：执行 bash block alias。
+# Then：命令仍成功执行，但不会创建 ~/.cache/wsha/blocks。
+# 防回归：防止 WSHA_BLOCK_NO_CACHE 被忽略导致无缓存运行仍写入 blocks 目录。
+test_block_no_cache_uses_temp_script() {
+    local start_time end_time duration result note config_file cache_home
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-block-bash.txt"
+    cache_home="$TEST_DIR/block-no-cache-home"
+    write_wsha_block_bash_config "$config_file"
+
+    run_wsha_with_home_no_block_cache "$cache_home" "$config_file" bhello Temp Script
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$output" == *"block-Temp-Script"* ]] \
+        && [[ ! -d "$cache_home/.cache/wsha/blocks" ]]; then
+        result="PASS"
+        log_success "block no-cache 临时脚本测试通过"
+    else
+        note="output=[$output], code=$run_code, blocks_exists=$([[ -d "$cache_home/.cache/wsha/blocks" ]] && echo yes || echo no)"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_block_no_cache_uses_temp_script" "$result" "$duration" "$note"
+}
+
+# Given：HOME 下存在损坏的 alias cache JSON。
+# When：执行普通 alias。
+# Then：应忽略损坏 cache，重新读取配置并重写可解析 cache。
+# 防回归：防止 cache 文件损坏后 wsha 无法启动。
+test_corrupt_alias_cache_falls_back_to_config() {
+    local start_time end_time duration result note cache_home work_dir cache_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    cache_home="$TEST_DIR/corrupt-cache-home"
+    work_dir="$TEST_DIR/corrupt-cache-work"
+    cache_file="$cache_home/.cache/wsha/wsha.cache.json"
+    mkdir -p "$cache_home/.config/wsh-alias" "$work_dir"
+    write_wsha_normal_config "$cache_home/.config/wsh-alias/default.txt"
+    mkdir -p "$(dirname "$cache_file")"
+    printf '{broken-json\n' > "$cache_file"
+
+    run_wsha_default "$work_dir" "$cache_home" ab open
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$clean_output" == *"agent-browser open"* ]] \
+        && [[ -f "$cache_file" ]] \
+        && grep -q '"version"' "$cache_file"; then
+        result="PASS"
+        log_success "损坏 alias cache 回退重建测试通过"
+    else
+        note="output=[$clean_output], code=$run_code, cache=[$(cat "$cache_file" 2>/dev/null)]"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_corrupt_alias_cache_falls_back_to_config" "$result" "$duration" "$note"
+}
+
 test_builtin_env_vars() {
     local start_time end_time duration result note config_file expected_home expected_sh expected_config
     start_time=$(current_time)
@@ -1239,6 +1429,7 @@ main() {
     test_quoted_complex_command_passthrough
     test_quoted_and_chain_passthrough
     test_unknown_command_passthrough_error_code
+    test_prefix_aliases_match_without_prefix_marker
     test_list_long_flag
     test_list_short_flag
     test_list_tty_table_groups_and_truncates
@@ -1261,16 +1452,21 @@ main() {
     test_super_rule_plain_tokens
     test_super_rule_quoted_command
     test_recursive_alias_keeps_captured_w_command
+    test_tping_qq_keeps_script_path_separators
     test_block_bash_capture_placeholder
     test_block_sh_runner
     test_block_windows_runner_command_generation
     test_block_embedded_double_star_empty_warn
     test_block_extra_args_warn_and_ignore
     test_block_double_star_requires_non_empty_warn
+    test_block_unclosed_fails
+    test_multiple_double_star_alias_is_skipped
     test_block_empty_warn_noop
     test_block_list_summary
     test_block_invalid_runner_fails
     test_block_cache_clear
+    test_block_no_cache_uses_temp_script
+    test_corrupt_alias_cache_falls_back_to_config
     test_builtin_env_vars
 
     cleanup
