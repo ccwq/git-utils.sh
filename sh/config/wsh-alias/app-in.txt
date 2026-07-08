@@ -14,5 +14,10 @@
 -ecu wsha --edit-config-user
 
 
+# 执行cmd命令, 支持bat|cmd
+l * """bash
+w.sh -l | grep [[1]]
+"""
+
 # git遗忘文件
 git-omit wsh wsh-real-ignore.sh

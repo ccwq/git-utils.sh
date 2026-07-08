@@ -19,6 +19,12 @@ import time
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Tuple
 
+PY_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "py"))
+if PY_DIR not in sys.path:
+    sys.path.insert(0, PY_DIR)
+
+from wsha.list_table import AliasListEntry, classify_alias, render_alias_table
+
 WSHA_ENTRY = os.environ.get("WSHA_ENTRY", "wsha")
 CACHE_MAX_AGE = 300  # 5 minutes
 CACHE_VERSION = "v5"
@@ -710,6 +716,18 @@ def expand_template_tokens(template: str, captures: List[str], rest_capture: str
     return final_tokens
 
 
+def template_starts_recursive_alias(template: str) -> bool:
+    """Only recurse when the alias author explicitly starts the template with w/wsha."""
+    tokens = tokenize(expand_env_vars(template))
+    if not tokens:
+        return False
+
+    first = tokens[0]
+    if "$" in first or "[[" in first or "]]" in first:
+        return False
+    return token_basename_lower(first) in RECURSIVE_ALIAS_COMMANDS
+
+
 def expand_env_vars(text: str) -> str:
     result = text
     pattern = re.compile(r"%([A-Za-z_][A-Za-z0-9_]*)%")
@@ -1031,6 +1049,18 @@ def list_aliases() -> int:
         print("[wsha] no alias found.")
         return 0
 
+    force_table = os.environ.get("WSHA_FORCE_TABLE_LIST", "") == "1"
+    wrapper_stdout_tty = os.environ.get("WSHA_STDOUT_IS_TTY", "") == "1"
+    if force_table or wrapper_stdout_tty or sys.stdout.isatty():
+        entries = [
+            AliasListEntry(alias.key, template_display(alias), classify_alias(alias.key, alias.is_block))
+            for alias in _aliases
+        ]
+        width_text = os.environ.get("WSHA_TABLE_WIDTH", "")
+        width = int(width_text) if width_text.isdigit() else None
+        print(render_alias_table(entries, width=width))
+        return 0
+
     groups: Dict[str, Dict[str, object]] = {}
     for alias in _aliases:
         groups.setdefault(alias.config_path, {"source": alias.source_name, "aliases": []})
@@ -1070,7 +1100,7 @@ def resolve_alias_tokens(input_tokens: List[str]) -> Optional[List[str]]:
             return [cmd]
 
         final_tokens = expand_template_tokens(template, captures, rest_capture, runtime_args)
-        if final_tokens and token_basename_lower(final_tokens[0]) in RECURSIVE_ALIAS_COMMANDS:
+        if final_tokens and template_starts_recursive_alias(template):
             current_tokens = final_tokens[1:]
             continue
         return final_tokens

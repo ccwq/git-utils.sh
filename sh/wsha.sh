@@ -71,7 +71,9 @@ log_test_time() {
 invoke_via_core() {
     local entry="$1"
     shift
-    WSHA_CMDLINE_OUTPUT=sh python "$APP_SH/core/wsha_core.py" -e "$entry" "$@"
+    local stdout_is_tty=0
+    [[ -t 1 ]] && stdout_is_tty=1
+    WSHA_STDOUT_IS_TTY="$stdout_is_tty" WSHA_CMDLINE_OUTPUT=sh python "$APP_SH/core/wsha_core.py" -e "$entry" "$@"
 }
 
 invoke_cmd() {
