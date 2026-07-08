@@ -1,0 +1,33 @@
+# 存放代码块的
+
+# 执行shell命令, bash|sh同样
+# windows上使用wsh.bat执行命令
+
+
+"ping" """bash
+ping baidu.com
+"""
+
+# 携带参数
+
+"ping * *" """bash
+ping [[1]] [[2]]
+"""
+
+"ping **" """bash
+ping [[...]]
+"""
+
+
+
+
+# 执行cmd命令, 支持bat|cmd
+log -f """cmd
+
+"""
+
+# powsershell
+# pwsh/powershell
+log -f ** """pwsh
+echo [[...]]
+"""
