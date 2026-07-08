@@ -195,6 +195,8 @@ tping wsh %APP_SH%/core/tping.sh
 tcping wsha tping
 "tping -qq" wsh %APP_SH%/core/tping.sh qq.com 443
 "tping -baidu" wsh %APP_SH%/core/tping.sh baidu.com 443
+"tping -tgate" wsh %APP_SH%/core/tping.sh 43.172.66.92 8317
+
 
 # 为wsh增加缩写
 "s**" wsh $$
@@ -226,34 +228,3 @@ bash wsh.bat .
 
 
 # ------
-
-
-# 执行shell命令, bash|sh同样
-# windows上使用wsh.bat执行命令
-"ping" """bash
-ping baidu.com
-"""
-
-# 携带参数
-
-"ping * *" """bash
-ping [[1]] [[2]]
-"""
-
-"ping **" """bash
-ping [[...]]
-"""
-
-
-
-
-# 执行cmd命令, 支持bat|cmd
-log -f """cmd
-
-"""
-
-# powsershell
-# pwsh/powershell
-log -f ** """pwsh
-echo [[...]]
-"""

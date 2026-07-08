@@ -740,7 +740,7 @@ def expand_env_vars(text: str) -> str:
             break
         var_name = match.group(1)
         var_value = os.environ.get(var_name, "")
-        if is_git_bash_runtime() and var_name in {"APP_HOME", "APP_SH", "APP_CONFIG"}:
+        if var_name in {"APP_HOME", "APP_SH", "APP_CONFIG"}:
             var_value = to_display_path(var_value)
         result = result.replace(match.group(0), var_value)
     return result
@@ -1031,7 +1031,9 @@ def to_shell_path(path: str) -> str:
 
 def to_display_path(path: str) -> str:
     if re.match(r"^[A-Za-z]:[\\/]", path):
-        return to_shell_path(path)
+        drive = path[0].lower()
+        rest = path[2:].replace("\\", "/")
+        return f"/{drive}{rest}"
     return path
 
 
