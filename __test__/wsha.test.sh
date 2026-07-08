@@ -1,171 +1,6 @@
 #!/bin/bash
 
-source "$(dirname "$0")/test_utils.sh"
-
-BASE_DIR=$(cd "$(dirname "$0")" && pwd)
-PROJECT_ROOT=$(cd "$BASE_DIR/.." && pwd)
-SCRIPT_TO_TEST="$PROJECT_ROOT/sh/wsha.sh"
-TEST_DIR="$PROJECT_ROOT/test_playground_wsha"
-
-# 准备测试沙箱与路径
-setup() {
-    log_info "正在设置 wsha 测试环境..."
-    rm -rf "$TEST_DIR"
-    mkdir -p "$TEST_DIR"
-}
-
-# 清理测试沙箱
-cleanup() {
-    log_info "正在清理 wsha 测试环境..."
-    rm -rf "$TEST_DIR"
-}
-
-# 生成测试配置文件
-write_config() {
-    local file_path="$1"
-    local mode="$2"
-
-    if [[ "$mode" == "normal" ]]; then
-        cat > "$file_path" <<'EOF'
-ab echo agent-browser
-foo echo foobar open
-
-# 注释行会被忽略
-bar echo barbar $@ --name ccwq
-EOF
-    elif [[ "$mode" == "duplicate" ]]; then
-        cat > "$file_path" <<'EOF'
-ab echo first
-ab echo second
-EOF
-    elif [[ "$mode" == "invalid" ]]; then
-        cat > "$file_path" <<'EOF'
-ab
-EOF
-    elif [[ "$mode" == "quoted_wildcard" ]]; then
-        cat > "$file_path" <<'EOF'
-pcodex echo codex-default
-"pcodex l" echo codex-last
-"px*" echo pnpx $1
-"px *" echo pnpx $1
-"q1 *" "echo pnpx $1"
-"q2 *" echo pnpx $1
-"tool * *" echo $1::$2
-"s**" echo wsh $$
-EOF
-    elif [[ "$mode" == "super_rule" ]]; then
-        cat > "$file_path" <<'EOF'
-"grcmd * *" $1 | findstr $2
-EOF
-    elif [[ "$mode" == "argv_quote" ]]; then
-        cat > "$file_path" <<'EOF'
-codex-l echo codex $@
-codex-yo wsha codex-l --yolo $@
-coyo wsha codex-yo
-EOF
-    elif [[ "$mode" == "block_bash" ]]; then
-        cat > "$file_path" <<'EOF'
-"bhello * *" """bash
-echo block-[[1]]-[[2]]
-"""
-
-"shello *" """sh
-echo sh-block-[[1]]
-"""
-
-"bbase" """bash
-echo block-base
-"""
-
-"brest **" """bash
-echo rest-[[...]]
-"""
-
-"bempty" """bash
-
-"""
-EOF
-    elif [[ "$mode" == "block_invalid_runner" ]]; then
-        cat > "$file_path" <<'EOF'
-"bad" """python
-echo bad
-"""
-EOF
-    elif [[ "$mode" == "env_vars" ]]; then
-        cat > "$file_path" <<'EOF'
-show-home echo %APP_HOME%
-show-sh echo %APP_SH%
-show-config echo %APP_CONFIG%
-EOF
-    fi
-}
-
-# 调用 wsha 并回收输出与退出码
-run_wsha() {
-    local config_file="$1"
-    shift
-
-    raw_output=$(WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" "$@" 2>&1)
-    run_code=$?
-    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
-    output=$(strip_time_logs "$raw_output")
-}
-
-# 调用 wsha 的 -lv/--list-view，并在测试模式下将弹窗输出转为文本
-run_wsha_list_view() {
-    local config_file="$1"
-    shift
-
-    raw_output=$(WSHA_CONFIG_FILE="$config_file" WSHA_TEST_GRID_CAPTURE="1" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" "$@" 2>&1)
-    run_code=$?
-    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
-    output=$(strip_time_logs "$raw_output")
-}
-
-# 调用 wsha 默认多配置合并模式（不传 WSHA_CONFIG_FILE）
-run_wsha_default() {
-    local work_dir="$1"
-    local user_home_dir="$2"
-    shift 2
-
-    raw_output=$(cd "$work_dir" && HOME="$user_home_dir" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" "$@" 2>&1)
-    run_code=$?
-    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
-    output=$(strip_time_logs "$raw_output")
-}
-
-# 清理测试输出中的耗时日志和颜色控制符，便于断言业务内容
-strip_time_logs() {
-    printf "%s" "$1" | awk '
-        BEGIN {
-            esc = sprintf("%c", 27)
-        }
-        {
-            gsub(esc "\\[[0-9;]*[A-Za-z]", "")
-            if ($0 ~ /^\[wsha\]\[time\] /) next
-            print
-        }
-    '
-}
-
-# 生成默认模式下的用户级与工作目录级配置
-write_default_merge_configs() {
-    local user_home_dir="$1"
-    local work_dir="$2"
-
-    mkdir -p "$user_home_dir/.config/wsh-alias"
-    mkdir -p "$work_dir/.config/wsh-alias"
-
-    cat > "$user_home_dir/.config/wsh-alias/default.txt" <<'EOF'
-ab echo user-ab
-foo echo user-foo
-EOF
-
-    cat > "$work_dir/.config/wsh-alias/default.txt" <<'EOF'
-ab echo local-ab
-bar echo local-bar
-EOF
-}
+source "$(dirname "$0")/core/wsha_helpers.sh"
 
 test_expand_ab() {
     local start_time end_time duration result note config_file
@@ -173,7 +8,7 @@ test_expand_ab() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" ab open
     local clean_output
@@ -197,7 +32,7 @@ test_expand_foo_append() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" foo --ping
     local clean_output
@@ -221,7 +56,7 @@ test_expand_bar_placeholder() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" bar --age 40
     local clean_output
@@ -245,7 +80,7 @@ test_unknown_alias_passthrough_with_args() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" echo hello
     local clean_output
@@ -269,7 +104,7 @@ test_unknown_alias_ping_passthrough() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" ping t.cn -n 1
     local clean_output
@@ -293,7 +128,7 @@ test_quoted_alias_expand() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" "ab open t.cn"
     local clean_output
@@ -317,7 +152,7 @@ test_quoted_complex_command_passthrough() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" "echo foo | grep foo"
     local clean_output
@@ -341,7 +176,7 @@ test_quoted_and_chain_passthrough() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" "echo a && echo b"
     local clean_output
@@ -365,7 +200,7 @@ test_unknown_command_passthrough_error_code() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" not_exist_cmd_12345
     local clean_output
@@ -389,7 +224,7 @@ test_list_long_flag() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" --list
     local clean_output
@@ -423,7 +258,7 @@ test_list_short_flag() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
 
     run_wsha "$config_file" -l
     local clean_output
@@ -446,13 +281,86 @@ test_list_short_flag() {
     record_test_result "test_list_short_flag" "$result" "$duration" "$note"
 }
 
+# Given：alias 配置包含普通 alias、通配 alias 和 bash block alias，且命令列存在超长文本。
+# When：模拟交互终端执行 w -l。
+# Then：输出应按分组表格展示，组内按 alias 字母排序，并截断长命令。
+# 防回归：防止 TTY 表格列表退化为旧纯文本或长命令撑坏终端宽度。
+test_list_tty_table_groups_and_truncates() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-table-list.txt"
+    write_wsha_table_list_config "$config_file"
+
+    run_wsha_table_list "$config_file" -l
+    local clean_output alpha_line zeta_line
+    clean_output=$(strip_time_logs "$output")
+    alpha_line=$(printf "%s" "$clean_output" | grep -n "| alpha" | cut -d: -f1)
+    zeta_line=$(printf "%s" "$clean_output" | grep -n "| zeta" | cut -d: -f1)
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$clean_output" == *"[普通 alias]"* ]] \
+        && [[ "$clean_output" == *"[通配 alias]"* ]] \
+        && [[ "$clean_output" == *"[block command]"* ]] \
+        && [[ "$clean_output" == *"| alias"*"| command"* ]] \
+        && [[ "$clean_output" == *"| alpha"* ]] \
+        && [[ "$clean_output" == *"| zeta"* ]] \
+        && [[ "$clean_output" == *"| px *"* ]] \
+        && [[ "$clean_output" == *"<bash block: 1 line>"* ]] \
+        && [[ "$clean_output" == *"..."* ]] \
+        && [[ -n "$alpha_line" && -n "$zeta_line" && "$alpha_line" -lt "$zeta_line" ]]; then
+        result="PASS"
+        log_success "TTY 表格列表分组排序截断测试通过"
+    else
+        note="output=[$clean_output], code=$run_code, alpha_line=[$alpha_line], zeta_line=[$zeta_line]"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_list_tty_table_groups_and_truncates" "$result" "$duration" "$note"
+}
+
+# Given：stdout 被命令替换捕获，相当于管道/重定向场景。
+# When：不强制 TTY 表格时执行 w -l。
+# Then：应保留旧纯文本来源列表，方便 findstr/grep 和脚本继续消费。
+# 防回归：防止非 TTY 场景被自动切到表格输出而破坏管道兼容性。
+test_list_non_tty_keeps_plain_output() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-table-list.txt"
+    write_wsha_table_list_config "$config_file"
+
+    run_wsha "$config_file" -l
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] \
+        && [[ "$clean_output" == *"[自定义]"* ]] \
+        && [[ "$clean_output" == *"别名  命令"* ]] \
+        && [[ "$clean_output" == *"alpha  echo alpha-command"* ]] \
+        && [[ "$clean_output" != *"[普通 alias]"* ]] \
+        && [[ "$clean_output" != *"| alias"* ]]; then
+        result="PASS"
+        log_success "非 TTY 列表保持纯文本输出测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_list_non_tty_keeps_plain_output" "$result" "$duration" "$note"
+}
+
 test_list_view_flag() {
     local start_time end_time duration result note config_file config_win
     start_time=$(current_time)
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-normal.txt"
-    write_config "$config_file" "normal"
+    write_wsha_normal_config "$config_file"
     config_win=$(cygpath -u "$config_file")
 
     run_wsha_list_view "$config_file" -lv
@@ -481,7 +389,7 @@ test_duplicate_alias() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-dup.txt"
-    write_config "$config_file" "duplicate"
+    write_wsha_duplicate_config "$config_file"
 
     run_wsha "$config_file" ab run
     local clean_output
@@ -505,7 +413,7 @@ test_invalid_mapping() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-invalid.txt"
-    write_config "$config_file" "invalid"
+    write_wsha_invalid_config "$config_file"
 
     run_wsha "$config_file" ab run
     local clean_output
@@ -532,7 +440,7 @@ test_default_merge_priority() {
     user_home_dir="$TEST_DIR/default-home"
     work_dir="$TEST_DIR/default-work"
     mkdir -p "$user_home_dir" "$work_dir"
-    write_default_merge_configs "$user_home_dir" "$work_dir"
+    write_wsha_default_merge_configs "$user_home_dir" "$work_dir"
 
     run_wsha_default "$work_dir" "$user_home_dir" ab run
     local clean_output
@@ -600,7 +508,7 @@ test_default_list_merged_aliases() {
     user_home_dir="$TEST_DIR/list-home"
     work_dir="$TEST_DIR/list-work"
     mkdir -p "$user_home_dir" "$work_dir"
-    write_default_merge_configs "$user_home_dir" "$work_dir"
+    write_wsha_default_merge_configs "$user_home_dir" "$work_dir"
     builtin_win=$(cygpath -u "$PROJECT_ROOT/sh/config/wsh-alias")
     user_win=$(cygpath -u "$user_home_dir/.config/wsh-alias")
     local_win=$(cygpath -u "$work_dir/.config/wsh-alias")
@@ -633,7 +541,7 @@ test_quoted_alias_with_space() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-quoted-wildcard.txt"
-    write_config "$config_file" "quoted_wildcard"
+    write_wsha_quoted_wildcard_config "$config_file"
 
     run_wsha "$config_file" pcodex
     if [[ $run_code -ne 0 ]] || [[ "$output" != *"codex-default"* ]]; then
@@ -665,7 +573,7 @@ test_wildcard_single_token_alias() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-quoted-wildcard.txt"
-    write_config "$config_file" "quoted_wildcard"
+    write_wsha_quoted_wildcard_config "$config_file"
 
     run_wsha "$config_file" pxhttp-server
     local clean_output
@@ -689,7 +597,7 @@ test_wildcard_multi_token_alias() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-quoted-wildcard.txt"
-    write_config "$config_file" "quoted_wildcard"
+    write_wsha_quoted_wildcard_config "$config_file"
 
     run_wsha "$config_file" px http-server
     local clean_output
@@ -713,7 +621,7 @@ test_quoted_content_equivalence() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-quoted-wildcard.txt"
-    write_config "$config_file" "quoted_wildcard"
+    write_wsha_quoted_wildcard_config "$config_file"
 
     run_wsha "$config_file" q1 http-server
     out_q1=$(strip_time_logs "$output")
@@ -751,7 +659,7 @@ test_double_star_capture() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-quoted-wildcard.txt"
-    write_config "$config_file" "quoted_wildcard"
+    write_wsha_quoted_wildcard_config "$config_file"
 
     run_wsha "$config_file" sls -l
     local clean_output
@@ -775,7 +683,7 @@ test_wildcard_multi_capture() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-quoted-wildcard.txt"
-    write_config "$config_file" "quoted_wildcard"
+    write_wsha_quoted_wildcard_config "$config_file"
 
     run_wsha "$config_file" tool alpha beta
     local clean_output
@@ -803,7 +711,7 @@ test_recursive_alias_quoted_prompt_with_dollar_at() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-argv-quote.txt"
-    write_config "$config_file" "argv_quote"
+    write_wsha_argv_quote_config "$config_file"
 
     run_wsha "$config_file" coyo --model gpt-5.4 "git-up -p"
     local clean_output
@@ -832,7 +740,7 @@ test_recursive_alias_dollar_prompt_is_literal() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-argv-quote.txt"
-    write_config "$config_file" "argv_quote"
+    write_wsha_argv_quote_config "$config_file"
 
     run_wsha "$config_file" coyo --model gpt-5.4 '$git-up -p'
     local clean_output
@@ -862,7 +770,7 @@ test_super_rule_plain_tokens() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-super-rule.txt"
-    write_config "$config_file" "super_rule"
+    write_wsha_super_rule_config "$config_file"
 
     run_wsha "$config_file" grcmd tasklist chrome
     local clean_output
@@ -890,7 +798,7 @@ test_super_rule_quoted_command() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-super-rule.txt"
-    write_config "$config_file" "super_rule"
+    write_wsha_super_rule_config "$config_file"
 
     run_wsha "$config_file" grcmd "tasklist /M chrome*" web
     local clean_output
@@ -908,6 +816,34 @@ test_super_rule_quoted_command() {
     record_test_result "test_super_rule_quoted_command" "$result" "$duration" "$note"
 }
 
+# Given：grep alias 递归到 grcmd，且 grcmd 的 $1 捕获值本身以 w 开头。
+# When：只通过 core 展开 `grep "w -l" tping`。
+# Then：最终命令应保留捕获里的 w，得到 `w -l | findstr tping`。
+# 防回归：防止递归 alias 逻辑把用户捕获内容中的 w 误当 wrapper 并吞掉。
+test_recursive_alias_keeps_captured_w_command() {
+    local start_time end_time duration result note config_file
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-grep-chain.txt"
+    write_wsha_grep_chain_config "$config_file"
+
+    run_wsha_core "$config_file" grep "w -l" tping
+    local clean_output
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == "w -l | findstr tping" ]]; then
+        result="PASS"
+        log_success "递归 alias 保留捕获 w 命令测试通过"
+    else
+        note="output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_recursive_alias_keeps_captured_w_command" "$result" "$duration" "$note"
+}
+
 # Given：配置中存在 bash block alias，并使用 [[1]] 捕获用户参数。
 # When：执行 w bhello Alice。
 # Then：应生成并执行 bash block，输出 block-Alice。
@@ -918,7 +854,7 @@ test_block_bash_capture_placeholder() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-bash.txt"
-    write_config "$config_file" "block_bash"
+    write_wsha_block_bash_config "$config_file"
 
     run_wsha "$config_file" bhello Alice Bob
     local clean_output
@@ -946,7 +882,7 @@ test_block_sh_runner() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-bash.txt"
-    write_config "$config_file" "block_bash"
+    write_wsha_block_bash_config "$config_file"
 
     run_wsha "$config_file" shello World
     local clean_output
@@ -969,31 +905,17 @@ test_block_sh_runner() {
 # Then：输出命令应包含对应 runner 和脚本路径，不应丢失反斜杠导致 Bash 吞路径。
 # 防回归：防止非 bash block 在 Git Bash wrapper 下生成不可执行命令。
 test_block_windows_runner_command_generation() {
-    local start_time end_time duration result note config_file core_path out_cmd out_bat out_pwsh out_powershell
+    local start_time end_time duration result note config_file out_cmd out_bat out_pwsh out_powershell
     start_time=$(current_time)
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-windows-runners.txt"
-    core_path="$PROJECT_ROOT/sh/core/wsha_core.py"
-    cat > "$config_file" <<'EOF'
-"bcmd" """cmd
-echo cmd-ok
-"""
-"bbat" """bat
-echo bat-ok
-"""
-"bpwsh" """pwsh
-Write-Output pwsh-ok
-"""
-"bpowershell" """powershell
-Write-Output powershell-ok
-"""
-EOF
+    write_wsha_block_windows_runners_config "$config_file"
 
-    out_cmd=$(WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$core_path" bcmd 2>&1)
-    out_bat=$(WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$core_path" bbat 2>&1)
-    out_pwsh=$(WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$core_path" bpwsh 2>&1 || true)
-    out_powershell=$(WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=sh python "$core_path" bpowershell 2>&1 || true)
+    out_cmd=$(capture_wsha_core_sh_output "$config_file" bcmd)
+    out_bat=$(capture_wsha_core_sh_output "$config_file" bbat)
+    out_pwsh=$(capture_wsha_core_sh_output "$config_file" bpwsh || true)
+    out_powershell=$(capture_wsha_core_sh_output "$config_file" bpowershell || true)
 
     if [[ "$out_cmd" == *"/c"* ]] \
         && [[ "$out_cmd" == *".cmd"* ]] \
@@ -1023,11 +945,7 @@ test_block_embedded_double_star_empty_warn() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-embedded-dstar.txt"
-    cat > "$config_file" <<'EOF'
-"b**" """bash
-echo rest-[[...]]
-"""
-EOF
+    write_wsha_block_embedded_dstar_config "$config_file"
 
     run_wsha "$config_file" b
     local clean_output
@@ -1055,7 +973,7 @@ test_block_extra_args_warn_and_ignore() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-bash.txt"
-    write_config "$config_file" "block_bash"
+    write_wsha_block_bash_config "$config_file"
 
     run_wsha "$config_file" bbase ignored-arg
     local clean_output
@@ -1086,11 +1004,7 @@ test_block_double_star_requires_non_empty_warn() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-bash.txt"
-    cat > "$config_file" <<'EOF'
-"onlyrest **" """bash
-echo rest-[[...]]
-"""
-EOF
+    write_wsha_block_onlyrest_config "$config_file"
 
     run_wsha "$config_file" onlyrest
     local clean_output
@@ -1118,7 +1032,7 @@ test_block_empty_warn_noop() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-bash.txt"
-    write_config "$config_file" "block_bash"
+    write_wsha_block_bash_config "$config_file"
 
     run_wsha "$config_file" bempty
     local clean_output
@@ -1146,7 +1060,7 @@ test_block_list_summary() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-bash.txt"
-    write_config "$config_file" "block_bash"
+    write_wsha_block_bash_config "$config_file"
 
     run_wsha "$config_file" --list
     local clean_output
@@ -1177,7 +1091,7 @@ test_block_invalid_runner_fails() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-block-invalid-runner.txt"
-    write_config "$config_file" "block_invalid_runner"
+    write_wsha_block_invalid_runner_config "$config_file"
 
     run_wsha "$config_file" bad
     local clean_output
@@ -1206,12 +1120,9 @@ test_block_cache_clear() {
     note=""
     config_file="$TEST_DIR/alias-block-bash.txt"
     cache_home="$TEST_DIR/block-cache-home"
-    write_config "$config_file" "block_bash"
+    write_wsha_block_bash_config "$config_file"
 
-    raw_output=$(HOME="$cache_home" WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" bhello Cache Hit 2>&1)
-    run_code=$?
-    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
-    output=$(strip_time_logs "$raw_output")
+    run_wsha_with_home "$cache_home" "$config_file" bhello Cache Hit
     if [[ $run_code -ne 0 ]] || [[ ! -d "$cache_home/.cache/wsha/blocks" ]]; then
         note="block cache 未生成 output=[$output], code=$run_code"
         log_fail "$note"
@@ -1221,10 +1132,7 @@ test_block_cache_clear() {
         return
     fi
 
-    raw_output=$(HOME="$cache_home" WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" bash "$SCRIPT_TO_TEST" --cache-clear 2>&1)
-    run_code=$?
-    raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
-    output=$(strip_time_logs "$raw_output")
+    run_wsha_with_home "$cache_home" "$config_file" --cache-clear
     if [[ $run_code -eq 0 ]] && [[ ! -d "$cache_home/.cache/wsha/blocks" || -z "$(ls -A "$cache_home/.cache/wsha/blocks" 2>/dev/null)" ]]; then
         result="PASS"
         log_success "block cache 清理测试通过"
@@ -1244,7 +1152,7 @@ test_builtin_env_vars() {
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-env-vars.txt"
-    write_config "$config_file" "env_vars"
+    write_wsha_env_vars_config "$config_file"
     expected_home=$(cygpath -u "$PROJECT_ROOT")
     expected_sh=$(cygpath -u "$PROJECT_ROOT/sh")
     expected_config=$(cygpath -u "$PROJECT_ROOT/sh/config")
@@ -1301,6 +1209,8 @@ main() {
     test_unknown_command_passthrough_error_code
     test_list_long_flag
     test_list_short_flag
+    test_list_tty_table_groups_and_truncates
+    test_list_non_tty_keeps_plain_output
     test_list_view_flag
     test_duplicate_alias
     test_invalid_mapping
@@ -1317,6 +1227,7 @@ main() {
     test_recursive_alias_dollar_prompt_is_literal
     test_super_rule_plain_tokens
     test_super_rule_quoted_command
+    test_recursive_alias_keeps_captured_w_command
     test_block_bash_capture_placeholder
     test_block_sh_runner
     test_block_windows_runner_command_generation
