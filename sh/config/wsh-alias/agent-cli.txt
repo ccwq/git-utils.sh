@@ -22,6 +22,10 @@ co wsha codex-l
 coyo wsha codex-yo
 coyo.proxy wsha proxy wsha coyo
 
+coyo.moon wsha coyo --model gpt-5.4-mini
+coyo.earth wsha coyo --model gpt-5.4
+coyo.sun wsha coyo --model gpt-5.5
+
 
 #----------------------
 # claude
