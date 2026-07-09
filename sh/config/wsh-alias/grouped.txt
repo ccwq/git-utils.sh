@@ -29,9 +29,11 @@ node-tls "set NODE_TLS_REJECT_UNAUTHORIZED=0 &&"
 
 # git相关
 git.sync git pull && git push
+git.sync.proxy wsha proxy wsha git.sync
 git.auto-pull git stash && git pull && git stash pop
 git.auto-commit wsha codex "使用skill:git-commit提交代码按照下面的要求,母语中文,根据情况分1批或者多2,依据功能而定"
-
+git.push git push
+git.push.proxy wsha git push
 barry-pick wsh wsh-barry-pick.sh
 
 ## lazygit

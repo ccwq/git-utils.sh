@@ -1,0 +1,53 @@
+#----------------------
+# agent-browser
+#----------------------
+ab npx -y agent-browser
+abc wsha ab --cdp 9696
+abcc wsha ab --cdp %CDPORT%
+ab-p npx -y agent-browser@0.16.3
+ab-p-l npx -y agent-browser@latest
+
+
+#----------------------
+# codex
+#----------------------
+codex npx -y @openai/codex@0.115.0
+codex-p npx -y @openai/codex@0.115.0
+# codex-l wsh npx -y @openai/codex@latest
+codex-l wsh npx -y @openai/codex@latest
+codex-mmx wsha codex-l --model codex-MiniMax-M2.7
+codex-mini wsha codex-l --model codex-MiniMax-M2.7
+codex-yo wsha codex-l --yolo $@
+co wsha codex-l
+coyo wsha codex-yo
+coyo.proxy wsha proxy wsha coyo
+
+
+#----------------------
+# claude
+#----------------------
+claude wsha claude-p
+claude-p npx -y @anthropic-ai/claude-code
+claude-l set CLAUDE_CODE_DISABLE_MOUSE=1 && npx -y @anthropic-ai/claude-code@latest
+claude-yo wsha claude-l --dangerously-skip-permissions
+cc wsha claude-l
+ccyo wsha claude-yo
+ccyo.proxy wsha proxy wsha ccyo
+
+
+#----------------------
+# opencode
+#----------------------
+opencode npx -y opencode-ai@1.2.24
+opencode-l npx -y opencode-ai@latest
+
+
+
+#----------------------
+# gemini
+#----------------------
+gem gemini
+gemini npx -y @google/gemini-cli
+gemini-p npx -y @google/gemini-cli@0.33.1
+gemini-l npx -y @google/gemini-cli@latest
+gemini-yo wsha gemini --approval-mode yolo
