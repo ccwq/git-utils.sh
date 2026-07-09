@@ -25,20 +25,6 @@ grep wsha grcmd
 # w clip echo "foobar" => foobar最后被写入剪切板
 "clip **"   $$ | clip
 
-# ---
-# proxy
-## 使用代理 :7897 执行命令
-proxy "set http_proxy=http://localhost:7897 && set https_proxy=http://localhost:7897 &&"
-pxy wsha proxy
-
-# 自定义代理端口
-proxy:* "set http_proxy=http://localhost:$1 && set https_proxy=http://localhost:$1 &&"
-pxy:* wsha proxy $$
-
-# 自定义代理地址
-proxy:* "set http_proxy=http://localhost:$1 && set https_proxy=http://localhost:$1 &&"
-pxy:* wsha proxy $$
-
 
 
 # 测试
@@ -109,10 +95,6 @@ wkp wsha win.kill-port
 
 ## 重启explor
 restart-exp taskkill /f /im explorer.exe && start explorer
-
-
-# gsd2
-gsd npx -y gsd-pi
 
 # playwright-cli
 pw playwright-cli

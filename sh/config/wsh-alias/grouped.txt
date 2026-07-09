@@ -1,0 +1,46 @@
+#----------------------
+# 代理设置
+#----------------------
+## 使用代理 :7897 执行命令
+proxy "set http_proxy=http://localhost:7897 && set https_proxy=http://localhost:7897 &&"
+pxy wsha proxy
+
+# 自定义代理端口
+proxy:* "set http_proxy=http://localhost:$1 && set https_proxy=http://localhost:$1 &&"
+pxy:* wsha proxy $$
+
+# 自定义代理地址
+proxy:* "set http_proxy=http://localhost:$1 && set https_proxy=http://localhost:$1 &&"
+pxy:* wsha proxy $$
+
+
+#----------------------
+# nodejs
+#----------------------
+
+# 在 Node.js 环境中，NODE_TLS_REJECT_UNAUTHORIZED=0 是一个用于控制 TLS/SSL 证书验证的环境变量。它的作用是关闭安全证书校验，允许客户端（如你的 Node 脚本、npm、Vue/React 脚手架）与 HTTPS 服务器建立连接，即使该服务器使用了自签名证书、过期证书或证书链不完整
+node-tls "set NODE_TLS_REJECT_UNAUTHORIZED=0 &&"
+
+
+#----------------------
+# git
+#----------------------
+
+
+# git相关
+git.sync git pull && git push
+git.auto-pull git stash && git pull && git stash pop
+git.auto-commit wsha codex "使用skill:git-commit提交代码按照下面的要求,母语中文,根据情况分1批或者多2,依据功能而定"
+
+barry-pick wsh wsh-barry-pick.sh
+
+## lazygit
+lz lazygit
+lgit lazygit
+lzgit lazygit
+
+#----------------------
+# skill
+#----------------------
+skill-update npx -y skills update -g
+git-up-p wsha coyo --model gpt-5.4 "$git-up -p"
