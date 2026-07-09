@@ -31,3 +31,9 @@ log -f """cmd
 log -f ** """pwsh
 echo [[...]]
 """
+
+
+
+proxy-sh ** """bash
+https_proxy=http://localhost:7897 [[...]]
+"""
