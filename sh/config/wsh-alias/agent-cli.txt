@@ -22,9 +22,9 @@ co wsha codex-l
 coyo wsha codex-yo
 coyo.proxy wsha proxy wsha coyo
 
-coyo.moon wsha coyo --model gpt-5.4-mini
-coyo.earth wsha coyo --model gpt-5.4
-coyo.sun wsha coyo --model gpt-5.5
+coyo.moon wsha coyo --model gpt-5.6-luna
+coyo.earth wsha coyo --model gpt-5.6-terra
+coyo.sun wsha coyo --model gpt-5.6-sol
 
 
 #----------------------
