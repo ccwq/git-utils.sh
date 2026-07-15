@@ -27,8 +27,6 @@
 | 依赖 | 平台 | 说明 |
 |------|------|------|
 | Git Bash | Windows | 推荐使用 |
-| Rust | Windows | 用于编译 win-helper.exe |
-| Cargo | Windows | Rust 包管理器 |
 | Node.js/pnpm | 跨平台 | 项目脚本使用 pnpm@10.21.0 |
 
 ---
@@ -124,29 +122,7 @@ pip build
 
 构建产物位于 `dist/` 目录。
 
-### 2. Windows 运行时 (win-helper.exe)
-
-使用 Cargo 编译 Rust 工具：
-
-```bat
-# 方式一：使用 npm 脚本
-npm run build:win-helper
-
-# 方式二：直接运行构建脚本
-bin\win-helper\build.bat
-
-# 方式三：使用 Cargo
-cargo build --manifest-path bin\win-helper\Cargo.toml --release
-```
-
-构建产物输出到：
-
-```
-bin\win-helper\win-helper.exe
-bin\win-helper\target\release\win-helper.exe
-```
-
-### 3. 验证安装
+### 2. 验证安装
 
 ```bash
 # 验证 Python CLI
@@ -227,20 +203,6 @@ gh release create v1.1.0 \
 gh release upload v1.1.0 dist/*
 ```
 
-### 3. Windows exe 独立发布
-
-win-helper.exe 可以作为独立工具发布：
-
-```bat
-# 重新构建 release 版本
-cargo build --manifest-path bin\win-helper\Cargo.toml --release --strip
-
-# 复制到发布目录
-copy bin\win-helper\target\release\win-helper.exe dist\
-```
-
----
-
 ## 常见问题
 
 ### Q: pip install 报错 "wheel not supported"？
@@ -250,12 +212,6 @@ copy bin\win-helper\target\release\win-helper.exe dist\
 ```bash
 pip install --upgrade pip
 ```
-
-### Q: win-helper.exe 无法启动？
-
-1. 检查 Rust 环境：`rustc --version`
-2. 重新编译：`cargo build --release`
-3. 查看错误信息：`cargo run --release`
 
 ### Q: w 命令找不到？
 
@@ -317,7 +273,6 @@ rm -rf ~/.cache/wsha/
 | 初始化环境 | `npm run init` |
 | 安装 Python CLI | `pip install .` |
 | 构建 Python 包 | `pip build` |
-| 编译 win-helper | `npm run build:win-helper` |
 | 运行测试 | `npm test` |
 | 发布到 PyPI | `twine upload dist/*` |
 | 创建 Git Tag | `git tag v1.0.0 && git push origin v1.0.0` |

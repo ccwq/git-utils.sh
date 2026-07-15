@@ -5,7 +5,6 @@
   "main": "index.js",
   "scripts": {
     "init": "scripts\\init.bat",
-    "build:win-helper": ".\\bin\\win-helper\\build.bat",
     "pip-in": "pip install -e .",
     "test": ".\\sh\\core\\exec-git-bash.bat .\\test-all.sh"
   },
@@ -16,7 +15,6 @@
   "ntl": {
     "descriptions": {
       "init": "初始化 Windows 用户环境变量，加入 sh 目录并配置 CLINK_PATH。",
-      "build:win-helper": "重建 Windows Git Bash 运行时 win-helper.exe。",
       "pip-in": "以 editable 模式安装本项目的 Python CLI 包。",
       "test": "通过 exec-git-bash.bat 运行全部 shell 测试。"
     }

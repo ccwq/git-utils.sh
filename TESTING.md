@@ -52,12 +52,6 @@ sh\core\exec-git-bash.bat ./.vendor/shellspec/shellspec
 
 如果你已经处于 Git Bash / WSL 中，也可以继续直接运行 `bash ./.vendor/shellspec/shellspec`。
 
-`bin\win-helper\win-helper.exe` 是项目内置的 Windows 运行时；如需重建，仅在 Windows 下执行：
-
-```bat
-pnpm run build:win-helper
-```
-
 ### 预期输出示例
 
 ```text

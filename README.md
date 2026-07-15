@@ -43,23 +43,7 @@ npm run init
 Windows 下推荐统一通过 `sh\core\exec-git-bash.bat` 调用 Git Bash，而不是手写 `git bash -c ...`。
 
 - `sh\core\exec-git-bash.bat` 是稳定入口
-- 底层优先使用项目内置的 `bin\win-helper\win-helper.exe` 见 [win-helper](/bin\win-helper\README.md)
-- 如果 `win-helper.exe` 不存在，会自动回退到批处理版路径发现逻辑
-- `win-helper` 仅面向 Windows 使用，是项目内置的 Windows Git Bash 运行时
-
-如果需要重新构建 Windows 运行时：
-
-```bat
-pnpm run build:win-helper
-# 或者
-bin\win-helper\build.bat
-```
-
-构建产物固定输出到：
-
-```bat
-bin\win-helper\win-helper.exe
-```
+- 依次从 `GIT_BASH` 环境变量、用户缓存、`where git` 相对路径和 Git 默认安装路径解析 Git Bash。
 
 ## 可用脚本
 
