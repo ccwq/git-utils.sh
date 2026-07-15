@@ -47,7 +47,13 @@ lzgit lazygit
 #----------------------
 # skill
 #----------------------
-skill-update npx -y skills update -g
+skills.up npx -y skills update -g
+skills.up.proxy wsha wsha.skills.up
+
+skills.list npx -y skills list -g
+
+
+
 git-up-p wsha coyo.earth "$git-up -p"
 git-up-pc wsha coyo.earth "$git-up -pc"
 git-up-pcP wsha coyo.earth "$git-up -pcP"

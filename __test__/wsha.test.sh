@@ -716,6 +716,53 @@ test_double_star_capture() {
     record_test_result "test_double_star_capture" "$result" "$duration" "$note"
 }
 
+# Given：内置 default.txt 同时提供 ps 的无参数/搜索模式，以及可选参数的 kill 命令。
+# When：分别以有参数和无参数方式请求 ps、kill 的 core 展开结果。
+# Then：ps 无参数列出全部进程、有参数按进程名筛选；kill 始终保留强制按镜像名终止的基础参数。
+# 防回归：防止同名 alias 或运行时参数拼接规则变更，使 Windows 进程快捷命令无法加载或丢失参数。
+test_default_process_aliases_support_optional_args() {
+    local start_time end_time duration result note config_file clean_output
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$PROJECT_ROOT/sh/config/wsh-alias/default.txt"
+
+    run_wsha_core "$config_file" ps
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"tasklist"* ]]; then
+        note="ps 无参数展开失败 output=[$clean_output], code=$run_code"
+    else
+        run_wsha_core "$config_file" ps chrome
+        clean_output=$(strip_time_logs "$output")
+        if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"tasklist | findstr chrome"* ]]; then
+            note="ps 有参数展开失败 output=[$clean_output], code=$run_code"
+        else
+            run_wsha_core "$config_file" kill
+            clean_output=$(strip_time_logs "$output")
+            if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"taskkill /f /im"* ]]; then
+                note="kill 无参数展开失败 output=[$clean_output], code=$run_code"
+            else
+                run_wsha_core "$config_file" kill chrome.exe
+                clean_output=$(strip_time_logs "$output")
+                if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"taskkill /f /im chrome.exe"* ]]; then
+                    result="PASS"
+                    log_success "内置进程 alias 的可选参数展开测试通过"
+                else
+                    note="kill 有参数展开失败 output=[$clean_output], code=$run_code"
+                fi
+            fi
+        fi
+    fi
+
+    if [[ "$result" != "PASS" ]]; then
+        log_fail "$note"
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_default_process_aliases_support_optional_args" "$result" "$duration" "$note"
+}
+
 test_wildcard_multi_capture() {
     local start_time end_time duration result note config_file
     start_time=$(current_time)
@@ -1446,6 +1493,7 @@ main() {
     test_quoted_content_equivalence
     test_wildcard_multi_capture
     test_double_star_capture
+    test_default_process_aliases_support_optional_args
     test_recursive_alias_quoted_prompt_with_dollar_at
     test_recursive_alias_dollar_prompt_is_literal
     test_recursive_alias_git_up_p_keeps_prompt_argument
