@@ -177,6 +177,40 @@ def test_wsha_env_injects_into_explicit_cmd_block_runner(tmp_path):
     assert proc.stdout.strip() == "ccwq"
 
 
+# Given：用户配置中的 proxy alias 递归调用 `wsha --env` 注入代理变量。
+# When：通过公开 Git Bash 入口执行 `proxy printenv http_proxy https_proxy`。
+# Then：递归 alias 里的 --env 必须被重新解析，两个变量传给最终子命令。
+# 防回归：防止 --env 在递归展开后退化成 CMD/Bash 试图执行的字面命令。
+def test_wsha_proxy_alias_reparses_recursive_env_prefix(tmp_path):
+    config_file = tmp_path / "proxy-env.txt"
+    config_file.write_text(
+        "proxy wsha --env http_proxy=http://localhost:7897 https_proxy=http://localhost:7897\n",
+        encoding="utf-8",
+    )
+    child_env = os.environ.copy()
+    child_env["WSHA_CONFIG_FILE"] = str(config_file)
+    proc = subprocess.run(
+        [
+            git_bash_path(),
+            str(WSHA_SH),
+            "proxy",
+            "printenv",
+            "http_proxy",
+            "https_proxy",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        env=child_env,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.splitlines() == [
+        "http://localhost:7897",
+        "http://localhost:7897",
+    ]
+
+
 # Given：Windows CMD 用户通过公开的 `wsha.bat` 入口执行子命令。
 # When：传入 `-e name=ccwq cmd /c set name`。
 # Then：CMD 子进程应继承临时变量并输出 `name=ccwq`。

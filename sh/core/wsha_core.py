@@ -89,6 +89,7 @@ class ResolvedCommand:
 
     tokens: List[str]
     env_handled_by_runner: bool = False
+    env_assignments: List[Tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -1343,29 +1344,45 @@ def resolve_alias_tokens(
 ) -> Optional[ResolvedCommand]:
     """在 Python core 内递归展开 wsha/w alias，避免 Windows batch 多层重入破坏 argv 引号。"""
     current_tokens = list(input_tokens)
+    collected_env_assignments = list(env_assignments or [])
     for _depth in range(MAX_ALIAS_DEPTH):
         alias_key, template, captures, rest_capture, args_start, alias = find_best_match(current_tokens)
         if not alias_key or alias is None:
             dstar_warning = find_empty_dstar_warning(current_tokens)
             if dstar_warning:
                 warning(dstar_warning)
-            return ResolvedCommand(current_tokens)
+            return ResolvedCommand(current_tokens, env_assignments=collected_env_assignments)
 
         runtime_args = current_tokens[args_start:] if args_start < len(current_tokens) else []
         if alias.is_block:
             if runtime_args:
                 warning(f'block alias "{alias.key}" ignores extra args: {" ".join(runtime_args)}')
             body = expand_block_body(template, captures, rest_capture)
-            cmd = block_command(alias, body, env_assignments)
+            cmd = block_command(alias, body, collected_env_assignments)
             if cmd is None:
                 return None
-            return ResolvedCommand([cmd], bool(env_assignments))
+            return ResolvedCommand([cmd], bool(collected_env_assignments), collected_env_assignments)
 
         final_tokens = expand_template_tokens(template, captures, rest_capture, runtime_args)
         if final_tokens and template_starts_recursive_alias(template):
-            current_tokens = final_tokens[1:]
+            recursive_tokens = final_tokens[1:]
+            if recursive_tokens and (
+                recursive_tokens[0] in ("-e", "--env")
+                or recursive_tokens[0].startswith("--env=")
+            ):
+                nested_request = parse_cli_args(recursive_tokens)
+                if not nested_request.valid:
+                    error(nested_request.error_message)
+                    return None
+                collected_env_assignments.extend(nested_request.env_assignments)
+                if not nested_request.alias:
+                    error("recursive wsha --env requires a command")
+                    return None
+                current_tokens = [nested_request.alias] + nested_request.args
+            else:
+                current_tokens = recursive_tokens
             continue
-        return ResolvedCommand(final_tokens)
+        return ResolvedCommand(final_tokens, env_assignments=collected_env_assignments)
 
     error(f"alias recursion exceeded {MAX_ALIAS_DEPTH} levels")
     return None
@@ -1407,11 +1424,12 @@ def main() -> int:
         return 1
     final_tokens = resolved_command.tokens
 
-    rendered_assignments = [] if resolved_command.env_handled_by_runner else request.env_assignments
-    if request.env_assignments and not resolved_command.env_handled_by_runner:
+    effective_assignments = resolved_command.env_assignments
+    rendered_assignments = [] if resolved_command.env_handled_by_runner else effective_assignments
+    if effective_assignments and not resolved_command.env_handled_by_runner:
         try:
             rendered_assignments, effective_env = resolve_env_assignments(
-                request.env_assignments,
+                effective_assignments,
                 os.environ,
                 output_shell(),
                 os.getcwd(),

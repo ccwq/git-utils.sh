@@ -2,7 +2,8 @@
 # 代理设置
 #----------------------
 ## 使用代理 :7897 执行命令
-proxy "set http_proxy=http://localhost:7897 && set https_proxy=http://localhost:7897 &&"
+# proxy "set http_proxy=http://localhost:7897 && set https_proxy=http://localhost:7897 &&"
+proxy wsha --env http_proxy=http://localhost:7897 https_proxy=http://localhost:7897
 pxy wsha proxy
 
 proxy.bash "export http_proxy=http://localhost:7897 ; export https_proxy=http://localhost:7897 ;"
