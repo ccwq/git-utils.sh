@@ -86,6 +86,19 @@
 | `npm test` | exit `0`；`wsha-py.sh` 仍输出既有环境缺失 `ModuleNotFoundError: No module named 'click'`，未导致套件失败 |
 
 - 已恢复本次全量测试改写的 `__test__/report/*.md` 生成报告，避免纳入功能改动。
+
+## 会话：2026-07-17（递归 proxy env 修复）
+
+### 阶段 9：TDD 红灯
+- **状态：** in_progress
+- 已确认 seam：真实 Git Bash `sh/wsha.sh`。
+- 将用临时 `proxy wsha --env http_proxy=...` 配置和 `printenv` 子命令复现，不执行网络 `git push`。
+
+### 阶段 9：TDD 绿灯
+- 新增公开 CLI 回归：`proxy -> wsha --env ... -> printenv http_proxy https_proxy`；修复前 exit `127` 且尝试执行 `--env`，修复后通过。
+- 修复：递归 alias 展开到 `wsha --env` 时，复用 `parse_cli_args()` 解析其 env 前缀，收集 assignment 后继续解析真实命令。
+- 原始无网络回放：`python sh/core/wsha_core.py --entry w proxy git push`（CMD 输出协议）现在输出 `set "http_proxy=..." && set "https_proxy=..." && git push`。
+- `uv run --with pytest pytest __test__/test_wsha_env_cli.py -q`：`11 passed`。
 - 计划修改范围：
   - `sh/core/wsha_core.py`
   - `sh/wsha.sh`、`sh/wsha.bat`、新增 PowerShell 入口

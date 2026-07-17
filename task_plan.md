@@ -53,6 +53,12 @@
 - [x] 检查 `git diff --check`、工作树范围与 PWF 完整性。
 - **Status:** complete
 
+### Phase 9：递归 proxy alias 的 env 重解析
+- [x] 在公开 Git Bash seam 中复现 `proxy -> wsha --env ...` 的递归 env 注入失败。
+- [x] 让递归 `wsha` alias 的顶层 `--env` 参数重新进入解析流程。
+- [x] 运行定向回归并更新验证记录。
+- **Status:** complete
+
 ## 已做决策
 | 决策 | 理由 |
 |------|------|
