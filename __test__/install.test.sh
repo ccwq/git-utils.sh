@@ -85,19 +85,41 @@ test_uninstall_removes_launchers_but_keeps_user_config() {
 
 test_install_windows_launchers_use_core_exec_git_bash() {
     # Given：安装脚本已经生成 Windows bin wrapper。
-    # When：检查生成的 w/wsha/wsh.bat 内容。
-    # Then：wrapper 应引用 APP_SH\core\exec-git-bash.bat，不再引用旧 APP_SH\exec-git-bash.bat。
-    # 防回归：防止 exec-git-bash.bat 迁入 sh/core 后安装产物仍调用旧路径。
+    # When：检查生成的 w.bat 内容。
+    # Then：w.bat 应委托运行时原生 w.bat，而不是强制进入 Git Bash。
+    # 防回归：保证安装后的 CMD 环境注入继续使用 CMD 格式。
     local install_root="$TEST_DIR/home/.local/share/git-utils-d"
     local bin_dir="$TEST_DIR/bin-d"
     HOME="$TEST_DIR/home" bash "$PROJECT_ROOT/scripts/install.sh" --source "$PROJECT_ROOT" --install-root "$install_root" --bin-dir "$bin_dir" >/tmp/install-test-core-launcher.log 2>&1
 
     if [[ -f "$install_root/bin/w.bat" ]] \
-        && grep -Fq '%APP_SH%\core\exec-git-bash.bat' "$install_root/bin/w.bat" \
-        && ! grep -Fq '%APP_SH%\exec-git-bash.bat' "$install_root/bin/w.bat"; then
-        log_success "Windows 安装 wrapper 使用 core exec-git-bash"
+        && grep -Fq '%APP_SH%\w.bat' "$install_root/bin/w.bat"; then
+        log_success "Windows 安装 wrapper 使用原生 w.bat"
     else
-        log_fail "Windows 安装 wrapper 仍引用旧 exec-git-bash 路径"
+        log_fail "Windows 安装 wrapper 未使用原生 w.bat"
+    fi
+}
+
+# Given：安装脚本在 Windows Git Bash 环境中写入运行时与 launcher。
+# When：执行安装并检查安装产物。
+# Then：应生成 PowerShell 原生 `wsha.ps1` launcher，且它会委托运行时 sh/wsha.ps1。
+# 防回归：防止 PowerShell 入口只存在于源码树，安装后无法使用。
+test_install_writes_powershell_wsha_launcher() {
+    local install_root="$TEST_DIR/home/.local/share/git-utils-ps"
+    local bin_dir="$TEST_DIR/bin-ps"
+    local output
+    local run_code
+    HOME="$TEST_DIR/home" bash "$PROJECT_ROOT/scripts/install.sh" --source "$PROJECT_ROOT" --install-root "$install_root" --bin-dir "$bin_dir" >/tmp/install-test-powershell-launcher.log 2>&1
+    output=$(powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$install_root/bin/wsha.ps1" -e name=ccwq Write-Output '$env:name' 2>&1)
+    run_code=$?
+
+    if [[ -f "$install_root/bin/wsha.ps1" ]] \
+        && grep -Fq 'wsha.ps1' "$install_root/bin/wsha.ps1" \
+        && [[ $run_code -eq 0 ]] \
+        && [[ "$output" == *"ccwq"* ]]; then
+        log_success "安装脚本会写入 PowerShell wsha launcher"
+    else
+        log_fail "安装后的 PowerShell wsha launcher 不可用 output=[$output] code=$run_code"
     fi
 }
 
@@ -106,6 +128,7 @@ main() {
     test_install_writes_runtime_and_report
     test_install_report_records_legacy_paths
     test_install_windows_launchers_use_core_exec_git_bash
+    test_install_writes_powershell_wsha_launcher
     test_uninstall_removes_launchers_but_keeps_user_config
     echo "PASS=$PASS_COUNT FAIL=$FAIL_COUNT"
     [[ $FAIL_COUNT -eq 0 ]]

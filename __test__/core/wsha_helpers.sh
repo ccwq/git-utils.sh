@@ -231,7 +231,7 @@ run_wsha_core() {
     local config_file="$1"
     shift
 
-    raw_output=$(WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" python "$PROJECT_ROOT/sh/core/wsha_core.py" -e w "$@" 2>&1)
+    raw_output=$(WSHA_CONFIG_FILE="$config_file" WSHA_TEST_TIME_LABEL="1" python "$PROJECT_ROOT/sh/core/wsha_core.py" --entry w "$@" 2>&1)
     run_code=$?
     raw_output=$(printf "%s" "$raw_output" | tr -d '\r')
     output=$(strip_time_logs "$raw_output")
@@ -250,7 +250,7 @@ capture_wsha_core_cmd_output() {
     local config_file="$1"
     shift
 
-    APP_HOME="$PROJECT_ROOT" APP_SH="$PROJECT_ROOT/sh" APP_CONFIG="$PROJECT_ROOT/sh/config" WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=cmd python "$PROJECT_ROOT/sh/core/wsha_core.py" -e w "$@" 2>&1
+    APP_HOME="$PROJECT_ROOT" APP_SH="$PROJECT_ROOT/sh" APP_CONFIG="$PROJECT_ROOT/sh/config" WSHA_CONFIG_FILE="$config_file" WSHA_CMDLINE_OUTPUT=cmd python "$PROJECT_ROOT/sh/core/wsha_core.py" --entry w "$@" 2>&1
 }
 
 # 调用 wsha 的 -lv/--list-view，并在测试模式下将弹窗输出转为文本。

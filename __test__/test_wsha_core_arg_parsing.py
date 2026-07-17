@@ -17,17 +17,21 @@ def load_wsha_core():
     return import_module("wsha_core")
 
 
-# Given：用户通过 w 调用目标 alias，并在 alias 后传入 dash-prefixed 参数。
-# When：解析 -e w codex-l --model gpt-5.4-mini。
+# Given：wrapper 通过内部长参数指定 w 入口，并在 alias 后传入 dash-prefixed 参数。
+# When：解析 --entry w codex-l --model gpt-5.4-mini。
 # Then：--model 应保留为 alias 的运行时参数，而不是被 core 当成顶层选项。
-# 防回归：防止 CLI 参数解析误吞目标命令自己的 flag。
+# 防回归：`-e` 改为用户 env 参数后，内部 entry 仍能通过 `--entry` 传递。
 def test_parse_cli_args_keeps_dash_prefixed_runtime_args():
     """Alias runtime flags should be preserved verbatim after the alias."""
     mod = load_wsha_core()
 
-    result = mod.parse_cli_args(["-e", "w", "codex-l", "--model", "gpt-5.4-mini"])
+    result = mod.parse_cli_args(["--entry", "w", "codex-l", "--model", "gpt-5.4-mini"])
 
-    assert result == (False, False, False, "w", "codex-l", ["--model", "gpt-5.4-mini"])
+    assert result.valid is True
+    assert result.entry == "w"
+    assert result.alias == "codex-l"
+    assert result.args == ["--model", "gpt-5.4-mini"]
+    assert result.env_assignments == []
 
 
 # Given：用户调用 alias 并把 --help 作为目标命令参数。
@@ -40,4 +44,7 @@ def test_parse_cli_args_keeps_alias_help_as_runtime_arg():
 
     result = mod.parse_cli_args(["codex-l", "--help"])
 
-    assert result == (False, False, False, mod.WSHA_ENTRY, "codex-l", ["--help"])
+    assert result.valid is True
+    assert result.entry == mod.WSHA_ENTRY
+    assert result.alias == "codex-l"
+    assert result.args == ["--help"]
