@@ -73,7 +73,7 @@ invoke_via_core() {
     shift
     local stdout_is_tty=0
     [[ -t 1 ]] && stdout_is_tty=1
-    WSHA_STDOUT_IS_TTY="$stdout_is_tty" WSHA_CMDLINE_OUTPUT=sh python "$APP_SH/core/wsha_core.py" -e "$entry" "$@"
+    WSHA_STDOUT_IS_TTY="$stdout_is_tty" WSHA_CMDLINE_OUTPUT=sh python "$APP_SH/core/wsha_core.py" --entry "$entry" "$@"
 }
 
 invoke_cmd() {
@@ -81,13 +81,15 @@ invoke_cmd() {
     if [[ "$cmd_text" == "__WSHA_NOOP__" ]]; then
         exit 0
     fi
-    if is_complex_shell_command "$cmd_text"; then
-        local had_msys_arg_conv=false
-        local prev_msys_arg_conv_excl="${MSYS2_ARG_CONV_EXCL-}"
-        if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+    local had_msys_arg_conv=false
+    local prev_msys_arg_conv_excl="${MSYS2_ARG_CONV_EXCL-}"
+    if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+        if is_complex_shell_command "$cmd_text" || [[ "$cmd_text" == *"cmd.exe "* || "$cmd_text" == *"/cmd.exe "* ]]; then
             export MSYS2_ARG_CONV_EXCL='*'
             had_msys_arg_conv=true
         fi
+    fi
+    if is_complex_shell_command "$cmd_text"; then
         eval -- "$cmd_text"
         local exit_code=$?
         if [[ "$had_msys_arg_conv" == true ]]; then
@@ -100,7 +102,15 @@ invoke_cmd() {
         exit $exit_code
     fi
     eval -- "$cmd_text"
-    exit $?
+    local exit_code=$?
+    if [[ "$had_msys_arg_conv" == true ]]; then
+        if [[ -n "$prev_msys_arg_conv_excl" ]]; then
+            export MSYS2_ARG_CONV_EXCL="$prev_msys_arg_conv_excl"
+        else
+            unset MSYS2_ARG_CONV_EXCL
+        fi
+    fi
+    exit $exit_code
 }
 
 main() {

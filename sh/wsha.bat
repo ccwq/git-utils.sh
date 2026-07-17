@@ -42,9 +42,9 @@ set "CORE_STDOUT=%TMP_BASE%.out"
 set "CORE_STDERR=%TMP_BASE%.err"
 
 if /i "%FIRST_ARG%"=="--list" (
-    "%PYTHON_EXE%" "%PY_ENTRY%" -e "%WSHA_ENTRY%" --list > "%CORE_STDOUT%" 2> "%CORE_STDERR%"
+    "%PYTHON_EXE%" "%PY_ENTRY%" --entry "%WSHA_ENTRY%" --list > "%CORE_STDOUT%" 2> "%CORE_STDERR%"
 ) else (
-    "%PYTHON_EXE%" "%PY_ENTRY%" -e "%WSHA_ENTRY%" %* > "%CORE_STDOUT%" 2> "%CORE_STDERR%"
+    "%PYTHON_EXE%" "%PY_ENTRY%" --entry "%WSHA_ENTRY%" %* > "%CORE_STDOUT%" 2> "%CORE_STDERR%"
 )
 set "CORE_EXIT=%errorlevel%"
 

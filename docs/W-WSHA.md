@@ -11,6 +11,8 @@
   - `wsha`
   - `sh\w.bat`
   - `sh\wsha.bat`
+  - `sh\w.ps1`
+  - `sh\wsha.ps1`
 - Linux / macOS:
   - `bash sh/w.sh`
   - `bash sh/wsha.sh`
@@ -29,6 +31,7 @@
 - 支持 `--list` / `-l` 查看当前融合后的 alias 列表
 - 支持 `--list-view` / `-lv` 查看更详细的视图
 - 默认在执行前打印 `alias hit` / `exec` 预览日志
+- 支持 `-e` / `--env` 为单次命令注入临时环境变量
 
 ### 基本用法
 
@@ -49,6 +52,21 @@ w px http-server
 w sls -l
 w "echo foo | findstr foo"
 ```
+
+### 单次环境变量注入
+
+`-e` 与 `--env` 后连续读取 `KEY=VALUE`；第一个非赋值 token 起是要执行的 alias 或命令。变量仅对本次子命令生效。
+
+```bash
+wsha -e name=ccwq tag="env plan" ping t.cn
+wsha --env ROOT=%USERPROFILE%\workspace printenv ROOT
+```
+
+- 当前环境变量可写成 `%VAR%`、`$VAR`、`${VAR}`、`$env:VAR` 或 `${env:VAR}`；本次 `-e` 赋值优先于当前环境，且可从左到右互相引用。
+- 未定义变量会在执行前报错，exit code 为 `2`。
+- 只转换本地绝对路径、带 `./` / `../` / `\` 证据的相对路径以及 `~`；`https://`、`file://`、`socks5://`、`feature/foo` 等 URI 或歧义文本保持原样。
+- Git Bash 使用 `/c/...`，CMD 与 PowerShell 使用 `C:\...`；CMD/PowerShell 中的 `~` 也会展开为用户目录。
+- Bash/Git Bash、CMD、PowerShell 会分别生成对应的临时环境变量设置语法。
 
 ## 配置来源
 
@@ -147,7 +165,8 @@ curl -fsSL https://raw.githubusercontent.com/ccwq/git-utils.sh/master/scripts/re
 Windows 约束：
 
 - 安装脚本只支持在 Git Bash 中执行
-- Windows 下运行行为以 Git Bash 为准
+- 安装后可使用 Git Bash、CMD 或 PowerShell
+- PowerShell 原生 launcher 位于 `<install_root>\bin\wsha.ps1`（`w.ps1` 为简写入口）
 
 ### 方式二：仓库内直接运行
 
@@ -161,6 +180,9 @@ Windows 下也可以：
 
 ```bat
 sh\core\exec-git-bash.bat sh\wsha.sh --list
+
+# PowerShell 原生入口
+powershell -NoProfile -ExecutionPolicy Bypass -File sh\wsha.ps1 -e name=ccwq Write-Output '$env:name'
 ```
 
 ### 卸载

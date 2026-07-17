@@ -85,6 +85,9 @@ sh\core\exec-git-bash.bat sh\wsha.sh --list
 
 # 或直接用 bash
 bash sh\wsha.sh --list
+
+# PowerShell 原生入口
+powershell -NoProfile -ExecutionPolicy Bypass -File sh\wsha.ps1 --list
 ```
 
 ---
@@ -135,6 +138,7 @@ bash sh/wsha.sh --list
 # Windows 下验证
 sh\w.bat --list
 sh\wsha.bat --list
+powershell -NoProfile -ExecutionPolicy Bypass -File sh\wsha.ps1 --list
 ```
 
 ---

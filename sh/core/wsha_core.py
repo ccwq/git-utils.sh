@@ -16,14 +16,34 @@ import shlex
 import sys
 import tempfile
 import time
-from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, asdict, field
+from typing import Dict, List, Mapping, Optional, Tuple
 
 PY_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "py"))
 if PY_DIR not in sys.path:
     sys.path.insert(0, PY_DIR)
 
-from wsha.list_table import AliasListEntry, classify_alias, render_alias_table
+try:
+    from wsha.list_table import AliasListEntry, classify_alias, render_alias_table
+except ModuleNotFoundError:
+    # 安装运行时仅复制 sh/；缺少仓库开发包时保留可用的纯文本列表能力。
+    @dataclass
+    class AliasListEntry:
+        name: str
+        template: str
+        kind: str
+
+
+    def classify_alias(name: str, is_block: bool) -> str:
+        return "block" if is_block else "alias"
+
+
+    def render_alias_table(entries: List[AliasListEntry], width: Optional[int] = None) -> str:
+        del width
+        name_width = max([len("别名")] + [len(entry.name) for entry in entries])
+        lines = [f"{'别名':<{name_width}}  命令", f"{'-' * name_width}  ----"]
+        lines.extend(f"{entry.name:<{name_width}}  {entry.template}" for entry in entries)
+        return "\n".join(lines)
 
 WSHA_ENTRY = os.environ.get("WSHA_ENTRY", "wsha")
 CACHE_MAX_AGE = 300  # 5 minutes
@@ -32,6 +52,43 @@ CMDLINE_OUTPUT = os.environ.get("WSHA_CMDLINE_OUTPUT", "")
 VALID_BLOCK_RUNNERS = {"bash", "sh", "cmd", "bat", "pwsh", "powershell"}
 RECURSIVE_ALIAS_COMMANDS = {"wsha", "wsha.bat", "w", "w.bat"}
 MAX_ALIAS_DEPTH = 16
+ENV_ASSIGNMENT_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.DOTALL)
+ENV_REFERENCE_RE = re.compile(
+    r"%([A-Za-z_][A-Za-z0-9_]*)%"
+    r"|\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}"
+    r"|\$env:([A-Za-z_][A-Za-z0-9_]*)"
+    r"|\$\{([A-Za-z_][A-Za-z0-9_]*)\}"
+    r"|\$([A-Za-z_][A-Za-z0-9_]*)",
+    re.IGNORECASE,
+)
+URI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
+
+
+class EnvResolutionError(ValueError):
+    """Raised when strict environment expansion cannot resolve a variable."""
+
+
+@dataclass
+class CliRequest:
+    """Top-level wsha request after management options and env prefixes are parsed."""
+
+    show_help: bool = False
+    list_aliases: bool = False
+    clear_cache: bool = False
+    entry: str = WSHA_ENTRY
+    alias: Optional[str] = None
+    args: List[str] = field(default_factory=list)
+    env_assignments: List[Tuple[str, str]] = field(default_factory=list)
+    valid: bool = True
+    error_message: str = ""
+
+
+@dataclass
+class ResolvedCommand:
+    """Final command tokens plus whether a block runner already owns env setup."""
+
+    tokens: List[str]
+    env_handled_by_runner: bool = False
 
 
 @dataclass
@@ -477,6 +534,7 @@ def print_help() -> None:
 
 Usage:
   wsha-core <alias> [args...]
+  wsha-core -e|--env KEY=VALUE... <alias> [args...]
   wsha-core --list | -l | --list-view | -lv
   wsha-core --clear | --cache-clear
 
@@ -484,6 +542,7 @@ Rules:
   - Single-line aliases keep $1..$N / $$ placeholders and %VAR% expansion
   - Block aliases use triple-quoted runner blocks and [[1]] / [[...]] placeholders
   - Block runners: bash, sh, cmd, bat, pwsh, powershell
+  - --env variables apply only to the invoked command
 """
     )
 
@@ -507,51 +566,88 @@ def clear_cache() -> int:
     return 0
 
 
-def parse_cli_args(argv: List[str]) -> Tuple[bool, bool, bool, str, Optional[str], List[str]]:
+def parse_env_assignment(token: str) -> Optional[Tuple[str, str]]:
+    """Parse one KEY=VALUE token without stripping spaces from VALUE."""
+    match = ENV_ASSIGNMENT_RE.match(token)
+    if not match:
+        return None
+    return match.group(1), match.group(2)
+
+
+def parse_cli_args(argv: List[str]) -> CliRequest:
     """Parse top-level options while preserving alias runtime arguments verbatim."""
-    show_help_flag = False
-    list_flag = False
-    clear_flag = False
-    entry = WSHA_ENTRY
-    alias = None
-    args: List[str] = []
+    request = CliRequest()
 
     i = 0
     while i < len(argv):
         token = argv[i]
-        if alias is not None:
-            args = argv[i:]
+        if request.alias is not None:
+            request.args = argv[i:]
             break
 
-        if token in ("-e", "--entry"):
+        if token == "--entry":
             if i + 1 >= len(argv):
-                print("[wsha] missing value for --entry.", file=sys.stderr)
-                return False, False, False, entry, None, []
-            entry = argv[i + 1]
+                request.valid = False
+                request.error_message = "missing value for --entry"
+                return request
+            request.entry = argv[i + 1]
             i += 2
             continue
         if token.startswith("--entry="):
-            entry = token.split("=", 1)[1]
+            request.entry = token.split("=", 1)[1]
             i += 1
             continue
+        if token in ("-e", "--env") or token.startswith("--env="):
+            parsed_count = 0
+            if token.startswith("--env="):
+                parsed = parse_env_assignment(token.split("=", 1)[1])
+                if parsed is None:
+                    request.valid = False
+                    request.error_message = "--env requires KEY=VALUE"
+                    return request
+                request.env_assignments.append(parsed)
+                parsed_count = 1
+                i += 1
+            else:
+                i += 1
+
+            while i < len(argv):
+                parsed = parse_env_assignment(argv[i])
+                if parsed is None:
+                    break
+                request.env_assignments.append(parsed)
+                parsed_count += 1
+                i += 1
+
+            if parsed_count == 0:
+                request.valid = False
+                request.error_message = "-e/--env requires at least one KEY=VALUE assignment"
+                return request
+            if i >= len(argv):
+                request.valid = False
+                request.error_message = "-e/--env requires a command after assignments"
+                return request
+            request.alias = argv[i]
+            request.args = argv[i + 1 :]
+            break
         if token in ("-h", "--help"):
-            show_help_flag = True
+            request.show_help = True
             i += 1
             continue
         if token in ("-l", "--list", "-lv", "--list-view"):
-            list_flag = True
+            request.list_aliases = True
             i += 1
             continue
         if token in ("--clear", "--cache-clear"):
-            clear_flag = True
+            request.clear_cache = True
             i += 1
             continue
 
-        alias = token
-        args = argv[i + 1 :]
+        request.alias = token
+        request.args = argv[i + 1 :]
         break
 
-    return show_help_flag, list_flag, clear_flag, entry, alias, args
+    return request
 
 
 def match_token_pattern(pattern: str, token: str) -> Tuple[bool, List[str], int]:
@@ -746,6 +842,106 @@ def expand_env_vars(text: str) -> str:
     return result
 
 
+def lookup_env_value(env: Mapping[str, str], name: str) -> Optional[str]:
+    """Read an environment variable, including Windows-style case-insensitive lookup."""
+    if name in env:
+        return env[name]
+    wanted = name.lower()
+    for key, value in env.items():
+        if key.lower() == wanted:
+            return value
+    return None
+
+
+def expand_environment_references(text: str, env: Mapping[str, str], strict: bool) -> str:
+    """Expand %VAR%, $VAR, ${VAR} and PowerShell env references in one token."""
+    def replace(match: re.Match[str]) -> str:
+        name = next(group for group in match.groups() if group is not None)
+        value = lookup_env_value(env, name)
+        if value is None:
+            if strict:
+                raise EnvResolutionError(f"undefined environment variable: {name}")
+            return match.group(0)
+        return value
+
+    return ENV_REFERENCE_RE.sub(replace, text)
+
+
+def home_dir_from_env(env: Mapping[str, str]) -> str:
+    """Resolve the user home from the supplied environment without mutating it."""
+    return (
+        lookup_env_value(env, "USERPROFILE")
+        or lookup_env_value(env, "HOME")
+        or (lookup_env_value(env, "HOMEDRIVE") or "") + (lookup_env_value(env, "HOMEPATH") or "")
+        or os.path.expanduser("~")
+    )
+
+
+def expand_home_path(value: str, env: Mapping[str, str]) -> str:
+    """Expand only a leading user-home marker; keep embedded tildes literal."""
+    if value == "~":
+        return home_dir_from_env(env)
+    if value.startswith("~/") or value.startswith("~\\"):
+        return home_dir_from_env(env) + value[1:]
+    return value
+
+
+def is_local_path_candidate(value: str, cwd: Optional[str] = None) -> bool:
+    """Conservatively identify local paths while preserving refs, package names and URIs."""
+    if not value or URI_RE.match(value):
+        return False
+    if re.match(r"^[A-Za-z]:[\\/]", value):
+        return True
+    if value.startswith("\\\\") or value.startswith("//"):
+        return True
+    if value.startswith(("./", ".\\", "../", "..\\")) or "\\" in value:
+        return True
+    candidate = value if cwd is None else os.path.join(cwd, value)
+    return os.path.exists(candidate)
+
+
+def adapt_local_path(value: str, target_shell: str, cwd: Optional[str] = None) -> str:
+    """Adapt confirmed local paths for Git Bash, CMD or PowerShell without touching URIs."""
+    if not is_local_path_candidate(value, cwd):
+        return value
+
+    if target_shell == "git-bash":
+        if re.match(r"^[A-Za-z]:[\\/]", value):
+            tail = value[2:].replace("\\", "/")
+            return f"/{value[0].lower()}{tail}"
+        if value.startswith("\\\\"):
+            return "//" + value[2:].replace("\\", "/")
+        return value.replace("\\", "/")
+
+    if target_shell in {"cmd", "powershell"}:
+        git_bash_drive = re.match(r"^/([A-Za-z])/(.*)$", value)
+        if git_bash_drive:
+            tail = git_bash_drive.group(2).replace("/", "\\")
+            return f"{git_bash_drive.group(1).upper()}:\\{tail}"
+        if value.startswith("//"):
+            return "\\\\" + value[2:].replace("/", "\\")
+        return value.replace("/", "\\")
+
+    return value.replace("\\", "/") if "\\" in value else value
+
+
+def resolve_env_assignments(
+    assignments: List[Tuple[str, str]],
+    current_env: Mapping[str, str],
+    target_shell: str,
+    cwd: Optional[str] = None,
+) -> Tuple[List[Tuple[str, str]], Dict[str, str]]:
+    """Resolve assignments left-to-right, so later values may reference earlier ones."""
+    effective_env = dict(current_env)
+    rendered: List[Tuple[str, str]] = []
+    for name, raw_value in assignments:
+        resolved_value = expand_environment_references(raw_value, effective_env, strict=True)
+        resolved_value = expand_home_path(resolved_value, effective_env)
+        effective_env[name] = resolved_value
+        rendered.append((name, adapt_local_path(resolved_value, target_shell, cwd)))
+    return rendered, effective_env
+
+
 def expand_block_body(template: str, captures: List[str], rest_capture: str) -> str:
     """展开 block 专用 [[1]] / [[...]] 占位符，不做 shell quoting。"""
     result = template
@@ -791,6 +987,32 @@ def quote_shell_token(token: str) -> str:
     if re.search(r"[\s&()|<>;'\"`$]", token):
         return shlex.quote(token)
     return token
+
+
+def output_shell() -> str:
+    """Return the shell syntax expected by the active public wrapper."""
+    mode = CMDLINE_OUTPUT.lower()
+    if mode in {"powershell", "pwsh", "ps"}:
+        return "powershell"
+    if mode == "cmd":
+        return "cmd"
+    if mode in {"sh", "bash", "git-bash"} and is_git_bash_runtime():
+        return "git-bash"
+    return "bash"
+
+
+def render_env_command(assignments: List[Tuple[str, str]], command: str, target_shell: str) -> str:
+    """Prefix one command with temporary environment assignments for its shell."""
+    if not assignments:
+        return command
+    if target_shell == "cmd":
+        prefixes = [f'set "{name}={value.replace(chr(34), chr(34) * 2)}"' for name, value in assignments]
+        return " && ".join(prefixes + [command])
+    if target_shell == "powershell":
+        prefixes = [f"$env:{name}='{value.replace(chr(39), chr(39) * 2)}'" for name, value in assignments]
+        return "; ".join(prefixes + [command])
+    prefixes = [f"{name}={shlex.quote(value)}" for name, value in assignments]
+    return " ".join(prefixes + [command])
 
 
 def join_output_tokens(tokens: List[str]) -> str:
@@ -988,7 +1210,29 @@ def resolve_runner_command(runner: str) -> Optional[str]:
     return None
 
 
-def block_command(alias: Alias, body: str) -> Optional[str]:
+def target_shell_for_runner(runner: str) -> str:
+    if runner in ("cmd", "bat"):
+        return "cmd"
+    if runner in ("pwsh", "powershell"):
+        return "powershell"
+    return "git-bash" if is_git_bash_runtime() else "bash"
+
+
+def block_env_prelude(assignments: List[Tuple[str, str]], target_shell: str) -> str:
+    """Render setup lines inside the script owned by an explicit block runner."""
+    if target_shell == "cmd":
+        return "\n".join(f'set "{name}={value.replace(chr(34), chr(34) * 2)}"' for name, value in assignments)
+    if target_shell == "powershell":
+        return "\n".join(f"$env:{name}='{value.replace(chr(39), chr(39) * 2)}'" for name, value in assignments)
+    return "\n".join(f"export {name}={shlex.quote(value)}" for name, value in assignments)
+
+
+def block_command(
+    alias: Alias,
+    body: str,
+    env_assignments: Optional[List[Tuple[str, str]]] = None,
+    current_env: Optional[Mapping[str, str]] = None,
+) -> Optional[str]:
     runner = alias.block_runner
     if body.strip() == "":
         warning(f'block alias "{alias.key}" is empty; nothing to execute')
@@ -999,12 +1243,22 @@ def block_command(alias: Alias, body: str) -> Optional[str]:
         error(f'runner "{runner}" not found or unsupported on this platform')
         return None
 
+    if env_assignments:
+        rendered, _effective = resolve_env_assignments(
+            env_assignments,
+            current_env or os.environ,
+            target_shell_for_runner(runner),
+            os.getcwd(),
+        )
+        body = block_env_prelude(rendered, target_shell_for_runner(runner)) + "\n" + body
+
     script_path = write_block_script(alias, runner, body)
     if runner in ("bash", "sh"):
         tokens = [to_shell_path(runner_cmd), to_shell_path(script_path)]
     elif runner in ("cmd", "bat"):
         if CMDLINE_OUTPUT == "sh":
-            tokens = [to_shell_path(runner_cmd), "/c", quote_cmd_token(script_path, always=True)]
+            command_text = f"call {script_path}"
+            tokens = [to_shell_path(runner_cmd), "/d", "/s", "/c", command_text]
         else:
             tokens = [runner_cmd, "/c", script_path]
     else:
@@ -1083,7 +1337,10 @@ def list_aliases() -> int:
     return 0
 
 
-def resolve_alias_tokens(input_tokens: List[str]) -> Optional[List[str]]:
+def resolve_alias_tokens(
+    input_tokens: List[str],
+    env_assignments: Optional[List[Tuple[str, str]]] = None,
+) -> Optional[ResolvedCommand]:
     """在 Python core 内递归展开 wsha/w alias，避免 Windows batch 多层重入破坏 argv 引号。"""
     current_tokens = list(input_tokens)
     for _depth in range(MAX_ALIAS_DEPTH):
@@ -1092,35 +1349,38 @@ def resolve_alias_tokens(input_tokens: List[str]) -> Optional[List[str]]:
             dstar_warning = find_empty_dstar_warning(current_tokens)
             if dstar_warning:
                 warning(dstar_warning)
-            return current_tokens
+            return ResolvedCommand(current_tokens)
 
         runtime_args = current_tokens[args_start:] if args_start < len(current_tokens) else []
         if alias.is_block:
             if runtime_args:
                 warning(f'block alias "{alias.key}" ignores extra args: {" ".join(runtime_args)}')
             body = expand_block_body(template, captures, rest_capture)
-            cmd = block_command(alias, body)
+            cmd = block_command(alias, body, env_assignments)
             if cmd is None:
                 return None
-            return [cmd]
+            return ResolvedCommand([cmd], bool(env_assignments))
 
         final_tokens = expand_template_tokens(template, captures, rest_capture, runtime_args)
         if final_tokens and template_starts_recursive_alias(template):
             current_tokens = final_tokens[1:]
             continue
-        return final_tokens
+        return ResolvedCommand(final_tokens)
 
     error(f"alias recursion exceeded {MAX_ALIAS_DEPTH} levels")
     return None
 
 
 def main() -> int:
-    show_help_flag, list_flag, clear_flag, _entry, alias_input, args = parse_cli_args(sys.argv[1:])
+    request = parse_cli_args(sys.argv[1:])
+    if not request.valid:
+        error(request.error_message)
+        return 2
 
-    if show_help_flag:
+    if request.show_help:
         print_help()
         return 0
-    if clear_flag:
+    if request.clear_cache:
         return clear_cache()
 
     single_config = os.environ.get("WSHA_CONFIG_FILE", "")
@@ -1131,28 +1391,58 @@ def main() -> int:
         if not load_config():
             return 1
 
-    if list_flag:
+    if request.list_aliases:
         return list_aliases()
 
-    if not alias_input:
+    if not request.alias:
         print("[wsha] missing alias.", file=sys.stderr)
         return 1
 
-    input_tokens = [alias_input] + args
+    input_tokens = [request.alias] + request.args
     if len(input_tokens) == 1 and " " in input_tokens[0]:
         input_tokens = input_tokens[0].split()
 
-    final_tokens = resolve_alias_tokens(input_tokens)
-    if final_tokens is None:
+    resolved_command = resolve_alias_tokens(input_tokens, request.env_assignments)
+    if resolved_command is None:
         return 1
+    final_tokens = resolved_command.tokens
+
+    rendered_assignments = [] if resolved_command.env_handled_by_runner else request.env_assignments
+    if request.env_assignments and not resolved_command.env_handled_by_runner:
+        try:
+            rendered_assignments, effective_env = resolve_env_assignments(
+                request.env_assignments,
+                os.environ,
+                output_shell(),
+                os.getcwd(),
+            )
+        except EnvResolutionError as exc:
+            error(str(exc))
+            return 2
+        try:
+            final_tokens = [
+                adapt_local_path(
+                    expand_home_path(
+                        expand_environment_references(token, effective_env, strict=True),
+                        effective_env,
+                    ),
+                    output_shell(),
+                    os.getcwd(),
+                )
+                for token in final_tokens
+            ]
+        except EnvResolutionError as exc:
+            error(str(exc))
+            return 2
 
     final_cmd = " ".join(final_tokens)
     final_cmd = normalize_windows_set_chain(final_cmd)
     if is_complex_shell_command(final_cmd) or (len(final_tokens) == 1 and (final_tokens[0] == "__WSHA_NOOP__" or re.search(r"\s", final_tokens[0]))):
-        print(final_cmd)
+        print(render_env_command(rendered_assignments, final_cmd, output_shell()))
     else:
         normalized = normalize_runtime_tokens(final_tokens)
-        print(join_plain_tokens(normalized))
+        command = join_plain_tokens(normalized)
+        print(render_env_command(rendered_assignments, command, output_shell()))
     return 0
 
 

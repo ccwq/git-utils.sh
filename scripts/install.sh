@@ -114,14 +114,48 @@ set "APP_HOME=%SCRIPT_DIR%.."
 set "APP_SH=%APP_HOME%\\sh"
 set "APP_CONFIG=%APP_SH%\\config"
 if /i "%~n0"=="w" (
-  set "WSHA_ENTRY=w"
-  call "%APP_SH%\\core\\exec-git-bash.bat" "%APP_SH%\\wsha.sh" %*
+  call "%APP_SH%\\w.bat" %*
 ) else if /i "%~n0"=="wsha" (
-  call "%APP_SH%\\core\\exec-git-bash.bat" "%APP_SH%\\wsha.sh" %*
+  call "%APP_SH%\\wsha.bat" %*
 ) else (
   call "%APP_SH%\\core\\exec-git-bash.bat" %*
 )
 EOF
+}
+
+write_powershell_launcher() {
+    local name="$1"
+    local target="$INSTALL_ROOT/bin/$name.ps1"
+
+    if [[ -e "$target" ]]; then
+        FILES_OVERWRITTEN+=("$target")
+    else
+        FILES_WRITTEN+=("$target")
+    fi
+
+    cat > "$target" <<EOF
+param(
+    [Alias('e', 'env')]
+    [switch]\$EnvPrefix,
+    [Parameter(ValueFromRemainingArguments = \$true)]
+    [string[]]\$WshaArgs
+)
+\$appHome = Split-Path -Parent \$PSScriptRoot
+\$appSh = Join-Path \$appHome 'sh'
+EOF
+    if [[ "$name" == "w" ]]; then
+        cat >> "$target" <<'EOF'
+$env:WSHA_ENTRY = 'w'
+EOF
+    fi
+    cat >> "$target" <<'EOF'
+if ($EnvPrefix) {
+    $WshaArgs = @('-e') + $WshaArgs
+}
+& (Join-Path $appSh 'wsha.ps1') @WshaArgs
+exit $LASTEXITCODE
+EOF
+    LAUNCHERS_CREATED+=("$target")
 }
 
 detect_legacy_layout() {
@@ -254,6 +288,8 @@ main() {
         write_windows_launcher "w"
         write_windows_launcher "wsha"
         write_windows_launcher "wsh"
+        write_powershell_launcher "w"
+        write_powershell_launcher "wsha"
     fi
 
     detect_legacy_layout
@@ -262,7 +298,7 @@ main() {
         NEXT_STEPS+=("add $BIN_DIR to PATH")
     fi
     if is_windows_host; then
-        NEXT_STEPS+=("run installed commands from Git Bash")
+        NEXT_STEPS+=("run installed commands from Git Bash, CMD, or PowerShell")
     fi
 
     write_report

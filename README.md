@@ -137,8 +137,11 @@ sh\wsh-ping.bat 1.1.1.1 443 -c 4 -D
 - **Windows**:
   - `w.bat` 是 `wsha.bat` 的语法糖入口
   - `wsha.bat` 直接调用 `sh/core/wsha_core.py` 完成解析，并通过 `cmd /c` 执行最终命令
+  - `wsha.ps1` 是 PowerShell 原生入口，临时环境变量使用 PowerShell 格式执行
   - 如需显式指定 Python，可设置 `WSHA_PYTHON`
 - **Linux / macOS**: 直接运行 `w.sh` / `wsha.sh`
+
+`wsha -e/--env KEY=VALUE... <command>` 可为单次命令注入环境变量；完整路径适配与示例见 [docs/W-WSHA.md](./docs/W-WSHA.md#单次环境变量注入)。
 
 #### 配置文件
 
