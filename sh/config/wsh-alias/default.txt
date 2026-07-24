@@ -36,15 +36,13 @@ pp ping t.cn
 
 
 # windows
-
 ## 搜索
 
 "ps *" "tasklist | findstr $1"
 ps "tasklist"
-
-
 kill "taskkill /f /im"
 
+# 查看端口占用进程
 "win.port *" netstat -ano | findstr ":$1"
 wp wsha win.port
 
