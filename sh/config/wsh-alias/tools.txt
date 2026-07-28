@@ -1,0 +1,7 @@
+# tailscale
+
+ts tailscale
+tssh tailscale ssh
+tss tailscale status
+ts.serve tailscale server
+ts.funnel tailscale funnel
