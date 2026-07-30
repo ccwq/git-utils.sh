@@ -3,5 +3,6 @@
 ts tailscale
 tssh tailscale ssh
 tss tailscale status
-ts.serve tailscale server
+ts.serve tailscale serve
 ts.funnel tailscale funnel
+ts.fun wsha ts.funnel
