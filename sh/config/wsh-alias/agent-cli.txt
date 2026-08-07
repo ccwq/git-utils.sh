@@ -17,7 +17,7 @@ codex-p npx -y @openai/codex@0.115.0
 codex-l wsh npx -y @openai/codex@latest
 codex-mmx wsha codex-l --model codex-MiniMax-M2.7
 codex-mini wsha codex-l --model codex-MiniMax-M2.7
-codex-yo wsha codex-l --yolo $@
+codex-yo wsha codex-l --dangerously-bypass-approvals-and-sandbox $@
 co wsha codex-l
 coyo wsha codex-yo
 coyo.proxy wsha proxy wsha coyo
