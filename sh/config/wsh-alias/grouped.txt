@@ -56,5 +56,6 @@ skills.list npx -y skills list -g
 
 
 git-up-p wsha coyo.earth "$git-up -p"
-git-up-pc wsha coyo.earth "$git-up -pc"
-git-up-pcP wsha coyo.earth "$git-up -pcP"
+git-up-s wsha coyo.earth "$git-up -s"
+git-up-sP wsha coyo.earth "$git-up -sP"
+
