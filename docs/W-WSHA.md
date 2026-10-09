@@ -1,8 +1,70 @@
-# `w` / `wsha` 使用手册
+# `w` / `wsha` 使用手册：alias 与临时环境
 
-`w` / `wsha` 用于把简短 alias 展开成完整命令再执行，适合把常用 CLI、带默认参数的命令、带通配符模板的命令统一收敛到配置文件里管理。
+> **一句话结论：** `w` / `wsha` 会先把 alias 展开为完整命令，再执行；通过 `-e/--env` 可以按调用顺序叠加 `KEY=VALUE` 或 UTF-8 `.env` 文件，变量只对本次子命令生效。
 
-## 功能介绍
+## 核心要点
+
+- `w` 是日常简写入口，`wsha` 是完整入口；`w` 最终转发到 `wsha`。
+- alias 支持精确匹配、单段 `*`、剩余参数 `**`、默认参数和递归 alias。
+- `-e/--env` 兼容现有 `KEY=VALUE`，也支持每次加载一个 `.env` 文件；来源从左到右覆盖。
+- `.env` 只作为数据文件解析，不会被 `source`、`eval` 或其他 shell 方式执行。
+- 文件、格式或变量错误会在目标命令启动前失败；临时环境不会写回当前终端。
+
+## 速览结论
+
+### 基本用法
+
+```bash
+w <alias> [args...]
+w --list
+w -l
+w --list-view
+w -lv
+```
+
+```bash
+w pcodex
+w px http-server
+w -e ./foo.env start-server
+w -e ./foo.env -e ./foo.local.env -e PORT=3000 start-server
+```
+
+来源优先级从低到高为：
+
+```text
+当前进程环境 < ./foo.env < ./foo.local.env < PORT=3000
+```
+
+`.env` 文件按 UTF-8 读取，支持 BOM、空行、整行注释、`export`、空值和单/双引号值：
+
+```dotenv
+# comment
+export NAME=ccwq
+MESSAGE="hello world"
+EMPTY=
+```
+
+相对路径以调用命令时的当前工作目录为基准；文件变量可以引用当前环境和前面已经声明的变量。不支持 shell 语句、命令替换、多行值或行尾注释。错误会在执行前返回 exit code `2`。
+
+---
+
+> **快速阅读到此结束。**
+>
+> 到这里已经可以运行 alias 和 `.env` 文件。以下内容进一步说明入口、匹配规则、环境来源、跨 shell 行为、安装方式和排障边界。
+
+## 深度说明：入口与执行流程
+
+### 一次调用的处理顺序
+
+```text
+命令行参数 → 识别 alias / env 来源 → 读取并解析 .env 文件
+→ 按顺序物化临时环境 → 展开 alias 和运行时参数
+→ 按目标 shell 渲染 → 启动目标子命令
+```
+
+环境变量只注入最终子命令及其子进程，不修改父 shell 的环境。`.env` 文件由 `sh/core/wsha_core.py` 读取，不由各个 shell wrapper 分别实现。
+
+> **事实：** 本文描述的是仓库 `sh/` 运行时入口。`py/wsha/cli.py` 是另一套独立的 Click CLI，目前不与这里的 `-e/--env` 功能自动同步。
 
 ### 入口
 
@@ -22,51 +84,6 @@
 - `w` 是面向日常使用的简写入口
 - `wsha` 是完整入口名
 - `w` 最终会转发到 `wsha`
-
-### 核心能力
-
-- 通过 alias 将短命令展开为完整命令
-- 支持 `*` 单段通配符和 `**` 剩余参数捕获
-- 支持默认参数与运行时参数合并
-- 支持 `--list` / `-l` 查看当前融合后的 alias 列表
-- 支持 `--list-view` / `-lv` 查看更详细的视图
-- 默认在执行前打印 `alias hit` / `exec` 预览日志
-- 支持 `-e` / `--env` 为单次命令注入临时环境变量
-
-### 基本用法
-
-```bash
-w <alias> [args...]
-w --list
-w -l
-w --list-view
-w -lv
-```
-
-示例：
-
-```bash
-w pcodex
-w pcodex l
-w px http-server
-w sls -l
-w "echo foo | findstr foo"
-```
-
-### 单次环境变量注入
-
-`-e` 与 `--env` 后连续读取 `KEY=VALUE`；第一个非赋值 token 起是要执行的 alias 或命令。变量仅对本次子命令生效。
-
-```bash
-wsha -e name=ccwq tag="env plan" ping t.cn
-wsha --env ROOT=%USERPROFILE%\workspace printenv ROOT
-```
-
-- 当前环境变量可写成 `%VAR%`、`$VAR`、`${VAR}`、`$env:VAR` 或 `${env:VAR}`；本次 `-e` 赋值优先于当前环境，且可从左到右互相引用。
-- 未定义变量会在执行前报错，exit code 为 `2`。
-- 只转换本地绝对路径、带 `./` / `../` / `\` 证据的相对路径以及 `~`；`https://`、`file://`、`socks5://`、`feature/foo` 等 URI 或歧义文本保持原样。
-- Git Bash 使用 `/c/...`，CMD 与 PowerShell 使用 `C:\...`；CMD/PowerShell 中的 `~` 也会展开为用户目录。
-- Bash/Git Bash、CMD、PowerShell 会分别生成对应的临时环境变量设置语法。
 
 ## 配置来源
 
@@ -139,6 +156,69 @@ w bar --age 40
 ```bash
 barbar --age 40 --name ccwq
 ```
+
+## 深度说明：`-e/--env` 环境来源
+
+### 文件与赋值的组合
+
+每个文件单独使用一次 `-e/--env`；命令行赋值仍可在同一调用中连续出现：
+
+```bash
+w -e ./foo.env -e ./foo.local.env -e PORT=3000 start-server
+w --env=./foo.env printenv NAME
+```
+
+`KEY=VALUE` 优先按赋值处理；带 `./`、`../`、绝对路径、路径分隔符或 `.env` / `.env.*` 名称的 token 才作为文件候选。文件候选不存在、不可读或指向目录时立即报错；普通字符串不会被静默当作文件。
+
+### 覆盖与引用顺序
+
+```text
+当前进程环境 → ./foo.env → ./foo.local.env → PORT=3000
+```
+
+后出现的值覆盖前面的同名值。文件内部也按从上到下处理：
+
+```dotenv
+HOST=example.test
+URL=https://$HOST/api
+```
+
+文件变量可以参与 alias、嵌套 alias 和最终参数展开；只对本次子命令及其子进程生效。
+
+### 语法、路径与错误
+
+- 使用 UTF-8 读取并自动处理 BOM；忽略空行和整行注释。
+- key 必须匹配 `[A-Za-z_][A-Za-z0-9_]*`；`KEY=` 表示空字符串。
+- 支持未加引号、单引号和双引号值；值中的 `=` 和 `#` 默认是普通字符。
+- 不支持 shell 语句、命令替换、多行值、行尾注释语义或复杂 shell 转义。
+- 支持 `%VAR%`、`$VAR`、`${VAR}`、`$env:VAR`、`${env:VAR}` 和 `~`。
+- 相对文件路径使用调用命令时的当前工作目录，并采用 Linux 风格示例，例如 `./config/foo.env`。
+- Git Bash 使用 `/c/...`，CMD 和 PowerShell 使用 `C:\...`；URI 和歧义文本保持原样。
+- 文件、格式或未定义变量错误会在目标启动前返回 exit code `2`。
+
+## 深度说明：跨 shell 行为
+
+### Git Bash
+
+```bash
+bash sh/wsha.sh -e ./foo.env printenv NAME
+```
+
+### CMD
+
+```bat
+sh\wsha.bat -e ./foo.env cmd /d /c "set NAME"
+```
+
+包含 CMD 元字符的复杂环境值通过运行时 helper 传递，避免 CMD 多次解析把值当成控制语法；`.env` 文件本身不会交给 CMD 读取或执行。
+
+### PowerShell
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File sh\wsha.ps1 -e ./foo.env powershell -NoProfile -Command 'Write-Output $env:NAME'
+```
+
+wrapper 保留原始参数顺序，把重复 `-e/--env` 交给 core 统一解析；目标命令退出码会继续返回给调用方。
 
 ## 安装与删除
 
@@ -301,6 +381,24 @@ w -lv
 - `APP_HOME`: 运行时根目录
 - `APP_SH`: 运行时 shell 目录
 - `APP_CONFIG`: 运行时配置目录
+
+## 边界与行动
+
+### 适用边界
+
+- `.env` 加载能力属于 `sh/` 运行时入口；不要据此推断独立的 `py/wsha/cli.py` 已具备相同参数。
+- `.env` 必须是本地可读文件；不会从 URI、网络地址或 shell 命令读取。
+- `.env` 适合保存本次命令需要的非交互式环境配置；敏感信息仍应按团队凭据管理规范处理。
+- 每个文件使用一个 `-e`；不要写成 `-e ./a.env ./b.env`。
+
+### 下一步验证
+
+```bash
+w -e ./foo.env printenv NAME
+w -e ./foo.env -e ./foo.local.env printenv NAME
+```
+
+若返回 exit code `2`，检查错误中的文件路径、行号、key 名和变量引用；若只在某个 shell 失败，检查目标 shell 的路径、引号和特殊字符规则。
 
 ## 相关文档
 
