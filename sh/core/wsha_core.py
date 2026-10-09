@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -66,6 +67,15 @@ URI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 
 class EnvResolutionError(ValueError):
     """Raised when strict environment expansion cannot resolve a variable."""
+
+
+class EnvFileValue(str):
+    """保留文件行来源，环境展开错误无需输出可能包含秘密的原始值。"""
+
+    def __new__(cls, value: str, origin: str):
+        instance = super().__new__(cls, value)
+        instance.origin = origin
+        return instance
 
 
 @dataclass
@@ -536,6 +546,7 @@ def print_help() -> None:
 Usage:
   wsha-core <alias> [args...]
   wsha-core -e|--env KEY=VALUE... <alias> [args...]
+  wsha-core -e|--env ./foo.env [-e|--env ./foo.local.env] <alias> [args...]
   wsha-core --list | -l | --list-view | -lv
   wsha-core --clear | --cache-clear
 
@@ -543,6 +554,8 @@ Rules:
   - Single-line aliases keep $1..$N / $$ placeholders and %VAR% expansion
   - Block aliases use triple-quoted runner blocks and [[1]] / [[...]] placeholders
   - Block runners: bash, sh, cmd, bat, pwsh, powershell
+  - --env accepts KEY=VALUE groups or one UTF-8 dotenv file per option
+  - env sources apply from left to right; later values override earlier values
   - --env variables apply only to the invoked command
 """
     )
@@ -575,17 +588,73 @@ def parse_env_assignment(token: str) -> Optional[Tuple[str, str]]:
     return match.group(1), match.group(2)
 
 
+def is_env_file_candidate(token: str, cwd: str) -> bool:
+    """Recognize an env-file operand without treating an ordinary alias as a path."""
+    if not token or URI_RE.match(token):
+        return False
+    if token == ".env" or token.startswith(".env.") or token.endswith(".env"):
+        return True
+    if token.startswith(("/", "\\", "./", ".\\", "../", "..\\")):
+        return True
+    if re.match(r"^[A-Za-z]:[\/]", token) or "/" in token or "\\" in token:
+        return True
+    candidate = token if os.path.isabs(token) else os.path.join(cwd, token)
+    return os.path.isfile(candidate) or os.path.isdir(candidate)
+
+
+def host_path_from_cli(token: str, cwd: str) -> str:
+    """Convert Git Bash drive paths to host paths before opening an env file."""
+    if os.name == "nt":
+        drive = re.match(r"^/([A-Za-z])/(.*)$", token)
+        if drive:
+            return os.path.abspath(drive.group(1).upper() + ":\\" + drive.group(2).replace("/", os.sep))
+    return os.path.abspath(token if os.path.isabs(token) else os.path.join(cwd, token))
+
+
+def parse_env_file(path_token: str, cwd: str) -> List[Tuple[str, str]]:
+    """Parse the supported UTF-8 dotenv subset without executing shell syntax."""
+    path = host_path_from_cli(path_token, cwd)
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline=None) as handle:
+            lines = handle.readlines()
+    except (OSError, UnicodeError) as exc:
+        raise EnvResolutionError(f"unable to read env file {path_token}: {exc}") from exc
+
+    assignments: List[Tuple[str, str]] = []
+    for line_no, raw_line in enumerate(lines, 1):
+        stripped = raw_line.rstrip("\r\n").strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("export") and (len(stripped) == 6 or stripped[6].isspace()):
+            stripped = stripped[6:].lstrip()
+        if "=" not in stripped:
+            raise EnvResolutionError(f"invalid env file {path_token}:{line_no}: expected KEY=VALUE")
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+            raise EnvResolutionError(f"invalid env file {path_token}:{line_no}: invalid key")
+        if value.startswith(("'", '"')):
+            quote = value[0]
+            if len(value) < 2 or value.find(quote, 1) != len(value) - 1:
+                raise EnvResolutionError(f"invalid env file {path_token}:{line_no}: unterminated quote")
+            value = value[1:-1]
+        if any(ord(char) < 32 and char != chr(9) for char in value):
+            raise EnvResolutionError(f"invalid env file {path_token}:{line_no}: control character")
+        if "`" in value or "$(" in value:
+            raise EnvResolutionError(f"invalid env file {path_token}:{line_no}: shell syntax is not supported")
+        assignments.append((key, EnvFileValue(value, f"{path_token}:{line_no}")))
+    return assignments
+
+
 def parse_cli_args(argv: List[str]) -> CliRequest:
     """Parse top-level options while preserving alias runtime arguments verbatim."""
     request = CliRequest()
-
+    cwd = os.getcwd()
+    has_env = False
     i = 0
     while i < len(argv):
         token = argv[i]
-        if request.alias is not None:
-            request.args = argv[i:]
-            break
-
         if token == "--entry":
             if i + 1 >= len(argv):
                 request.valid = False
@@ -599,38 +668,39 @@ def parse_cli_args(argv: List[str]) -> CliRequest:
             i += 1
             continue
         if token in ("-e", "--env") or token.startswith("--env="):
-            parsed_count = 0
+            has_env = True
             if token.startswith("--env="):
-                parsed = parse_env_assignment(token.split("=", 1)[1])
-                if parsed is None:
-                    request.valid = False
-                    request.error_message = "--env requires KEY=VALUE"
-                    return request
-                request.env_assignments.append(parsed)
-                parsed_count = 1
+                operand = token.split("=", 1)[1]
                 i += 1
             else:
                 i += 1
-
-            while i < len(argv):
-                parsed = parse_env_assignment(argv[i])
-                if parsed is None:
-                    break
-                request.env_assignments.append(parsed)
-                parsed_count += 1
+                if i >= len(argv):
+                    request.valid = False
+                    request.error_message = "-e/--env requires KEY=VALUE or an env file"
+                    return request
+                operand = argv[i]
                 i += 1
-
-            if parsed_count == 0:
+            parsed = parse_env_assignment(operand)
+            if parsed is not None:
+                request.env_assignments.append(parsed)
+                while i < len(argv):
+                    parsed = parse_env_assignment(argv[i])
+                    if parsed is None:
+                        break
+                    request.env_assignments.append(parsed)
+                    i += 1
+            elif is_env_file_candidate(operand, cwd):
+                try:
+                    request.env_assignments.extend(parse_env_file(operand, cwd))
+                except EnvResolutionError as exc:
+                    request.valid = False
+                    request.error_message = str(exc)
+                    return request
+            else:
                 request.valid = False
-                request.error_message = "-e/--env requires at least one KEY=VALUE assignment"
+                request.error_message = "-e/--env requires KEY=VALUE or an env file path"
                 return request
-            if i >= len(argv):
-                request.valid = False
-                request.error_message = "-e/--env requires a command after assignments"
-                return request
-            request.alias = argv[i]
-            request.args = argv[i + 1 :]
-            break
+            continue
         if token in ("-h", "--help"):
             request.show_help = True
             i += 1
@@ -643,11 +713,12 @@ def parse_cli_args(argv: List[str]) -> CliRequest:
             request.clear_cache = True
             i += 1
             continue
-
         request.alias = token
         request.args = argv[i + 1 :]
         break
-
+    if request.alias is None and has_env and request.valid:
+        request.valid = False
+        request.error_message = "-e/--env requires a command after env sources"
     return request
 
 
@@ -795,8 +866,9 @@ def find_empty_dstar_warning(input_tokens: List[str]) -> Optional[str]:
     return None
 
 
-def expand_template_tokens(template: str, captures: List[str], rest_capture: str, runtime_args: List[str]) -> List[str]:
-    result = expand_env_vars(template)
+def expand_template_tokens(template: str, captures: List[str], rest_capture: str, runtime_args: List[str], env: Optional[Mapping[str, str]] = None) -> List[str]:
+    # 延后 env 展开，避免分词破坏值边界、嵌套赋值引用外层旧值。
+    result = template if env is not None else expand_env_vars(template)
     for i in range(len(captures) - 1, -1, -1):
         result = result.replace(f"${i + 1}", captures[i])
     result = result.replace("$$", rest_capture)
@@ -816,9 +888,10 @@ def expand_template_tokens(template: str, captures: List[str], rest_capture: str
     return final_tokens
 
 
-def template_starts_recursive_alias(template: str) -> bool:
+def template_starts_recursive_alias(template: str, env: Optional[Mapping[str, str]] = None) -> bool:
     """Only recurse when the alias author explicitly starts the template with w/wsha."""
-    tokens = tokenize(expand_env_vars(template))
+    expanded = expand_environment_references(template, env, strict=False) if env is not None else expand_env_vars(template)
+    tokens = tokenize(expanded)
     if not tokens:
         return False
 
@@ -936,8 +1009,19 @@ def resolve_env_assignments(
     effective_env = dict(current_env)
     rendered: List[Tuple[str, str]] = []
     for name, raw_value in assignments:
-        resolved_value = expand_environment_references(raw_value, effective_env, strict=True)
-        resolved_value = expand_home_path(resolved_value, effective_env)
+        try:
+            resolved_value = expand_environment_references(raw_value, effective_env, strict=True)
+            resolved_value = expand_home_path(resolved_value, effective_env)
+        except EnvResolutionError as exc:
+            origin = getattr(raw_value, "origin", "")
+            if origin:
+                raise EnvResolutionError(f"{origin}: {exc}") from exc
+            raise
+        # Windows 同名环境键不区分大小写，后值也必须覆盖不同大小写的旧键。
+        if os.name == "nt":
+            for key in list(effective_env):
+                if key != name and key.lower() == name.lower():
+                    del effective_env[key]
         effective_env[name] = resolved_value
         rendered.append((name, adapt_local_path(resolved_value, target_shell, cwd)))
     return rendered, effective_env
@@ -1007,7 +1091,13 @@ def render_env_command(assignments: List[Tuple[str, str]], command: str, target_
     if not assignments:
         return command
     if target_shell == "cmd":
-        prefixes = [f'set "{name}={value.replace(chr(34), chr(34) * 2)}"' for name, value in assignments]
+        if any(re.search(r'[&|<>^!%"()]', value) for _name, value in assignments):
+            # CMD 会多次解析 set 链，复杂值通过环境字典传递，不拼接为 shell 代码。
+            payload = json.dumps({"assignments": assignments, "command": command}, ensure_ascii=True)
+            encoded = base64.b64encode(payload.encode("utf-8")).decode("ascii")
+            helper = os.path.join(get_core_dir(), "wsha_env_exec.py")
+            return " ".join(quote_cmd_token(token) for token in [sys.executable, helper, encoded])
+        prefixes = [f'set "{name}={value}"' for name, value in assignments]
         return " && ".join(prefixes + [command])
     if target_shell == "powershell":
         prefixes = [f"$env:{name}='{value.replace(chr(39), chr(39) * 2)}'" for name, value in assignments]
@@ -1264,7 +1354,7 @@ def block_command(
             tokens = [runner_cmd, "/c", script_path]
     else:
         if CMDLINE_OUTPUT == "sh":
-            tokens = [to_shell_path(runner_cmd), "-NoProfile", "-File", quote_cmd_token(script_path, always=True)]
+            tokens = [to_shell_path(runner_cmd), "-NoProfile", "-File", to_shell_path(script_path)]
         else:
             tokens = [runner_cmd, "-NoProfile", "-File", script_path]
     return join_output_tokens(tokens)
@@ -1346,6 +1436,13 @@ def resolve_alias_tokens(
     current_tokens = list(input_tokens)
     collected_env_assignments = list(env_assignments or [])
     for _depth in range(MAX_ALIAS_DEPTH):
+        effective_env = None
+        if collected_env_assignments:
+            _rendered, effective_env = resolve_env_assignments(
+                collected_env_assignments, os.environ, output_shell(), os.getcwd()
+            )
+            if current_tokens:
+                current_tokens[0] = expand_environment_references(current_tokens[0], effective_env, strict=True)
         alias_key, template, captures, rest_capture, args_start, alias = find_best_match(current_tokens)
         if not alias_key or alias is None:
             dstar_warning = find_empty_dstar_warning(current_tokens)
@@ -1363,8 +1460,10 @@ def resolve_alias_tokens(
                 return None
             return ResolvedCommand([cmd], bool(collected_env_assignments), collected_env_assignments)
 
-        final_tokens = expand_template_tokens(template, captures, rest_capture, runtime_args)
-        if final_tokens and template_starts_recursive_alias(template):
+        recursive = template_starts_recursive_alias(template, effective_env)
+        # 递归模板可能自行引入 env，右值须留到该层参数解析后处理。
+        final_tokens = expand_template_tokens(template, captures, rest_capture, runtime_args, effective_env)
+        if final_tokens and recursive:
             recursive_tokens = final_tokens[1:]
             if recursive_tokens and (
                 recursive_tokens[0] in ("-e", "--env")
@@ -1372,12 +1471,8 @@ def resolve_alias_tokens(
             ):
                 nested_request = parse_cli_args(recursive_tokens)
                 if not nested_request.valid:
-                    error(nested_request.error_message)
-                    return None
+                    raise EnvResolutionError(nested_request.error_message)
                 collected_env_assignments.extend(nested_request.env_assignments)
-                if not nested_request.alias:
-                    error("recursive wsha --env requires a command")
-                    return None
                 current_tokens = [nested_request.alias] + nested_request.args
             else:
                 current_tokens = recursive_tokens
@@ -1419,7 +1514,11 @@ def main() -> int:
     if len(input_tokens) == 1 and " " in input_tokens[0]:
         input_tokens = input_tokens[0].split()
 
-    resolved_command = resolve_alias_tokens(input_tokens, request.env_assignments)
+    try:
+        resolved_command = resolve_alias_tokens(input_tokens, request.env_assignments)
+    except EnvResolutionError as exc:
+        error(str(exc))
+        return 2
     if resolved_command is None:
         return 1
     final_tokens = resolved_command.tokens

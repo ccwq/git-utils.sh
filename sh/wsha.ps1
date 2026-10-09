@@ -1,16 +1,8 @@
-param(
-    [Alias('e', 'env')]
-    [switch]$EnvPrefix,
-    [Parameter(ValueFromRemainingArguments = $true)]
-    [string[]]$WshaArgs
-)
+# Keep repeated -e/--env options and target-command flags in their original order.
+$WshaArgs = @($args)
 
 $ErrorActionPreference = 'Stop'
 $scriptDir = $PSScriptRoot
-
-if ($EnvPrefix) {
-    $WshaArgs = @('-e') + $WshaArgs
-}
 
 if (-not $env:WSHA_ENTRY) {
     $env:WSHA_ENTRY = 'wsha'
@@ -44,8 +36,11 @@ $stdoutPath = "$tempBase.out"
 $stderrPath = "$tempBase.err"
 
 try {
+    # Windows PowerShell 将原生 stderr 包装为 ErrorRecord，不能因此跳过 core 的退出码。
+    $ErrorActionPreference = 'Continue'
     & $pythonExe $pythonEntry --entry $env:WSHA_ENTRY @WshaArgs 1> $stdoutPath 2> $stderrPath
     $coreExit = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
 
     if (Test-Path -LiteralPath $stderrPath) {
         Get-Content -LiteralPath $stderrPath | ForEach-Object { [Console]::Error.WriteLine($_) }
@@ -73,7 +68,11 @@ try {
 
     [Console]::Error.WriteLine("[wsha] exec: $finalCommand")
     $hostExe = (Get-Process -Id $PID).Path
-    & $hostExe -NoProfile -ExecutionPolicy Bypass -Command $finalCommand
+    # EncodedCommand 避免 PowerShell 5.1 的 native argv 重组吞掉命令中的双引号。
+    $exitPrelude = '$LASTEXITCODE = $null; '
+    $exitSuffix = '; if ($null -ne $LASTEXITCODE) { exit $LASTEXITCODE }; if (-not $?) { exit 1 }'
+    $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($exitPrelude + $finalCommand + $exitSuffix))
+    & $hostExe -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedCommand
     exit $LASTEXITCODE
 }
 finally {

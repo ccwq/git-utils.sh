@@ -134,12 +134,7 @@ write_powershell_launcher() {
     fi
 
     cat > "$target" <<EOF
-param(
-    [Alias('e', 'env')]
-    [switch]\$EnvPrefix,
-    [Parameter(ValueFromRemainingArguments = \$true)]
-    [string[]]\$WshaArgs
-)
+# Forward original arguments without binding repeated env options.
 \$appHome = Split-Path -Parent \$PSScriptRoot
 \$appSh = Join-Path \$appHome 'sh'
 EOF
@@ -149,10 +144,7 @@ $env:WSHA_ENTRY = 'w'
 EOF
     fi
     cat >> "$target" <<'EOF'
-if ($EnvPrefix) {
-    $WshaArgs = @('-e') + $WshaArgs
-}
-& (Join-Path $appSh 'wsha.ps1') @WshaArgs
+& (Join-Path $appSh 'wsha.ps1') @args
 exit $LASTEXITCODE
 EOF
     LAUNCHERS_CREATED+=("$target")
