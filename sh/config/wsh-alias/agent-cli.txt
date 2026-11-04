@@ -1,7 +1,8 @@
 #----------------------
 # agent-browser
 #----------------------
-ab npx -y agent-browser
+ab agent-browser
+ab.install volta install agent-browser
 abc wsha ab --cdp 9696
 abcc wsha ab --cdp %CDPORT%
 ab-p npx -y agent-browser@0.16.3
