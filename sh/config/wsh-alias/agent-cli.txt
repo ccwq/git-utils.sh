@@ -31,7 +31,10 @@ coyo.sun wsha coyo --model gpt-5.6-sol
 #----------------------
 # claude
 #----------------------
-claude wsha claude-p
+claude wsha claude --dangerously-skip-permissions
+claude.up npm i -g @anthropic-ai/claude-code@latest
+claude..up wsha claude.up && wsha claude
+
 claude-p npx -y @anthropic-ai/claude-code
 # claude-l set CLAUDE_CODE_DISABLE_MOUSE=1 && npx -y @anthropic-ai/claude-code@latest
 claude-l npx -y @anthropic-ai/claude-code@latest
