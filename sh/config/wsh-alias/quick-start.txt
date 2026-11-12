@@ -1,0 +1,3 @@
+ag-sys fresh %USERPROFILE%\ag-sys
+w.user-profile fresh %USERPROFILE%\.config\wsh-alias\
+w.global-profile echo "请执行: w w.user-profile 来设置"
