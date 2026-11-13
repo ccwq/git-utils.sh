@@ -1,9 +1,3 @@
-ag-sys fresh ~/ag-sys
+ag-sys fresh ~\ag-sys
 w.user-profile  fresh  ~\\.config\\wsh-alias
 w.global-profile echo "请执行: w w.user-profile 来设置"
-
-
-eee echo "%USERPROFILE%\\ag-sys"
-eee1 echo "~\\ag-sys"
-eee2 echo "~\ag-sys"
-eee3 echo "~\\\ag-sys"
