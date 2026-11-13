@@ -216,14 +216,29 @@ def get_app_env() -> Tuple[str, str, str]:
     return app_home, app_sh, app_config
 
 
+_TILDE_SEPARATOR_SENTINEL = ""
+
+
 def tokenize(text: str) -> List[str]:
-    """将文本解析为 token 数组，保留配置中引号包裹的整体参数。"""
+    """将文本解析为 token 数组，并保留 ``~\\path`` 中的路径分隔符。
+
+    ``shlex`` 的 POSIX 模式会把反斜杠当作转义符，因此 ``~\\ag-sys``
+    会错误地变成 ``~ag-sys``。只保护用户目录标记后的反斜杠，避免改变
+    普通 Windows 路径、UNC 路径和 shell 命令的既有分词行为。
+    """
     if not text:
         return []
+
+    protected = re.sub(
+        r"(?<![^\s\"'])~\\+",
+        lambda match: "~" + _TILDE_SEPARATOR_SENTINEL * len(match.group(0)[1:]),
+        text,
+    )
     try:
-        return shlex.split(text, posix=True)
+        tokens = shlex.split(protected, posix=True)
     except ValueError:
-        return [w for w in text.split() if w]
+        tokens = [word for word in protected.split() if word]
+    return [token.replace(_TILDE_SEPARATOR_SENTINEL, "\\") for token in tokens]
 
 
 def strip_outer_template_quotes(template: str) -> str:
@@ -952,12 +967,21 @@ def home_dir_from_env(env: Mapping[str, str]) -> str:
 
 
 def expand_home_path(value: str, env: Mapping[str, str]) -> str:
-    """Expand only a leading user-home marker; keep embedded tildes literal."""
+    """Expand only a leading user-home marker; keep embedded tildes literal.
+
+    Accept one or more separators after ``~`` so PowerShell, cmd/Clink and
+    Git Bash spellings (``~\\ag-sys``, ``~\\\\ag-sys`` and ``~/ag-sys``)
+    resolve to the same home-relative path.
+    """
     if value == "~":
         return home_dir_from_env(env)
-    if value.startswith("~/") or value.startswith("~\\"):
-        return home_dir_from_env(env) + value[1:]
-    return value
+    match = re.match(r"^~(?P<separators>[\\\\/]+)(?P<rest>.*)$", value)
+    if not match:
+        return value
+    home = home_dir_from_env(env).rstrip("\\/")
+    separator = os.sep
+    rest = match.group("rest").replace("/", separator).replace("\\", separator)
+    return home + separator + rest
 
 
 def is_local_path_candidate(value: str, cwd: Optional[str] = None) -> bool:
@@ -997,6 +1021,25 @@ def adapt_local_path(value: str, target_shell: str, cwd: Optional[str] = None) -
         return value.replace("/", "\\")
 
     return value.replace("\\", "/") if "\\" in value else value
+
+
+def expand_home_token(value: str, env: Mapping[str, str], target_shell: str) -> str:
+    """只适配确实发生用户目录展开的参数，普通路径和命令开关保持原样。"""
+    if value != "~" and not value.startswith(("~/", "~\\")):
+        return value
+    expanded = expand_home_path(value, env)
+    if expanded == value:
+        return value
+    return adapt_local_path(expanded, target_shell)
+
+
+def adapt_env_token(value: str, env: Mapping[str, str], target_shell: str, cwd: str) -> str:
+    """保留 -e 命令的本地路径适配，但不将 UNC 和命令开关当作本地路径。"""
+    if value == "~" or value.startswith(("~/", "~\\")):
+        return expand_home_token(value, env, target_shell)
+    if value.startswith(("\\\\", "//", "-")) or re.fullmatch(r"/[^/\\]+", value):
+        return value
+    return adapt_local_path(value, target_shell, cwd)
 
 
 def resolve_env_assignments(
@@ -1538,11 +1581,9 @@ def main() -> int:
             return 2
         try:
             final_tokens = [
-                adapt_local_path(
-                    expand_home_path(
-                        expand_environment_references(token, effective_env, strict=True),
-                        effective_env,
-                    ),
+                adapt_env_token(
+                    expand_environment_references(token, effective_env, strict=True),
+                    effective_env,
                     output_shell(),
                     os.getcwd(),
                 )
@@ -1551,6 +1592,12 @@ def main() -> int:
         except EnvResolutionError as exc:
             error(str(exc))
             return 2
+    elif not resolved_command.env_handled_by_runner:
+        # 不依赖 -e/--env 展开用户目录；普通路径、UNC 和 /c 等开关不做适配。
+        final_tokens = [
+            expand_home_token(token, os.environ, output_shell())
+            for token in final_tokens
+        ]
 
     final_cmd = " ".join(final_tokens)
     final_cmd = normalize_windows_set_chain(final_cmd)

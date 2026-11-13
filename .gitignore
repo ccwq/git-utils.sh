@@ -8,3 +8,12 @@
 *.pyc
 /.idea
 test_playground_*
+
+# >>> project-self-memory cache >>>
+# 运行时产物：跨会话暂存与并发锁，不入版本库
+/.project-self-memory/cache.jsonl
+/.project-self-memory/cache.lock
+/.project-self-memory/memory.lock
+/.project-self-memory/evidence.lock
+/.project-self-memory/backups
+# <<< project-self-memory cache <<<
