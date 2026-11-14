@@ -1,3 +1,9 @@
-ag-sys fresh ~\ag-sys
+fr.ag-sys fresh ~\ag-sys
+fr.claude fresh ~\.claude
+fr.codex fresh ~\.codex
+
+
 w.user-profile  fresh  ~\\.config\\wsh-alias
 w.global-profile echo "请执行: w w.user-profile 来设置"
+
+
