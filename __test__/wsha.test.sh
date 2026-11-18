@@ -692,28 +692,155 @@ test_quoted_content_equivalence() {
     record_test_result "test_quoted_content_equivalence" "$result" "$duration" "$note"
 }
 
+# Given：配置中存在 token 内嵌 ** 的 alias（如 "s**"），且 ** 捕获的是剩余全部内容。
+# When：分别以 "s ls -l" 和 "sls -l" 请求该 alias。
+# Then："s ls -l" 命中并展开为 "wsh ls -l"；"sls -l" 不再命中，原样透传。
+# 防回归：旧断言 sls -> wsh ls 依赖字面量头吃 token 内部前缀，该行为是 skills -> kills bug 根源，
+#         经用户批准移除；** 前的字面量必须匹配完整 token。
 test_double_star_capture() {
-    local start_time end_time duration result note config_file
+    local start_time end_time duration result note config_file clean_output
     start_time=$(current_time)
     result="FAIL"
     note=""
     config_file="$TEST_DIR/alias-quoted-wildcard.txt"
     write_wsha_quoted_wildcard_config "$config_file"
 
-    run_wsha "$config_file" sls -l
-    local clean_output
+    run_wsha_core "$config_file" s ls -l
     clean_output=$(strip_time_logs "$output")
-    if [[ $run_code -eq 0 ]] && [[ "$clean_output" == *"wsh ls -l"* ]]; then
-        result="PASS"
-        log_success "双星号剩余参数捕获测试通过"
-    else
-        note="output=[$clean_output], code=$run_code"
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"wsh ls -l"* ]]; then
+        note="s ls -l 未命中双星号捕获 output=[$clean_output], code=$run_code"
         log_fail "$note"
+    else
+        run_wsha_core "$config_file" sls -l
+        clean_output=$(strip_time_logs "$output")
+        if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"sls -l"* ]] || [[ "$clean_output" == *"wsh ls"* ]]; then
+            note="sls -l 应原样透传 output=[$clean_output], code=$run_code"
+            log_fail "$note"
+        else
+            result="PASS"
+            log_success "双星号剩余参数捕获测试通过"
+        fi
     fi
 
     end_time=$(current_time)
     duration=$(calc_duration "$start_time" "$end_time")
     record_test_result "test_double_star_capture" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在 "s **" 两 token 形式的 alias，** 前是独立字面量 token。
+# When：分别请求 "s ls -l"、"skills"、"skills add"、"status"。
+# Then："s ls -l" 命中并展开为 "wsh ls -l"；skills、skills add、status 原样透传。
+# 防回归：防止字面量 token "s" 吃掉 token 内部前缀，导致 skills 被展开成 wsh kills add、
+#         status 被展开成 wsh tatus。
+test_double_star_word_boundary_space_token() {
+    local start_time end_time duration result note config_file clean_output
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-double-star-space.txt"
+    write_wsha_double_star_space_config "$config_file"
+
+    run_wsha_core "$config_file" s ls -l
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"wsh ls -l"* ]]; then
+        note="s ls -l 未命中双星号捕获 output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    else
+        run_wsha_core "$config_file" skills
+        clean_output=$(strip_time_logs "$output")
+        if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"skills"* ]] || [[ "$clean_output" == *"wsh"* ]]; then
+            note="skills 应原样透传 output=[$clean_output], code=$run_code"
+            log_fail "$note"
+        else
+            run_wsha_core "$config_file" skills add
+            clean_output=$(strip_time_logs "$output")
+            if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"skills add"* ]] || [[ "$clean_output" == *"wsh"* ]]; then
+                note="skills add 应原样透传 output=[$clean_output], code=$run_code"
+                log_fail "$note"
+            else
+                run_wsha_core "$config_file" status
+                clean_output=$(strip_time_logs "$output")
+                if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"status"* ]] || [[ "$clean_output" == *"wsh"* ]]; then
+                    note="status 应原样透传 output=[$clean_output], code=$run_code"
+                    log_fail "$note"
+                else
+                    result="PASS"
+                    log_success "双星号空格分隔词边界透传测试通过"
+                fi
+            fi
+        fi
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_double_star_word_boundary_space_token" "$result" "$duration" "$note"
+}
+
+# Given：内置 default.txt 使用 "s **" 两 token 形式提供 wsh 缩写。
+# When：请求 "skills add" 与 "status"。
+# Then：两者都不命中该 alias，原样透传。
+# 防回归：防止内置配置的 s 缩写吃掉 token 内部前缀。
+test_double_star_word_boundary_default_config() {
+    local start_time end_time duration result note config_file clean_output
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$PROJECT_ROOT/sh/config/wsh-alias/default.txt"
+
+    run_wsha_core "$config_file" skills add
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"skills add"* ]] || [[ "$clean_output" == *"wsh"* ]]; then
+        note="skills add 应原样透传 output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    else
+        run_wsha_core "$config_file" status
+        clean_output=$(strip_time_logs "$output")
+        if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"status"* ]] || [[ "$clean_output" == *"wsh"* ]]; then
+            note="status 应原样透传 output=[$clean_output], code=$run_code"
+            log_fail "$note"
+        else
+            result="PASS"
+            log_success "内置配置双星号词边界透传测试通过"
+        fi
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_double_star_word_boundary_default_config" "$result" "$duration" "$note"
+}
+
+# Given：配置中存在 token 内嵌 ** 的 alias（如 "s**"），字面量头 "s" 与 ** 同处一个 token。
+# When：分别以 "skills add" 和 "status" 请求。
+# Then：两者都不命中该 alias，原样透传，不会被展开成 wsh kills add / wsh tatus。
+# 防回归：防止 ** 前的字面量头只匹配 token 前缀，导致 skills / status 被误捕获。
+test_double_star_word_boundary_literal_head() {
+    local start_time end_time duration result note config_file clean_output
+    start_time=$(current_time)
+    result="FAIL"
+    note=""
+    config_file="$TEST_DIR/alias-quoted-wildcard.txt"
+    write_wsha_quoted_wildcard_config "$config_file"
+
+    run_wsha_core "$config_file" skills add
+    clean_output=$(strip_time_logs "$output")
+    if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"skills add"* ]] || [[ "$clean_output" == *"wsh"* ]]; then
+        note="skills add 应原样透传 output=[$clean_output], code=$run_code"
+        log_fail "$note"
+    else
+        run_wsha_core "$config_file" status
+        clean_output=$(strip_time_logs "$output")
+        if [[ $run_code -ne 0 ]] || [[ "$clean_output" != *"status"* ]] || [[ "$clean_output" == *"wsh"* ]]; then
+            note="status 应原样透传 output=[$clean_output], code=$run_code"
+            log_fail "$note"
+        else
+            result="PASS"
+            log_success "双星号字面量头词边界透传测试通过"
+        fi
+    fi
+
+    end_time=$(current_time)
+    duration=$(calc_duration "$start_time" "$end_time")
+    record_test_result "test_double_star_word_boundary_literal_head" "$result" "$duration" "$note"
 }
 
 # Given：内置 default.txt 同时提供 ps 的无参数/搜索模式，以及可选参数的 kill 命令。
@@ -1493,6 +1620,9 @@ main() {
     test_quoted_content_equivalence
     test_wildcard_multi_capture
     test_double_star_capture
+    test_double_star_word_boundary_space_token
+    test_double_star_word_boundary_default_config
+    test_double_star_word_boundary_literal_head
     test_default_process_aliases_support_optional_args
     test_recursive_alias_quoted_prompt_with_dollar_at
     test_recursive_alias_dollar_prompt_is_literal

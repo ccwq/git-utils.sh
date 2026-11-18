@@ -128,6 +128,11 @@ def match_double_star_remainder(
     1. Build regex from head and tail parts
     2. Extract remainder that ** captures
 
+    When the pattern has a non-empty literal head (e.g. the "s" of "s**"),
+    that head must match a complete token: the ** remainder has to be empty
+    (end of input) or start with a whitespace character. Otherwise the match
+    is rejected, so "s**" never swallows the "sls" of "sls -l".
+
     Args:
         pattern: Pattern with ** (e.g., "s**", "g** remote", "** foo")
         input_text: Full input text to match
@@ -139,11 +144,10 @@ def match_double_star_remainder(
         - rest_capture: Everything captured by **
 
     Example:
-        >>> ok, caps, rest = match_double_star_remainder('s**', 'ls -l')
-        >>> ok
-        True
-        >>> rest
-        'ls -l'
+        >>> match_double_star_remainder('s**', 's ls -l')
+        (True, [], 'ls -l')
+        >>> match_double_star_remainder('s**', 'sls -l')
+        (False, [], '')
     """
     # Find ** position in pattern
     dstar_idx = pattern.find('**')
@@ -190,6 +194,15 @@ def match_double_star_remainder(
                 rest_capture = groups[-1] if groups else ""
                 # Filter out empty head captures
                 head_captures = [c for c in head_captures if c is not None]
+                if head:
+                    # 隐式词边界规则：head 非空时，head 字面量必须匹配完整 token，
+                    # 即 ** 捕获要么为空串（串尾），要么以空白字符开头；
+                    # 否则该候选视为不匹配并静默跳过（如 s** 不应命中 sls）。
+                    if rest_capture and not rest_capture[:1].isspace():
+                        return (False, [], "")
+                    if rest_capture:
+                        # 去掉分隔用的空白，避免模板展开时出现多余空格。
+                        rest_capture = rest_capture.lstrip()
                 return (True, head_captures, rest_capture or "")
     except re.error:
         pass

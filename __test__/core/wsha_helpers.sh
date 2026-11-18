@@ -60,6 +60,13 @@ pcodex echo codex-default
 EOF
 }
 
+write_wsha_double_star_space_config() {
+    local file_path="$1"
+    cat > "$file_path" <<'EOF'
+"s **" echo wsh $$
+EOF
+}
+
 write_wsha_super_rule_config() {
     local file_path="$1"
     cat > "$file_path" <<'EOF'

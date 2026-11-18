@@ -130,7 +130,7 @@ tcping wsha tping
 
 
 # 为wsh增加缩写
-"s**" wsh $$
+"s **" wsh $$
 "ws" wsh
 
 ls wsh.bat ls -ah

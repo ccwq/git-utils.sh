@@ -773,7 +773,17 @@ def match_double_star_remainder(pattern: str, input_text: str) -> Tuple[bool, Li
     if match:
         groups = list(match.groups())
         if groups:
-            return True, groups[:-1], groups[-1]
+            rest = groups[-1]
+            if head:
+                # 隐式词边界规则：head 非空时，head 字面量必须匹配完整 token，
+                # 即 ** 捕获要么为空串（串尾），要么以空白字符开头；
+                # 否则该候选视为不匹配并静默跳过（如 s** 不应命中 sls）。
+                if rest and not rest[:1].isspace():
+                    return False, [], ""
+                if rest:
+                    # 去掉分隔用的空白，避免模板展开时出现多余空格。
+                    rest = rest.lstrip()
+            return True, groups[:-1], rest
     return False, [], ""
 
 

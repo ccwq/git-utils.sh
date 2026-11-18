@@ -122,7 +122,7 @@ pcodex pnpx @openai/codex
 "px*" pnpx $1
 "px *" "pnpx $1"
 "tool * *" echo $1::$2
-"s**" wsh $$
+"s **" wsh $$
 
 open-config code %APP_CONFIG%
 ```
@@ -132,6 +132,8 @@ open-config code %APP_CONFIG%
 - alias 支持双引号包裹，用于包含空格，例如 `"pcodex l"`
 - `*` 表示匹配一个 token，可在模板中通过 `$1`、`$2` 引用
 - `**` 表示匹配剩余全部内容，可在模板中通过 `$$` 引用
+- `**` 前的字面量必须匹配完整 token，例如 `s**` 不会命中 `sls`，也不会命中 `skills`
+- 需要前缀缩写时，把 `**` 写成独立 token，例如 `"s **"` 只命中以 `s` 开始的完整命令
 - 匹配优先级遵循“更长 alias 优先，其次更具体的 alias 优先”
 - alias 未命中时，会把原始命令直接透传执行
 
@@ -334,13 +336,13 @@ w px http-server
 ### 4. 使用剩余参数捕获
 
 ```txt
-"s**" wsh $$
+"s **" wsh $$
 ```
 
 使用：
 
 ```bash
-w sls -lah
+w s ls -lah
 ```
 
 实际会转成：
@@ -348,6 +350,8 @@ w sls -lah
 ```bash
 wsh ls -lah
 ```
+
+注意：`s **` 中的 `s` 是独立 token，必须完整匹配，所以 `w sls -lah` 与 `w skills` 都不会命中该别名，会原样透传执行。
 
 ### 5. 编辑内置配置目录
 
