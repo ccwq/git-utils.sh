@@ -1,6 +1,9 @@
 fr.ag-sys fresh ~\ag-sys
 fr.claude fresh ~\.claude
 fr.codex fresh ~\.codex
+fr.ssh fresh ~\.ssh
+fr.hosts fresh C:\\Windows\\System32\\drivers\\etc
+fr.configs fresh ~\.config
 
 
 w.user-profile  fresh  ~\\.config\\wsh-alias
